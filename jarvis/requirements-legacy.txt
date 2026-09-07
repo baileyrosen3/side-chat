@@ -1,0 +1,2 @@
+# Optional Zipformer/Whisper recognition. Installed with --with-legacy-asr.
+faster-whisper==1.2.1

@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "blr.side-chat",
+  "name": "Side Chat",
+  "version": "1.9.3",
+  "author": "blr",
+  "license": "GPL-3.0-or-later AND MIT",
+  "description": "Omarchy edge chat and local Jarvis voice with native agent sessions and visible computer control.",
+  "kinds": [
+    "service"
+  ],
+  "entryPoints": {
+    "service": "Main.qml"
+  }
+}

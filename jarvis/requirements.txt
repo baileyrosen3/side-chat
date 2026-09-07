@@ -1,0 +1,11 @@
+sherpa-onnx==1.13.7
+sherpa-onnx-core==1.13.7
+numpy==2.5.2
+soundfile==0.14.0
+evdev==2.0.0
+websockets==17.1
+pocket-tts==3.1.0
+torch==2.14.0+cpu
+onnxruntime==1.29.0
+pymicro-wakeword==2.4.1
+pymicro-features==2.0.2

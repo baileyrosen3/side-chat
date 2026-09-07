@@ -1,0 +1,90 @@
+{
+  "type": "object",
+  "properties": {
+    "frame": {
+      "type": "string"
+    },
+    "screen": {
+      "type": "string"
+    },
+    "window": {
+      "type": "string"
+    },
+    "x": {
+      "type": "number"
+    },
+    "y": {
+      "type": "number"
+    },
+    "toX": {
+      "type": "number"
+    },
+    "toY": {
+      "type": "number"
+    },
+    "button": {
+      "type": "string"
+    },
+    "count": {
+      "type": "integer"
+    },
+    "amount": {
+      "type": "integer"
+    },
+    "horizontal": {
+      "type": "boolean"
+    },
+    "text": {
+      "type": "string"
+    },
+    "key": {
+      "type": "string"
+    },
+    "op": {
+      "type": "string",
+      "enum": [
+        "windows",
+        "screenshot",
+        "focus",
+        "move",
+        "click",
+        "drag",
+        "scroll",
+        "type",
+        "key",
+        "browser",
+        "inspect_app",
+        "accessible_action",
+        "config_read",
+        "config_write",
+        "undo_list",
+        "undo_restore"
+      ]
+    },
+    "args": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "target": {
+      "type": "string"
+    },
+    "actionName": {
+      "type": "string"
+    },
+    "path": {
+      "type": "string"
+    },
+    "expected": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string"
+    }
+  },
+  "required": [
+    "op"
+  ],
+  "additionalProperties": false
+}

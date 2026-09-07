@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+dev/Commons
+dev/Ui
+dev/state/
+dev/*.log
+dev/*.png
+/Commons
+/Ui
+/.agents/
+/.codex/
+/:memory:.ses
+jarvis/parakeet/target/
