@@ -191,6 +191,7 @@ def main(argv=None):
     print("Dependency checks passed. No microphone or agent request was started.")
     print("Enable chat: omarchy plugin enable " + PLUGIN)
     print("Open chat:   omarchy-shell " + PLUGIN + " open")
+    print("After an update, reload cached UI with: omarchy restart shell")
     return 0
 
 

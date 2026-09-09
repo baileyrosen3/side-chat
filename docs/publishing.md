@@ -39,7 +39,9 @@ readiness.
 
 Use `omarchy plugin update blr.side-chat --yes` for the documented trusted
 Git update path. Omitting `--yes` intentionally prints the incoming diff and
-asks for confirmation. The custom
+asks for confirmation. Follow the update with `omarchy restart shell`; the
+updater requests a hot rescan, but restarting the long-running Quickshell
+process guarantees that cached nested QML types are replaced. The custom
 `install.py` copies development builds into timestamped runtime directories;
 it must not be used to replace a Git-managed installation. Omarchy never
 executes setup hooks during add/update, so dependency installation remains

@@ -104,9 +104,11 @@ Finish any reply and power Peek off before updating:
 omarchy plugin update blr.side-chat --yes
 cd ~/.config/omarchy/plugins/blr.side-chat
 python3 setup.py
+omarchy restart shell
+omarchy-shell blr.side-chat open
 ```
 
-`--yes` updates this trusted plugin without printing the review diff or asking for confirmation. Omit `--yes` when you want to inspect changes first; Omarchy will print the incoming Git diff and ask you to confirm. That diff is terminal output, not a file or an error.
+`--yes` updates this trusted plugin without printing the review diff or asking for confirmation. Omit `--yes` when you want to inspect changes first; Omarchy will print the incoming Git diff and ask you to confirm. That diff is terminal output, not a file or an error. Omarchy requests a plugin hot reload after updating, but a long-running Quickshell process can retain older nested QML components. Restarting the shell guarantees that the updated UI is loaded; the final command reopens Side Chat.
 
 Confirm that the checkout, manifest, and running UI agree after an update:
 
@@ -146,7 +148,7 @@ If an older copy install already occupies `blr.side-chat`, back up that folder, 
 - **Desktop clicks or takeover unavailable:** use `--check --with-desktop-input` from the active local desktop session. Browser mode can use isolated Chromium without native input access.
 - **Interrupted model download/build:** rerun setup with the same flags. Completed verified downloads are reused.
 - **Update only showed a Git diff:** the diff is Omarchy's review output, not a downloaded file. Confirm the update at the prompt, or rerun `omarchy plugin update blr.side-chat --yes`.
-- **Old UI after update:** compare the manifest and live versions with the commands above, then run `omarchy-shell shell rescanPlugins`. If the plugin folder has no `.git` directory, follow the older-copy migration note above. Keep Peek off during dependency updates.
+- **Old UI after update:** compare the manifest and live versions with the commands above, then run `omarchy restart shell` and reopen Side Chat. If the plugin folder has no `.git` directory, follow the older-copy migration note above. Keep Peek off during dependency updates.
 
 ## Use
 

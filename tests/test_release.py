@@ -25,6 +25,8 @@ class ReleaseMetadataTests(unittest.TestCase):
     def test_readme_uses_noninteractive_trusted_update_and_live_check(self):
         readme = (ROOT / "README.md").read_text()
         self.assertIn("omarchy plugin update blr.side-chat --yes", readme)
+        self.assertIn("omarchy restart shell", readme)
+        self.assertIn("omarchy-shell blr.side-chat open", readme)
         self.assertIn("omarchy-shell blr.side-chat status | jq", readme)
         self.assertIn("That diff is terminal output, not a file or an error.", readme)
 
