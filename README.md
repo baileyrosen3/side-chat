@@ -1,18 +1,40 @@
 <div align="center">
   <h1>Side Chat</h1>
-  <p><strong>A native, screen-edge AI workspace for Omarchy.</strong></p>
-  <p>Keep your coding-agent sessions close, continue them in a terminal, and optionally give them a local voice and a visible desktop companion.</p>
-  <p><a href="#install">Install</a> · <a href="#keybindings">Keybindings</a> · <a href="#update">Update</a> · <a href="#privacy-and-safety">Privacy</a></p>
+  <p><strong>A native AI side chat and local Jarvis companion for Omarchy.</strong></p>
+  <p>Keep your coding-agent sessions close, continue them in a terminal, or talk to Jarvis and watch him work.</p>
+  <p><a href="#meet-jarvis">Jarvis</a> · <a href="#install">Install</a> · <a href="#keybindings">Keybindings</a> · <a href="#update">Update</a> · <a href="#privacy-and-safety">Privacy</a></p>
 </div>
 
 ![Side Chat open at the left edge of an Omarchy desktop](preview.png)
 
-Side Chat turns the agent you already use—**OMP, Pi, Codex, or Claude**—into a compact edge drawer that feels like part of Omarchy. Conversations persist, native tools and approvals stay intact, and one click hands the exact session to your terminal.
+Side Chat brings two parts of an AI workspace together. **Chat** turns the agent you already use—OMP, Pi, Codex, or Claude—into a compact edge drawer with persistent sessions, native tools, approvals, and terminal handoff. **Jarvis** adds hands-free local voice, durable memory, fast desktop commands, and visible computer control.
 
-Add **Peek**, the optional Jarvis-style companion, for local speech recognition, spoken replies, fast desktop commands, and visible computer control. The microphone is off until you turn it on.
+## Meet Jarvis
+
+**Jarvis is the voice and computer-control layer; Peek is the animated robot who gives it a face.** He lives at the screen edge, listens only when enabled, speaks replies locally, and shows what the agent is doing while it works.
+
+<p align="center">
+  <img src="screenshots/peek.png" alt="Jarvis as the Peek companion at the screen edge" width="42%">
+  &nbsp;&nbsp;
+  <img src="screenshots/peek-controls.png" alt="Jarvis voice controls and verified action summary" width="48%">
+</p>
+
+Jarvis can answer through the same native agent session as chat, but common desktop requests never need an LLM round trip. Volume, brightness, music, app launches, workspaces, timers, and explicit web URLs are handled locally. Larger tasks go to your selected agent with the active conversation, working folder, and permission mode preserved.
+
+| Say something like… | What Jarvis does |
+| --- | --- |
+| “Set the volume to 30” | Runs a fast local command and checks the result |
+| “Open my terminal” | Uses Omarchy's configured launcher |
+| “Review this project and fix the tests” | Continues through your native coding-agent session |
+| “Remember that I prefer compact windows” | Saves an explicit local memory you can inspect or delete |
+| “Set a timer for twenty minutes” | Creates a persistent local watch and announces it when ready |
+
+The companion surface keeps microphone, spoken-reply mute, Stop, conversation, Desktop/Browser, standby, and power controls within reach. Desktop actions can use accessible app controls, native input, or an isolated Chromium session. Jarvis shows recent action state and only says **Actions verified** when supported readback checks actually matched; otherwise it asks you to review the result.
+
+Speech recognition and synthesis run locally after setup. Wake listening is optional, the microphone starts off, screen context follows your setting, and there is no background screenshot recording. Say **“Hey Jarvis”** only if you enable the wake phrase; the on-screen character remains named Peek.
 
 <details>
-<summary><strong>See history, settings, permissions, and Peek</strong></summary>
+<summary><strong>See conversation history, settings, and permissions</strong></summary>
 
 ### Find any conversation
 
@@ -23,13 +45,6 @@ Add **Peek**, the optional Jarvis-style companion, for local speech recognition,
 <p align="center">
   <img src="screenshots/preferences.png" alt="Side Chat preferences" width="48%">
   <img src="screenshots/permissions.png" alt="Per-conversation Codex permission modes" width="48%">
-</p>
-
-### Let Peek stay nearby
-
-<p align="center">
-  <img src="screenshots/peek.png" alt="Peek companion at the screen edge" width="43%">
-  <img src="screenshots/peek-controls.png" alt="Peek voice and action controls" width="49%">
 </p>
 
 All screenshots use fixture content. No microphone, provider session, or private desktop content was captured.
@@ -59,7 +74,7 @@ This is not a second AI account or a web wrapper. Side Chat uses your installed 
 - Renders selectable Markdown and fenced code with dedicated copy actions.
 - Opens from the screen edge or IPC, with no replacement bar widget and no overwritten keybindings.
 
-### Peek: local voice and visible control
+### Jarvis and Peek
 
 - Uses local Parakeet speech recognition and Pocket TTS by default; optional Kokoro and legacy ASR are available.
 - Offers wake phrase, hands-free follow-ups, barge-in, mute, stop, and device selection.
@@ -69,7 +84,7 @@ This is not a second AI account or a web wrapper. Side Chat uses your installed 
 
 ## Supported agents
 
-| Agent | Session integration | Images | Per-chat permissions | Peek |
+| Agent | Session integration | Images | Per-chat permissions | Jarvis / Peek |
 | --- | --- | --- | --- | --- |
 | OMP | Native RPC | Yes | Default, Ask, Allow writes, YOLO | Yes |
 | Pi | Native RPC | Yes | Default, Ask before tools | Yes |
@@ -117,7 +132,7 @@ omarchy default agent codex
 
 Complete that CLI's provider sign-in in its terminal, then verify the install with `python3 setup.py --check`.
 
-### 2. Add Peek voice and computer control (optional)
+### 2. Add Jarvis voice, Peek, and computer control (optional)
 
 With Peek powered off and no reply running:
 
