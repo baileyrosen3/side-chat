@@ -89,7 +89,7 @@ class ApprovalModeTests(unittest.TestCase):
 
     def test_other_tools_and_questions_cannot_enable_or_use_bash_mode(self):
         self.set_mode("always")
-        for tool in ("Edit", "Write", "mcp__jarvis__computer"):
+        for tool in ("Edit", "Write", "mcp__peek__computer"):
             self.prompt(tool, tool, title="Allow Bash?", description="Bash command")
             self.assertFalse(self.bridge.ui_requests[-1]["allowAlwaysBash"])
             with self.assertRaises(ValueError):

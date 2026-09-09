@@ -7,7 +7,7 @@ gi.require_version('Gtk','3.0')
 from gi.repository import Gtk,Gdk,GLib
 root=Path(sys.argv[1]);root.mkdir(exist_ok=True)
 window=Gtk.Window(title='Peek control fixture')
-window.set_wmclass('jarvis-control-fixture','jarvis-control-fixture');window.set_default_size(540,430)
+window.set_wmclass('peek-control-fixture','peek-control-fixture');window.set_default_size(540,430)
 box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12);box.set_border_width(20);window.add(box)
 box.pack_start(Gtk.Label(label='Peek input test · disposable window'),False,False,0)
 entry=Gtk.Entry();entry.set_placeholder_text('Typing target');box.pack_start(entry,False,False,0)

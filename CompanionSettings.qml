@@ -11,7 +11,7 @@ Flickable {
     ChatStyle { id: ui }
     required property var chat
     property string section: "Appearance"
-    property var draft: chat.jarvis
+    property var draft: chat.peek
     signal settingChanged(string key, var value)
     property string memoryId: ""
     property string routineId: ""
@@ -23,8 +23,8 @@ Flickable {
     }
     Connections {
         target: root.chat
-        function onJarvisChanged() {
-            if (!root.pending || root.chat.jarvis.companionSavedRequest !== root.pending) return
+        function onPeekChanged() {
+            if (!root.pending || root.chat.peek.companionSavedRequest !== root.pending) return
             if (root.pendingKind === "memory") { memory.text=""; root.memoryId="" }
             if (root.pendingKind === "routine") { routineName.text=""; steps.text=""; root.routineId="" }
             root.pending=""
@@ -34,7 +34,7 @@ Flickable {
     contentWidth: width; contentHeight: body.implicitHeight
     clip: true; boundsBehavior: Flickable.StopAtBounds
     ScrollBar.vertical: ChatScrollBar {}
-    Component.onCompleted: chat.request({action:"jarvis_companion_status"})
+    Component.onCompleted: chat.request({action:"peek_companion_status"})
     component Label: Text {
         textFormat: Text.PlainText
         Layout.fillWidth: true; wrapMode: Text.Wrap
@@ -78,19 +78,19 @@ Flickable {
             Label { text: "Say “remember that…” or save a fact here. Forget removes the memory, keeping chat history." }
             Area { id: memory; placeholderText: "A preference or fact to remember…"; Accessible.name: "Memory text"; Layout.minimumHeight: Style.space(44) }
             RowLayout {
-                ActionButton { text: root.memoryId ? "Update memory" : "Remember"; enabled: !!memory.text.trim() && !root.pending; onClicked: root.save({action:"jarvis_memory_save",id:root.memoryId,text:memory.text},"memory") }
+                ActionButton { text: root.memoryId ? "Update memory" : "Remember"; enabled: !!memory.text.trim() && !root.pending; onClicked: root.save({action:"peek_memory_save",id:root.memoryId,text:memory.text},"memory") }
                 ActionButton { visible: !!root.memoryId; text: "Cancel"; subtle: true; onClicked: { root.memoryId=""; memory.text="" } }
             }
-            Label { visible: !(chat.jarvis.memories || []).length; text: "No memories saved." }
+            Label { visible: !(chat.peek.memories || []).length; text: "No memories saved." }
             Repeater {
-                model: chat.jarvis.memories || []
+                model: chat.peek.memories || []
                 ColumnLayout {
                     required property var modelData
                     Layout.fillWidth: true; spacing: Style.space(2)
                     Label { text: modelData.text; color: ui.foreground }
                     RowLayout {
                         ActionButton { text: "Edit"; subtle: true; onClicked: { root.memoryId=modelData.id; memory.text=modelData.text; root.contentY=0 } }
-                        ActionButton { text: "Forget"; subtle: true; onClicked: chat.request({action:"jarvis_memory_delete",id:modelData.id}) }
+                        ActionButton { text: "Forget"; subtle: true; onClicked: chat.request({action:"peek_memory_delete",id:modelData.id}) }
                     }
                 }
             }
@@ -102,20 +102,20 @@ Flickable {
             Field { id: routineName; placeholderText: "Routine name"; Accessible.name: "Routine name" }
             Area { id: steps; placeholderText: "open terminal\nset volume to 30"; Accessible.name: "Routine commands"; Layout.minimumHeight: Style.space(60) }
             RowLayout {
-                ActionButton { text: root.routineId ? "Update routine" : "Save routine"; enabled: !!routineName.text.trim() && !!steps.text.trim() && !root.pending; onClicked: root.save({action:"jarvis_routine_save",id:root.routineId,name:routineName.text,steps:steps.text.split("\n").map(s=>s.trim()).filter(s=>s.length)},"routine") }
+                ActionButton { text: root.routineId ? "Update routine" : "Save routine"; enabled: !!routineName.text.trim() && !!steps.text.trim() && !root.pending; onClicked: root.save({action:"peek_routine_save",id:root.routineId,name:routineName.text,steps:steps.text.split("\n").map(s=>s.trim()).filter(s=>s.length)},"routine") }
                 ActionButton { visible: !!root.routineId; text: "Cancel"; subtle: true; onClicked: { root.routineId=""; routineName.text=""; steps.text="" } }
             }
             Repeater {
-                model: chat.jarvis.routines || []
+                model: chat.peek.routines || []
                 ColumnLayout {
                     required property var modelData
                     Layout.fillWidth: true; spacing: Style.space(2)
                     Label { text: modelData.name; color: ui.foreground; font.bold: true }
                     Label { text: modelData.steps.join(" · ") }
                     RowLayout {
-                        ActionButton { text: "Run"; enabled: !chat.busy && chat.jarvis.enabled; onClicked: chat.request({action:"jarvis_say",text:"run "+modelData.name}) }
+                        ActionButton { text: "Run"; enabled: !chat.busy && chat.peek.enabled; onClicked: chat.request({action:"peek_say",text:"run "+modelData.name}) }
                         ActionButton { text: "Edit"; subtle: true; onClicked: { root.routineId=modelData.id; routineName.text=modelData.name; steps.text=modelData.steps.join("\n"); root.contentY=0 } }
-                        ActionButton { text: "Delete"; subtle: true; onClicked: chat.request({action:"jarvis_routine_delete",id:modelData.id}) }
+                        ActionButton { text: "Delete"; subtle: true; onClicked: chat.request({action:"peek_routine_delete",id:modelData.id}) }
                     }
                 }
             }
@@ -127,19 +127,19 @@ Flickable {
             Field { id: watchText; placeholderText: "Reminder text"; Accessible.name: "Reminder text" }
             RowLayout {
                 Field { id: minutes; placeholderText: "Minutes"; inputMethodHints: Qt.ImhDigitsOnly; validator: IntValidator { bottom: 1; top: 10080 } Accessible.name: "Timer minutes" }
-                ActionButton { text: "Set timer"; enabled: minutes.acceptableInput; onClicked: { chat.request({action:"jarvis_watch_add",kind:"timer",seconds:Number(minutes.text)*60,message:watchText.text || "Your timer finished."}); minutes.text="" } }
+                ActionButton { text: "Set timer"; enabled: minutes.acceptableInput; onClicked: { chat.request({action:"peek_watch_add",kind:"timer",seconds:Number(minutes.text)*60,message:watchText.text || "Your timer finished."}); minutes.text="" } }
             }
             RowLayout {
                 Field { id: pid; placeholderText: "Process ID"; inputMethodHints: Qt.ImhDigitsOnly; validator: IntValidator { bottom: 1 } Accessible.name: "Process ID to watch" }
-                ActionButton { text: "Watch exit"; enabled: pid.acceptableInput; onClicked: { chat.request({action:"jarvis_watch_add",kind:"process",pid:Number(pid.text),message:watchText.text || "Your watched process exited."}); pid.text="" } }
+                ActionButton { text: "Watch exit"; enabled: pid.acceptableInput; onClicked: { chat.request({action:"peek_watch_add",kind:"process",pid:Number(pid.text),message:watchText.text || "Your watched process exited."}); pid.text="" } }
             }
             Repeater {
-                model: chat.jarvis.watches || []
+                model: chat.peek.watches || []
                 RowLayout {
                     required property var modelData
                     Layout.fillWidth: true
                     Label { text: modelData.message+" · "+modelData.state+(modelData.kind === "process" ? " · PID "+modelData.pid : " · "+new Date(modelData.due*1000).toLocaleTimeString()) }
-                    ActionButton { text: "Cancel"; subtle: true; visible: modelData.state === "waiting"; onClicked: chat.request({action:"jarvis_watch_cancel",id:modelData.id}) }
+                    ActionButton { text: "Cancel"; subtle: true; visible: modelData.state === "waiting"; onClicked: chat.request({action:"peek_watch_cancel",id:modelData.id}) }
                 }
             }
         }
@@ -147,16 +147,16 @@ Flickable {
             visible: root.section === "Undo"; Layout.fillWidth: true; spacing: Style.space(6)
             ChatSection { text: "Undo" }
             Label { text: "Restore tracked Peek config edits if the file hasn’t changed since. Other CLI edits and app actions aren’t covered." }
-            Label { visible: !(chat.jarvis.restorePoints || []).length; text: "No tracked config changes yet." }
+            Label { visible: !(chat.peek.restorePoints || []).length; text: "No tracked config changes yet." }
             Repeater {
-                model: chat.jarvis.restorePoints || []
+                model: chat.peek.restorePoints || []
                 ColumnLayout {
                     required property var modelData
                     Layout.fillWidth: true; spacing: Style.space(2)
                     Label { text: modelData.path; color: ui.foreground; wrapMode: Text.WrapAnywhere }
                     RowLayout {
                         Label { text: modelData.state+" · "+new Date(modelData.updated*1000).toLocaleString() }
-                        ActionButton { text: "Restore"; enabled: modelData.state === "available" && !chat.busy; onClicked: chat.request({action:"jarvis_undo",id:modelData.id}) }
+                        ActionButton { text: "Restore"; enabled: modelData.state === "available" && !chat.busy; onClicked: chat.request({action:"peek_undo",id:modelData.id}) }
                     }
                 }
             }

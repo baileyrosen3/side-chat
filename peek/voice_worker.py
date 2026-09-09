@@ -11,14 +11,14 @@ import time
 from collections import deque
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import numpy as np
-from jarvis.audio import EchoAudio,devices,terminate
-from jarvis.engines import recognizer,final_recognizer,pocket,vad,synthesizer
-from jarvis.settings import DEFAULTS,VOICES,validate
-from jarvis.feedback import ACKNOWLEDGMENT
-from jarvis.speech_queue import SpeechJob,SpeechQueue
-from jarvis.listening import NoiseFloor,pause_seconds
-from jarvis.parakeet import Parakeet
-from jarvis.wake import WakeDetector,ConversationGate
+from peek.audio import EchoAudio,devices,terminate
+from peek.engines import recognizer,final_recognizer,pocket,vad,synthesizer
+from peek.settings import DEFAULTS,VOICES,validate
+from peek.feedback import ACKNOWLEDGMENT
+from peek.speech_queue import SpeechJob,SpeechQueue
+from peek.listening import NoiseFloor,pause_seconds
+from peek.parakeet import Parakeet
+from peek.wake import WakeDetector,ConversationGate
 
 
 class VoiceWorker:
@@ -210,7 +210,7 @@ class VoiceWorker:
                                 with self.lock:
                                     if epoch!=self.record_epoch or self.shutdown.is_set():break
                                     self.gate.address();self.wake_detector.reset();self.emit('wake')
-                                    self.queue.put(SpeechJob('__jarvis_chime__',voice=self.voice,status=True))
+                                    self.queue.put(SpeechJob('__peek_chime__',voice=self.voice,status=True))
                                 self.detector.reset();self.continuation_detector.reset();preroll.clear()
                             continue
                     if self.speaking and not self.prefs['bargeIn']:
@@ -368,7 +368,7 @@ class VoiceWorker:
 
     def speech_chunks(self,text,voice=None):
         voice=voice or self.voice
-        if text=='__jarvis_chime__':
+        if text=='__peek_chime__':
             rate=self.tts.sample_rate;t=np.arange(int(rate*.12))/rate
             yield (np.sin(2*np.pi*740*t)+.3*np.sin(2*np.pi*1110*t))*np.sin(np.pi*t/.12)**2*.08
             return

@@ -21,7 +21,7 @@ import time
 import uuid
 from urllib.parse import urlsplit
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from jarvis.task import control_step, control_evidence
+from peek.task import control_step, control_evidence
 
 
 def run(argv, timeout=12, **kwargs):
@@ -68,7 +68,7 @@ class Control:
         self.turn=''
         self.accent='#a0a0b8'
         self.quit=threading.Event()
-        self.browser_session='jarvis-'+uuid.uuid4().hex[:12]
+        self.browser_session='peek-'+uuid.uuid4().hex[:12]
         self.browser_started=False
         self.cwd=str(Path.home());self.accessible_frames={};self.journal=None
         self.data=Path(os.environ.get('SIDE_CHAT_DATA',Path(os.environ.get('XDG_DATA_HOME',Path.home()/'.local/share'))/'side-chat'))
@@ -107,7 +107,7 @@ class Control:
                         if path in known:continue
                         try:
                             device=evdev.InputDevice(path)
-                            if device.name.startswith(('Side Chat Peek','Side Chat Jarvis')):
+                            if device.name.startswith(('Side Chat Peek','Side Chat Peek')):
                                 device.close();continue
                             selector.register(device,selectors.EVENT_READ)
                         except OSError:pass
@@ -203,7 +203,7 @@ class Control:
         env={k:v for k,v in os.environ.items() if not k.startswith('AGENT_BROWSER_')}
         env.update(AGENT_BROWSER_EXECUTABLE_PATH='/usr/bin/chromium',AGENT_BROWSER_SESSION=self.browser_session,
                  AGENT_BROWSER_HEADED='false',AGENT_BROWSER_CONTENT_BOUNDARIES='true',
-                 AGENT_BROWSER_ARGS='--class=org.omarchy.jarvis.browser')
+                 AGENT_BROWSER_ARGS='--class=org.omarchy.peek.browser')
         # An explicit empty config prevents a user's global --headed/CDP settings leaking in.
         config=self.data/'browser-headless.json'
         if not config.exists():config.write_text('{"headed":false}')
@@ -214,11 +214,11 @@ class Control:
                 x=float(box['x'])+float(box['width'])/2;y=float(box['y'])+float(box['height'])/2
                 if math.isfinite(x) and math.isfinite(y):
                     # DOM coordinates stay accurate even with browser zoom or emulated viewports.
-                    script="(()=>{document.getElementById('__side_chat_jarvis_pointer')?.remove();const p=document.createElement('div');p.id='__side_chat_jarvis_pointer';p.setAttribute('aria-hidden','true');p.textContent='AI';p.style.cssText="+json.dumps(f'position:fixed;left:{x}px;top:{y}px;z-index:2147483647;pointer-events:none;border:2px solid {self.accent};border-radius:50%;width:24px;height:24px;transform:translate(-50%,-50%);color:{self.accent};background:#202025cc;font:600 9px monospace;display:grid;place-items:center;box-shadow:0 0 0 6px {self.accent}33;')+";document.documentElement.appendChild(p);setTimeout(()=>p.remove(),3000);return true})()"
+                    script="(()=>{document.getElementById('__side_chat_peek_pointer')?.remove();const p=document.createElement('div');p.id='__side_chat_peek_pointer';p.setAttribute('aria-hidden','true');p.textContent='AI';p.style.cssText="+json.dumps(f'position:fixed;left:{x}px;top:{y}px;z-index:2147483647;pointer-events:none;border:2px solid {self.accent};border-radius:50%;width:24px;height:24px;transform:translate(-50%,-50%);color:{self.accent};background:#202025cc;font:600 9px monospace;display:grid;place-items:center;box-shadow:0 0 0 6px {self.accent}33;')+";document.documentElement.appendChild(p);setTimeout(()=>p.remove(),3000);return true})()"
                     run(base+['eval',script],env=env,timeout=8)
             except (OSError,ValueError,KeyError,RuntimeError,subprocess.SubprocessError):pass
         if args[0]=='screenshot':
-            try:run(base+['eval',"document.getElementById('__side_chat_jarvis_pointer')?.remove()"],env=env,timeout=5)
+            try:run(base+['eval',"document.getElementById('__side_chat_peek_pointer')?.remove()"],env=env,timeout=5)
             except (OSError,RuntimeError,subprocess.SubprocessError):pass
         self.check(epoch)
         # Only Browser mode reaches this isolated headless session.
@@ -287,7 +287,7 @@ class Control:
         if op=='browser':return self.browser(c,epoch)
         if op in ('inspect_app','accessible_action'):return self.accessibility(c,epoch)
         if op in ('config_read','config_write','undo_list','undo_restore'):
-            from jarvis.undo import UndoJournal
+            from peek.undo import UndoJournal
             if self.journal is None:
                 folder=Path(os.environ.get('SIDE_CHAT_COMPANION_STATE',self.data/'control-state'))
                 folder.mkdir(parents=True,exist_ok=True,mode=0o700);self.journal=UndoJournal(folder)

@@ -3,7 +3,7 @@
 import os
 from pathlib import Path
 import sherpa_onnx as sherpa
-from jarvis.settings import VOICES
+from peek.settings import VOICES
 
 DATA = Path(os.environ.get('SIDE_CHAT_DATA', Path(os.environ.get('XDG_DATA_HOME', Path.home()/'.local/share'))/'side-chat'))
 MODELS = DATA/'models'
@@ -29,7 +29,7 @@ def synthesizer(prefs=None):
             lexicon=str(d/'lexicon-gb-en.txt'), lang='en'),
         num_threads=(prefs or {}).get('ttsThreads',3), provider='cpu'), max_num_sentences=1)
     if not config.validate():
-        raise RuntimeError('Speech output model is incomplete. Run jarvis/setup.py.')
+        raise RuntimeError('Speech output model is incomplete. Run peek/setup.py.')
     return sherpa.OfflineTts(config)
 
 

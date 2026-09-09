@@ -6,7 +6,7 @@ from pathlib import Path
 import stat
 import tempfile
 import threading
-from jarvis.store import Store
+from peek.store import Store
 
 
 def digest(data):return hashlib.sha256(data).hexdigest()
@@ -31,7 +31,7 @@ class UndoJournal:
     @staticmethod
     def replace(path, data):
         mode=stat.S_IMODE(path.stat().st_mode)
-        fd,name=tempfile.mkstemp(prefix='.jarvis-',dir=path.parent)
+        fd,name=tempfile.mkstemp(prefix='.peek-',dir=path.parent)
         try:
             with os.fdopen(fd,'wb') as f:f.write(data);f.flush();os.fsync(f.fileno())
             os.chmod(name,mode);os.replace(name,path)

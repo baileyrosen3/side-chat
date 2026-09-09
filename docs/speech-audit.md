@@ -19,7 +19,7 @@ The cached acknowledgment makes this wait feel responsive once the request is ac
 | Follow-ups | With interruption disabled, another request overwrote the first pending request. | Preserve pending text in arrival order for the next turn. |
 | Room noise | Echo suppression existed, but every speech-like start could interrupt the conversation. | Strong mode adds a stricter speech threshold, sustained onset, and a bounded ambient-level check for faint false starts. |
 | Resuming a thought | A stronger onset detector was too slow to notice resumed speech, cutting off part of a word during endpoint waiting. | Separate start-of-request detection from faster continuation detection. Adaptive pauses allow extra time after unfinished phrases. |
-| Listening choices | Wake word and hands-free were independent switches with overlapping behavior. | One explicit choice: Hey Jarvis, open microphone, or hold-to-talk. |
+| Listening choices | Wake word and hands-free were independent switches with overlapping behavior. | One explicit choice: the upstream Hey Jarvis phrase, open microphone, or hold-to-talk for Peek. |
 | Wake-mode interruptions | Task activity kept the conversation gate open to background speech throughout the task. | An engaged task or spoken answer requires a fresh wake word before an interruption. Idle follow-ups still have a bounded window. |
 | Recovery | Empty recognition and the ASR finalization delay were poorly explained; agent failures could be silent. | Distinct “Listening to you” and “Understanding” states, recoverable input notices, and a short spoken failure message. |
 | Long requests | Reaching the configured duration limit sent a potentially incomplete instruction. | Reject the oversized request, display a notice, and ignore its remaining speech until a quiet boundary. |
@@ -31,8 +31,8 @@ The cached acknowledgment makes this wait feel responsive once the request is ac
 PipeWire's WebRTC filter already enables high-pass filtering and high noise suppression by default, with automatic gain control disabled. These settings are now explicit in Peek's own temporary filter. Its reference signal is Peek's output through that filter; unrelated apps' speaker audio is not necessarily part of that reference. [PipeWire implementation](https://github.com/PipeWire/pipewire/blob/1.6.8/spa/plugins/aec/aec-webrtc.cpp), [echo-cancel signal path](https://docs.pipewire.org/page_module_echo_cancel.html).
 
 - For fans and typing: try **Strong** rejection, keep echo cancellation enabled, and speak near the selected microphone. Strong mode can miss soft voices; Balanced remains available.
-- For TV and other people: use **Hey Jarvis** or **hold-to-talk**. Ordinary speech detection does not identify who spoke or whether they meant to address the assistant. Noise suppression is not speaker authentication.
-- In wake mode, say Hey Jarvis before interrupting a task. The Stop button and Ctrl Alt Esc remain available immediately. Follow-ups after the answer do not require another wake word until the window expires.
+- For TV and other people: use the upstream **Hey Jarvis** phrase or **hold-to-talk**. Ordinary speech detection does not identify who spoke or whether they meant to address the assistant. Noise suppression is not speaker authentication.
+- In wake mode, say the upstream Hey Jarvis phrase before interrupting a task. The Stop button and Ctrl Alt Esc remain available immediately. Follow-ups after the answer do not require another wake word until the window expires.
 - Keep microphone selection explicit when several microphones are connected. No system default devices or global microphone gain were changed by this work.
 
 **Next improvements, in priority order**

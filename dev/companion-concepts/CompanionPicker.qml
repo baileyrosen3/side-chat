@@ -66,7 +66,7 @@ ColumnLayout {
             // The same left-edge crop as the live companion.
             clip: true
             Rectangle { x: 0; y: Style.space(15); width: 1; height: parent.height-Style.space(30); color: Theme.alpha(Color.foreground,.16) }
-            JarvisBuddy {
+            PeekBuddy {
                 id: preview
                 objectName: "companion-preview"
                 x: -Style.space(66); y: -Style.space(12); width: Style.space(200); height: width

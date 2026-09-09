@@ -17,14 +17,14 @@ export default function(pi: any) {
     const path = String(event.input?.path || '');
     if (['browser','computer','playwright'].includes(event.toolName) ||
         (event.toolName === 'write' && /^xd:\/\/(browser|computer|playwright)(\/|$)/.test(path)))
-      return {block:true,reason:'Peek owns browser/desktop control in this session. Use jarvis_computer; its browser open command follows the current Desktop or Browser mode. Do not substitute a hidden browser.'};
+      return {block:true,reason:'Peek owns browser/desktop control in this session. Use peek_computer; its browser open command follows the current Desktop or Browser mode. Do not substitute a hidden browser.'};
   });
   let parameters: any = {type:'object',properties,required:['op'],additionalProperties:false};
   if (pi.zod) {
     const z=pi.zod;
     parameters=z.object({op:z.enum(properties.op.enum),target:z.string().optional(),actionName:z.string().optional(),path:z.string().optional(),expected:z.string().optional(),id:z.string().optional(),frame:z.string().optional(),screen:z.string().optional(),window:z.string().optional(),x:z.number().optional(),y:z.number().optional(),toX:z.number().optional(),toY:z.number().optional(),button:z.enum(['left','right','middle']).optional(),count:z.number().optional(),amount:z.number().optional(),horizontal:z.boolean().optional(),text:z.string().optional(),key:z.string().optional(),args:z.array(z.string()).optional()});
   }
-  pi.registerTool({name:'jarvis_computer',label:'Computer',description,parameters,
+  pi.registerTool({name:'peek_computer',label:'Computer',description,parameters,
     async execute(id: string, params: any, ...rest: any[]) {
       const signal=rest.find((value: any)=>value && typeof value.addEventListener==='function' && typeof value.aborted==='boolean');
       const command=process.env.SIDE_CHAT_CONTROL_CLIENT;

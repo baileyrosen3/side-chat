@@ -6,7 +6,7 @@ import sys,time
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 import numpy as np
 import soundfile as sf
-from jarvis.engines import recognizer,synthesizer
+from peek.engines import recognizer,synthesizer
 start=time.monotonic(); tts=synthesizer(); tts_load=time.monotonic()-start
 start=time.monotonic(); asr=recognizer(); asr_load=time.monotonic()-start
 rows=[]
@@ -28,7 +28,7 @@ for text in ['Hello. I am ready to help.','Open the browser and search for the w
     stream.input_finished()
     while asr.is_ready(stream):asr.decode_stream(stream)
     rows.append(dict(text=text,recognized=asr.get_result(stream),tts_seconds=round(elapsed,3),first_chunk_seconds=round(first[0],3),audio_seconds=round(len(audio.samples)/audio.sample_rate,3),asr_compute_seconds=round(time.monotonic()-start,3),first_partial=partial))
-    sf.write('/tmp/jarvis-benchmark.wav',audio.samples,audio.sample_rate)
+    sf.write('/tmp/peek-benchmark.wav',audio.samples,audio.sample_rate)
 result=dict(tts_load_seconds=round(tts_load,3),asr_load_seconds=round(asr_load,3),rows=rows)
-Path('/tmp/jarvis-voice-benchmark.json').write_text(json.dumps(result,indent=2)+'\n')
+Path('/tmp/peek-voice-benchmark.json').write_text(json.dumps(result,indent=2)+'\n')
 print(json.dumps(result,indent=2))

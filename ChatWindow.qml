@@ -77,7 +77,7 @@ PanelWindow {
         if (opened) {
             chat.panelWidth = width;
             chat.notice = "";
-            if (chat.pinned && !chat.jarvis.enabled)
+            if (chat.pinned && !chat.peek.enabled)
                 Qt.callLater(() => {
                 return composer.forceActiveFocus();
             });
@@ -172,10 +172,10 @@ PanelWindow {
     }
 
     HyprlandFocusGrab {
-        active: window.opened && chat.pinned && !chat.jarvis.enabled && !attachmentDialog.visible && !exportDialog.visible && !folderDialog.visible
+        active: window.opened && chat.pinned && !chat.peek.enabled && !attachmentDialog.visible && !exportDialog.visible && !folderDialog.visible
         windows: [window]
         onCleared: {
-            if (!chat.jarvis.enabled)
+            if (!chat.peek.enabled)
                 chat.close();
 
         }
@@ -333,7 +333,7 @@ PanelWindow {
 
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
-                        text: chat.page === "permissions" ? "Permissions" : chat.page === "jarvis_settings" ? "Peek settings" : chat.page === "settings" ? "Preferences" : chat.page === "history" ? "History" : chat.current && chat.messages.length ? chat.current.title || "Conversation" : "New chat"
+                        text: chat.page === "permissions" ? "Permissions" : chat.page === "peek_settings" ? "Peek settings" : chat.page === "settings" ? "Preferences" : chat.page === "history" ? "History" : chat.current && chat.messages.length ? chat.current.title || "Conversation" : "New chat"
                         color: ui.foreground
                         font.family: window.family
                         font.pixelSize: window.textSize
@@ -631,7 +631,7 @@ PanelWindow {
                                             chat.pin();
 
                                     }
-                                    placeholderText: chat.terminalOpen ? "Session open in terminal…" : chat.busy ? (chat.jarvis.enabled ? "Correct or redirect…" : "Your next message…") : "Message " + chat.agentName + "…"
+                                    placeholderText: chat.terminalOpen ? "Session open in terminal…" : chat.busy ? (chat.peek.enabled ? "Correct or redirect…" : "Your next message…") : "Message " + chat.agentName + "…"
                                     placeholderTextColor: window.dim
                                     color: window.fg
                                     selectionColor: Theme.alpha(ui.emphasis, 0.4)
@@ -723,13 +723,13 @@ PanelWindow {
                                 }
 
                                 ActionButton {
-                                    glyph: chat.busy && !(chat.jarvis.enabled && chat.draft.trim()) ? "stop" : "send"
-                                    hint: chat.busy ? (chat.jarvis.enabled && chat.draft.trim() ? "Redirect agent · Enter" : "Stop generation") : "Send · Enter"
+                                    glyph: chat.busy && !(chat.peek.enabled && chat.draft.trim()) ? "stop" : "send"
+                                    hint: chat.busy ? (chat.peek.enabled && chat.draft.trim() ? "Redirect agent · Enter" : "Stop generation") : "Send · Enter"
                                     accent: true
                                     implicitHeight: ui.controlHeight
                                     implicitWidth: ui.controlHeight
                                     enabled: !chat.terminalOpen && (chat.busy || (chat.connected && chat.draft.trim().length > 0))
-                                    onClicked: chat.busy && !(chat.jarvis.enabled && chat.draft.trim()) ? chat.request({
+                                    onClicked: chat.busy && !(chat.peek.enabled && chat.draft.trim()) ? chat.request({
                                         "action": "stop"
                                     }) : chat.submit()
                                 }
@@ -772,10 +772,10 @@ PanelWindow {
                             implicitHeight: window.px(22)
                             enabled: !chat.terminalOpen
                             onClicked: {
-                                if (chat.jarvis.enabled)
+                                if (chat.peek.enabled)
                                     chat.close();
                                 else
-                                    chat.setJarvis(true);
+                                    chat.setPeek(true);
                             }
                         }
 
@@ -972,14 +972,14 @@ PanelWindow {
                 }
 
                 Loader {
-                    active: chat.page === "jarvis_settings"
+                    active: chat.page === "peek_settings"
                     Layout.preferredHeight: Math.min(item ? item.implicitHeight : 0, window.px(window.expanded ? 500 : 360))
                     visible: active
                     Layout.fillWidth: true
                     Layout.fillHeight: true
 
                     sourceComponent: Component {
-                        JarvisSettings {
+                        PeekSettings {
                             chat: window.chat
                             onDone: window.showSettings()
                         }
@@ -1146,7 +1146,7 @@ PanelWindow {
                             text: "Peek settings"
                             glyph: "orb"
                             subtle: true
-                            onClicked: chat.page = "jarvis_settings"
+                            onClicked: chat.page = "peek_settings"
                         }
 
                         ActionButton {

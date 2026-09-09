@@ -11,19 +11,19 @@ import time
 import numpy as np
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from backend import Bridge
-from jarvis.settings import DEFAULTS,VOICES
+from peek.settings import DEFAULTS,VOICES
 
 
 def run(*args):return subprocess.check_output(args,text=True).strip()
 
 
 def main():
-    sink='jarvis_latency_'+str(os.getpid())
+    sink='peek_latency_'+str(os.getpid())
     defaults={k:run('pactl','get-default-'+k) for k in ('source','sink')}
     module=run('pactl','load-module','module-null-sink','sink_name='+sink,
-               'sink_properties="node.description=JarvisLatencyTest priority.session=0"')
+               'sink_properties="node.description=PeekLatencyTest priority.session=0"')
     recorder=None;worker=None;b=None
-    folder=Path(tempfile.mkdtemp(prefix='jarvis-speech-check-'))
+    folder=Path(tempfile.mkdtemp(prefix='peek-speech-check-'))
     events=[];audio=[];condition=threading.Condition()
 
     def wait_event(predicate,after=0,timeout=20):
@@ -37,13 +37,13 @@ def main():
                 condition.wait(.05)
         raise RuntimeError('Speech event timed out: '+repr(events[-4:]))
 
-    def send(**c):b.jarvis.send_worker(c)
+    def send(**c):b.peek.send_worker(c)
 
     def read_events():
         for line in worker.stdout:
             e=json.loads(line)
             with condition:events.append((time.monotonic(),e));condition.notify_all()
-            b.jarvis.voice_event(e)
+            b.peek.voice_event(e)
 
     def read_audio():
         while True:
@@ -55,12 +55,12 @@ def main():
     try:
         prefs=dict(DEFAULTS,voice='marius',handsFree=False,sink=sink,echoCancellation=False)
         b=Bridge(folder/'state',lambda _:None)
-        b.jarvis.prefs=prefs;b.jarvis.state.update(prefs,enabled=True)
+        b.peek.prefs=prefs;b.peek.state.update(prefs,enabled=True)
         log=(folder/'worker.log').open('w')
-        worker=subprocess.Popen([str(Path.home()/'.local/share/side-chat/runtime/bin/python'),'-B','jarvis/voice_worker.py'],
+        worker=subprocess.Popen([str(Path.home()/'.local/share/side-chat/runtime/bin/python'),'-B','peek/voice_worker.py'],
             stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=log,text=True,
             env=dict(os.environ,HF_HUB_OFFLINE='1',SIDE_CHAT_VOICE_SETTINGS=json.dumps(prefs)))
-        log.close();b.jarvis.voice=worker
+        log.close();b.peek.voice=worker
         threading.Thread(target=read_events,daemon=True).start()
         wait_event(lambda e:e.get('type')=='ready',timeout=35)
         # Pulse monitor names differ from PipeWire node names. parec fails closed
@@ -69,17 +69,17 @@ def main():
                                    '--latency-msec=32','--device='+sink+'.monitor'],stdout=subprocess.PIPE,stderr=subprocess.DEVNULL)
         threading.Thread(target=read_audio,daemon=True).start()
         b.busy=True;b.current={'messages':[{'role':'assistant','text':'','tools':[]}]}
-        started=time.monotonic();b.jarvis.begin_turn()
+        started=time.monotonic();b.peek.begin_turn()
         ack_at,ack=wait_event(lambda e:e.get('type')=='playback' and e.get('active') and e.get('status'),started)
         with condition:
             condition.wait_for(lambda:any(t>=started for t in audio),timeout=5)
         first_sample=next(t for t in audio if t>=started)
         assert first_sample>=ack_at, 'Audio arrived before speech started: check the monitor routing.'
         answer_start=time.monotonic()
-        b.jarvis.observe({'type':'delta','text':"Here's your answer.",'tools':[]})
+        b.peek.observe({'type':'delta','text':"Here's your answer.",'tools':[]})
         answer_at,answer=wait_event(lambda e:e.get('type')=='playback' and e.get('active') and e.get('text')=="Here's your answer.",answer_start)
         wait_event(lambda e:e.get('type')=='playback' and not e.get('active'),answer_at+.01)
-        b.jarvis.feedback.finish();b.busy=False
+        b.peek.feedback.finish();b.busy=False
         samples={}
         for voice in VOICES['pocket']:
             start=time.monotonic()

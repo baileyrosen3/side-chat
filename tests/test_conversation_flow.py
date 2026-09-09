@@ -4,9 +4,9 @@ import unittest
 from unittest.mock import Mock,patch
 
 from backend import Bridge
-from jarvis.listening import NoiseFloor,pause_seconds
-from jarvis.audio import EchoAudio
-from jarvis.wake import ConversationGate
+from peek.listening import NoiseFloor,pause_seconds
+from peek.audio import EchoAudio
+from peek.wake import ConversationGate
 
 
 class ListeningPolicyTests(unittest.TestCase):
@@ -36,7 +36,7 @@ class ListeningPolicyTests(unittest.TestCase):
 
     def test_monitor_routes_explicitly_and_devices_cannot_fall_back(self):
         a=EchoAudio();a.source='fixture.monitor'
-        with patch('jarvis.audio.subprocess.Popen') as spawn:a.record()
+        with patch('peek.audio.subprocess.Popen') as spawn:a.record()
         args=spawn.call_args.args[0]
         self.assertEqual(args[args.index('--target')+1],'fixture')
         self.assertIn('stream.capture.sink=true',args[args.index('-P')+1])
@@ -48,7 +48,7 @@ class ConversationTests(unittest.TestCase):
         self.temp=tempfile.TemporaryDirectory();self.b=Bridge(self.temp.name,lambda _:None)
         self.b.new();self.b.current['agent']='omp'
         self.b.current['messages']=[{'role':'assistant','text':'First step complete.','tools':[]}]
-        self.v=self.b.jarvis;self.v.state.update(enabled=True,ready=True,listening=True)
+        self.v=self.b.peek;self.v.state.update(enabled=True,ready=True,listening=True)
         self.v.prefs.update(muted=False,screenContext='off')
         self.sent=[];self.v.send_worker=self.sent.append
 
@@ -59,11 +59,11 @@ class ConversationTests(unittest.TestCase):
         self.v.state.update(ready=False,listening=False)
         self.v.want_listen=True
         prefs=dict(self.v.prefs)
-        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.v.dispatch({'action':'peek_toggle_listen'})
         self.assertFalse(self.v.want_listen)
-        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.v.dispatch({'action':'peek_toggle_listen'})
         self.assertTrue(self.v.want_listen)
-        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.v.dispatch({'action':'peek_toggle_listen'})
         self.assertFalse(self.v.want_listen)
         self.v.voice_event({'type':'ready'})
         listens=[c['enabled'] for c in self.sent if c['action']=='listen']
@@ -71,7 +71,7 @@ class ConversationTests(unittest.TestCase):
         self.assertEqual(self.v.prefs,prefs)
         self.assertFalse(any(c['action']=='cancel' for c in self.sent))
 
-    def test_microphone_shortcut_starts_jarvis_with_microphone_enabled(self):
+    def test_microphone_shortcut_starts_peek_with_microphone_enabled(self):
         for hands_free in (False,True):
             with self.subTest(hands_free=hands_free):
                 self.v.state.update(enabled=False,ready=False,listening=False)
@@ -82,7 +82,7 @@ class ConversationTests(unittest.TestCase):
                     self.v.state['enabled']=enabled
                     self.v.want_listen=self.v.prefs['handsFree']
                 with patch.object(self.v,'enable',side_effect=enable) as start:
-                    self.v.dispatch({'action':'jarvis_toggle_listen','accent':'#57c2ff'})
+                    self.v.dispatch({'action':'peek_toggle_listen','accent':'#57c2ff'})
                 start.assert_called_once_with(True)
                 self.assertTrue(self.v.want_listen)
                 self.assertEqual(self.sent[-1],{'action':'listen','enabled':True})
@@ -94,7 +94,7 @@ class ConversationTests(unittest.TestCase):
         self.v.state['speaking']=True
         self.v.voice_event({'type':'speech_start'})
         generation=self.v.input_generation
-        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.v.dispatch({'action':'peek_toggle_listen'})
         self.assertEqual(self.v.input_generation,generation)
         self.assertEqual(self.sent[-1],{'action':'listen','enabled':False,'finish':True})
         self.assertFalse(self.v.want_listen)
@@ -106,7 +106,7 @@ class ConversationTests(unittest.TestCase):
         self.v.want_listen=True
         generation=self.v.input_generation
         self.v.voice_event({'type':'speech_start','generation':generation,'utterance':1})
-        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.v.dispatch({'action':'peek_toggle_listen'})
         self.v.voice_event({'type':'microphone','active':False,'finishing':True})
         self.assertFalse(self.v.state['listening'])
         self.assertTrue(self.v.state['transcribing'])
@@ -121,7 +121,7 @@ class ConversationTests(unittest.TestCase):
 
     def test_microphone_off_without_speech_preserves_answer(self):
         self.v.want_listen=True;self.v.state['speaking']=True
-        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.v.dispatch({'action':'peek_toggle_listen'})
         with patch.object(self.b,'send') as send:
             self.v.voice_event({'type':'microphone','active':False,'finishing':False})
             send.assert_not_called()

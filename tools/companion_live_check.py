@@ -2,9 +2,9 @@
 import json,os,subprocess,sys,tempfile,time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from jarvis.control import Control,hypr
+from peek.control import Control,hypr
 from unittest.mock import patch
-folder=Path(tempfile.mkdtemp(prefix='jarvis-companion-live-'))
+folder=Path(tempfile.mkdtemp(prefix='peek-companion-live-'))
 before=hypr('activewindow');events=[];c=None;fixture_focus=None
 locked=hypr('locked').get('locked',False)
 p=subprocess.Popen(['/usr/bin/python3','-B',str(Path(__file__).with_name('control_fixture.py')),str(folder)],env=dict(os.environ,GTK_MODULES='atk-bridge'),stdout=subprocess.DEVNULL,stderr=open(folder/'gtk.log','w'))
@@ -18,7 +18,7 @@ try:
  subprocess.run(['hyprctl','dispatch','hl.dsp.focus({ window = "address:'+window['address']+'" })'],check=True,capture_output=True)
  time.sleep(.5)
  if locked:
-  fixture_focus=patch('jarvis.control.hypr',side_effect=lambda kind:window if kind=='activewindow' else hypr(kind));fixture_focus.start()
+  fixture_focus=patch('peek.control.hypr',side_effect=lambda kind:window if kind=='activewindow' else hypr(kind));fixture_focus.start()
  c=Control(events.append);c.handle({'op':'_configure','enabled':True,'scope':'desktop','cwd':str(folder)})
  observed=c.handle({'op':'inspect_app'});(folder/'tree.json').write_text(json.dumps(observed,indent=2))
  entry=next(n for n in observed['nodes'] if n['editable'])

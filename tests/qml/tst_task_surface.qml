@@ -9,15 +9,15 @@ Rectangle {
     width: 500; height: 560; color: Color.background
     QtObject {
         id: chat
-        property var jarvis: ({})
+        property var peek: ({})
         property bool busy: false
         property string error: ""
         property var agentRequests: []
         property var lastRequest: ({})
         function request(command) { lastRequest=command }
         function openConversation() { lastRequest={action:"conversation"} }
-        function openJarvisSettings() { }
-        function setJarvis(enabled,reopen) { }
+        function openPeekSettings() { }
+        function setPeek(enabled,reopen) { }
     }
     Item {
         id: host
@@ -30,7 +30,7 @@ Rectangle {
         function init() {
             failOnWarning(/.?/)
             chat.busy=false;chat.error="";chat.agentRequests=[];chat.lastRequest={}
-            chat.jarvis={stage:"idle",ready:true,preview:true,previewScenario:true,reducedMotion:true,expressiveness:1,scope:"desktop",task:{state:"idle",total:0,steps:[]}}
+            chat.peek={stage:"idle",ready:true,preview:true,previewScenario:true,reducedMotion:true,expressiveness:1,scope:"desktop",task:{state:"idle",total:0,steps:[]}}
             mouseMove(scene,scene.width-1,scene.height-1)
             host.visible=true;surface.present=true;surface.hideControls();surface.desktopPointer=null
         }
@@ -66,7 +66,7 @@ Rectangle {
             tryCompare(dock,"visible",false,600)
             compare(surface.controlsPinned,false)
         }
-        function test_hiding_jarvis_resets_controls_before_reopening() {
+        function test_hiding_peek_resets_controls_before_reopening() {
             surface.showControls()
             compare(surface.panelRegion.visible,true)
             host.visible=false
@@ -77,7 +77,7 @@ Rectangle {
         }
         function test_exit_keeps_rendering_until_the_robot_is_offscreen() {
             surface.showControls()
-            chat.jarvis=Object.assign({},chat.jarvis,{reducedMotion:false})
+            chat.peek=Object.assign({},chat.peek,{reducedMotion:false})
             surface.present=false
             compare(surface.controlsVisible,false);compare(surface.interactive,false)
             compare(surface.visible,true)
@@ -91,18 +91,18 @@ Rectangle {
         }
         function test_stop_is_available_on_hover_without_expansion() {
             chat.busy=true
-            chat.jarvis=Object.assign({},chat.jarvis,{stage:"acting",task:task("running"),taskCaption:"Update settings"})
+            chat.peek=Object.assign({},chat.peek,{stage:"acting",task:task("running"),taskCaption:"Update settings"})
             var stop=findChild(surface,"companion-stop")
             compare(stop.visible,false)
             mouseMove(surface.bodyRegion,30,50)
             tryCompare(stop,"visible",true)
             verify(stop.visible);verify(stop.enabled);compare(surface.controlsPinned,false)
             mouseClick(stop)
-            compare(chat.lastRequest.action,"jarvis_stop")
+            compare(chat.lastRequest.action,"peek_stop")
             compare(findChild(surface,"companion-headline").text,"Update settings")
         }
         function test_keyboard_can_expand_details_and_escape_collapses_everything() {
-            chat.jarvis=Object.assign({},chat.jarvis,{task:task("verified")})
+            chat.peek=Object.assign({},chat.peek,{task:task("verified")})
             mouseMove(surface.bodyRegion,30,50)
             tryCompare(surface.panelRegion,"visible",true)
             compare(findChild(surface,"companion-headline").text,"Actions verified")
@@ -119,28 +119,28 @@ Rectangle {
         }
         function test_speech_and_question_take_priority_over_task_caption() {
             chat.busy=true
-            chat.jarvis=Object.assign({},chat.jarvis,{stage:"acting",task:task("running"),taskCaption:"Update settings",speaking:true,caption:"I found the setting."})
+            chat.peek=Object.assign({},chat.peek,{stage:"acting",task:task("running"),taskCaption:"Update settings",speaking:true,caption:"I found the setting."})
             compare(findChild(surface,"companion-caption").text,"I found the setting.")
             chat.agentRequests=[{title:"Apply these settings?"}]
-            chat.jarvis=Object.assign({},chat.jarvis,{stage:"needs_input",speaking:false})
+            chat.peek=Object.assign({},chat.peek,{stage:"needs_input",speaking:false})
             compare(findChild(surface,"companion-caption").text,"Apply these settings?")
             chat.busy=false;chat.error="Voice worker disconnected"
-            chat.jarvis=Object.assign({},chat.jarvis,{stage:"error",task:task("verified")})
+            chat.peek=Object.assign({},chat.peek,{stage:"error",task:task("verified")})
             compare(findChild(surface,"companion-headline").text,"Needs attention")
             compare(findChild(surface,"companion-caption").text,"Voice worker disconnected")
         }
         function test_voice_readiness_and_hearing_reach_the_face() {
-            chat.jarvis=Object.assign({},chat.jarvis,{ready:false,stage:"warming",reducedMotion:false})
+            chat.peek=Object.assign({},chat.peek,{ready:false,stage:"warming",reducedMotion:false})
             var buddy=findChild(surface,"companion-body")
-            chat.jarvis=Object.assign({},chat.jarvis,{ready:true,stage:"listening"})
+            chat.peek=Object.assign({},chat.peek,{ready:true,stage:"listening"})
             compare(buddy.currentAction,"ready")
-            chat.jarvis=Object.assign({},chat.jarvis,{hearing:true,inputLevel:.04})
+            chat.peek=Object.assign({},chat.peek,{hearing:true,inputLevel:.04})
             compare(buddy.currentAction,"hearing")
-            chat.jarvis=Object.assign({},chat.jarvis,{hearing:false,stage:"thinking"})
+            chat.peek=Object.assign({},chat.peek,{hearing:false,stage:"thinking"})
             compare(buddy.currentAction,"thinking")
         }
         function test_expanded_layout_contains_controls_and_reduced_motion_is_still() {
-            chat.jarvis=Object.assign({},chat.jarvis,{task:task("verified"),listening:true,inputLevel:.9})
+            chat.peek=Object.assign({},chat.peek,{task:task("verified"),listening:true,inputLevel:.9})
             surface.showControls();surface.details.expanded=true
             wait(200)
             var dock=findChild(surface,"companion-dock"), stop=findChild(surface,"companion-stop")
@@ -149,7 +149,7 @@ Rectangle {
             verify(stop.mapToItem(surface,0,stop.height).y<=surface.height)
             var before=grabImage(surface);wait(150)
             verify(before.equals(grabImage(surface)))
-            before.save("/tmp/jarvis-unified-test.png")
+            before.save("/tmp/peek-unified-test.png")
         }
     }
 }

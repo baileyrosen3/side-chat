@@ -13,7 +13,7 @@ PanelWindow {
     color: "transparent"
     visible: inOutput
     exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "omarchy-jarvis-pointer"
+    WlrLayershell.namespace: "omarchy-peek-pointer"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
     mask: Region {}
@@ -30,8 +30,8 @@ PanelWindow {
         id: marker
         x: (root.pointer.x || 0) - root.screen.x
         y: (root.pointer.y || 0) - root.screen.y
-        Behavior on x { NumberAnimation { duration: root.chat.jarvis.reducedMotion ? 0 : 100; easing.type: Easing.OutCubic } }
-        Behavior on y { NumberAnimation { duration: root.chat.jarvis.reducedMotion ? 0 : 100; easing.type: Easing.OutCubic } }
+        Behavior on x { NumberAnimation { duration: root.chat.peek.reducedMotion ? 0 : 100; easing.type: Easing.OutCubic } }
+        Behavior on y { NumberAnimation { duration: root.chat.peek.reducedMotion ? 0 : 100; easing.type: Easing.OutCubic } }
         Rectangle {
             id: ripple
             anchors.centerIn: parent

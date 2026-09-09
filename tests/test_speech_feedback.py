@@ -5,10 +5,10 @@ import unittest
 from unittest.mock import patch
 
 from backend import Bridge
-from jarvis.controller import JarvisController,SpeechSegments
-from jarvis.feedback import ACKNOWLEDGMENT,SpokenFeedback
-from jarvis.settings import DEFAULTS,VOICES,validate
-from jarvis.speech_queue import SpeechJob,SpeechQueue
+from peek.controller import PeekController,SpeechSegments
+from peek.feedback import ACKNOWLEDGMENT,SpokenFeedback
+from peek.settings import DEFAULTS,VOICES,validate
+from peek.speech_queue import SpeechJob,SpeechQueue
 
 
 class FeedbackTests(unittest.TestCase):
@@ -102,9 +102,9 @@ class StreamingTests(unittest.TestCase):
 class ControllerFeedbackTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory()
-        with patch.object(JarvisController,'feedback_loop'):
+        with patch.object(PeekController,'feedback_loop'):
             self.b=Bridge(self.temp.name,lambda _:None)
-        self.v=self.b.jarvis;self.v.state.update(enabled=True,ready=True)
+        self.v=self.b.peek;self.v.state.update(enabled=True,ready=True)
         self.b.current={'messages':[{'role':'assistant','text':'','tools':[]}]}
         self.b.busy=True
         self.sent=[];self.v.send_worker=self.sent.append
@@ -133,12 +133,12 @@ class ControllerFeedbackTests(unittest.TestCase):
 
     def test_preview_is_explicit_and_does_not_save_or_arm_microphone(self):
         self.b.busy=False;before=dict(self.v.prefs)
-        self.v.dispatch({'action':'jarvis_voice_preview','voice':'fantine'})
+        self.v.dispatch({'action':'peek_voice_preview','voice':'fantine'})
         self.assertEqual(self.sent[-1]['voice'],'fantine')
         self.assertEqual(self.v.prefs,before)
         self.assertFalse(any(c['action']=='listen' for c in self.sent))
         self.b.busy=True
-        with self.assertRaises(ValueError):self.v.dispatch({'action':'jarvis_voice_preview','voice':'marius'})
+        with self.assertRaises(ValueError):self.v.dispatch({'action':'peek_voice_preview','voice':'marius'})
         for voice in VOICES['pocket']:self.assertEqual(validate(DEFAULTS,{'voice':voice},False)['voice'],voice)
 
     def test_slow_prompt_does_not_block_audio_event_reader(self):

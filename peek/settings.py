@@ -68,7 +68,7 @@ def validate(current, values, check_files=True):
         elif not (DATA/'models/whisper-base.en/model.bin').is_file():
             raise ValueError('The legacy Whisper model is not installed.')
     if check_files and values.get('ttsModel')=='kokoro' and not (DATA/'models/kokoro-int8-multi-lang-v1_0/model.int8.onnx').is_file():
-        raise ValueError('Install optional Kokoro with python3 jarvis/setup.py --with-kokoro.')
+        raise ValueError('Install optional Kokoro with python3 peek/setup.py --with-kokoro.')
     return result
 
 

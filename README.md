@@ -1,27 +1,27 @@
 <div align="center">
   <h1>Side Chat</h1>
-  <p><strong>A native AI side chat and local Jarvis companion for Omarchy.</strong></p>
-  <p>Keep your coding-agent sessions close, continue them in a terminal, or talk to Jarvis and watch him work.</p>
-  <p><a href="#meet-jarvis">Jarvis</a> · <a href="#install">Install</a> · <a href="#keybindings">Keybindings</a> · <a href="#update">Update</a> · <a href="#privacy-and-safety">Privacy</a></p>
+  <p><strong>A native AI side chat and local Peek companion for Omarchy.</strong></p>
+  <p>Keep your coding-agent sessions close, continue them in a terminal, or talk to Peek and watch him work.</p>
+  <p><a href="#meet-peek">Peek</a> · <a href="#install">Install</a> · <a href="#keybindings">Keybindings</a> · <a href="#update">Update</a> · <a href="#privacy-and-safety">Privacy</a></p>
 </div>
 
 ![Side Chat open at the left edge of an Omarchy desktop](preview.png)
 
-Side Chat brings two parts of an AI workspace together. **Chat** turns the agent you already use—OMP, Pi, Codex, or Claude—into a compact edge drawer with persistent sessions, native tools, approvals, and terminal handoff. **Jarvis** adds hands-free local voice, durable memory, fast desktop commands, and visible computer control.
+Side Chat brings two parts of an AI workspace together. **Chat** turns the agent you already use—OMP, Pi, Codex, or Claude—into a compact edge drawer with persistent sessions, native tools, approvals, and terminal handoff. **Peek** adds hands-free local voice, durable memory, fast desktop commands, and visible computer control.
 
-## Meet Jarvis
+## Meet Peek
 
-**Jarvis is the voice and computer-control layer; Peek is the animated robot who gives it a face.** He lives at the screen edge, listens only when enabled, speaks replies locally, and shows what the agent is doing while it works.
+**Peek is the voice and computer-control layer, with an animated robot body at the screen edge.** He listens only when enabled, speaks replies locally, and shows what the agent is doing while it works.
 
 <p align="center">
-  <img src="screenshots/peek.png" alt="Jarvis as the Peek companion at the screen edge" width="42%">
+  <img src="screenshots/peek.png" alt="Peek companion at the screen edge" width="42%">
   &nbsp;&nbsp;
-  <img src="screenshots/peek-controls.png" alt="Jarvis voice controls and verified action summary" width="48%">
+  <img src="screenshots/peek-controls.png" alt="Peek voice controls and verified action summary" width="48%">
 </p>
 
-Jarvis can answer through the same native agent session as chat, but common desktop requests never need an LLM round trip. Volume, brightness, music, app launches, workspaces, timers, and explicit web URLs are handled locally. Larger tasks go to your selected agent with the active conversation, working folder, and permission mode preserved.
+Peek can answer through the same native agent session as chat, but common desktop requests never need an LLM round trip. Volume, brightness, music, app launches, workspaces, timers, and explicit web URLs are handled locally. Larger tasks go to your selected agent with the active conversation, working folder, and permission mode preserved.
 
-| Say something like… | What Jarvis does |
+| Say something like… | What Peek does |
 | --- | --- |
 | “Set the volume to 30” | Runs a fast local command and checks the result |
 | “Open my terminal” | Uses Omarchy's configured launcher |
@@ -29,9 +29,9 @@ Jarvis can answer through the same native agent session as chat, but common desk
 | “Remember that I prefer compact windows” | Saves an explicit local memory you can inspect or delete |
 | “Set a timer for twenty minutes” | Creates a persistent local watch and announces it when ready |
 
-The companion surface keeps microphone, spoken-reply mute, Stop, conversation, Desktop/Browser, standby, and power controls within reach. Desktop actions can use accessible app controls, native input, or an isolated Chromium session. Jarvis shows recent action state and only says **Actions verified** when supported readback checks actually matched; otherwise it asks you to review the result.
+The companion surface keeps microphone, spoken-reply mute, Stop, conversation, Desktop/Browser, standby, and power controls within reach. Desktop actions can use accessible app controls, native input, or an isolated Chromium session. Peek shows recent action state and only says **Actions verified** when supported readback checks actually matched; otherwise it asks you to review the result.
 
-Speech recognition and synthesis run locally after setup. Wake listening is optional, the microphone starts off, screen context follows your setting, and there is no background screenshot recording. Say **“Hey Jarvis”** only if you enable the wake phrase; the on-screen character remains named Peek.
+Speech recognition and synthesis run locally after setup. Wake listening is optional, the microphone starts off, screen context follows your setting, and there is no background screenshot recording. The bundled upstream wake model listens for **“Hey Jarvis”**; the assistant and on-screen character are named Peek. A different wake phrase requires a different detector model.
 
 <details>
 <summary><strong>See conversation history, settings, and permissions</strong></summary>
@@ -74,7 +74,7 @@ This is not a second AI account or a web wrapper. Side Chat uses your installed 
 - Renders selectable Markdown and fenced code with dedicated copy actions.
 - Opens from the screen edge or IPC, with no replacement bar widget and no overwritten keybindings.
 
-### Jarvis and Peek
+### Voice and computer control
 
 - Uses local Parakeet speech recognition and Pocket TTS by default; optional Kokoro and legacy ASR are available.
 - Offers wake phrase, hands-free follow-ups, barge-in, mute, stop, and device selection.
@@ -84,7 +84,7 @@ This is not a second AI account or a web wrapper. Side Chat uses your installed 
 
 ## Supported agents
 
-| Agent | Session integration | Images | Per-chat permissions | Jarvis / Peek |
+| Agent | Session integration | Images | Per-chat permissions | Peek |
 | --- | --- | --- | --- | --- |
 | OMP | Native RPC | Yes | Default, Ask, Allow writes, YOLO | Yes |
 | Pi | Native RPC | Yes | Default, Ask before tools | Yes |
@@ -132,7 +132,7 @@ omarchy default agent codex
 
 Complete that CLI's provider sign-in in its terminal, then verify the install with `python3 setup.py --check`.
 
-### 2. Add Jarvis voice, Peek, and computer control (optional)
+### 2. Add Peek voice and computer control (optional)
 
 With Peek powered off and no reply running:
 
@@ -156,10 +156,10 @@ Optional engines include `python3 setup.py --with-kokoro` and `python3 setup.py 
 
 ## Keybindings
 
-Side Chat never edits `~/.config/hypr/bindings.lua`. These are the maintainer's exact Jarvis/Peek bindings: physical numpad **0** opens or closes Peek, and numpad **decimal** toggles its microphone, with Num Lock either on or off.
+Side Chat never edits `~/.config/hypr/bindings.lua`. These are the maintainer's exact Peek bindings: physical numpad **0** opens or closes Peek, and numpad **decimal** toggles its microphone, with Num Lock either on or off.
 
 ```lua
--- Peek / Jarvis: bare numpad shortcuts, with Num Lock on or off.
+-- Peek: bare numpad shortcuts, with Num Lock on or off.
 o.bind("KP_0", "Toggle Peek", "omarchy-shell blr.side-chat peek")
 o.bind("KP_Insert", "Toggle Peek", "omarchy-shell blr.side-chat peek")
 o.bind("KP_Decimal", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
@@ -329,6 +329,6 @@ Before publishing, validate a clean clone with `omarchy plugin validate .` and c
 
 ## License and attribution
 
-The original Side Chat source remains under the [MIT license](LICENSE). Peek's interface, integration, and original procedural 3D companion are under [GPL-3.0-or-later](COPYING.JARVIS); distribute the combined plugin under GPL-3.0-or-later while preserving the MIT notices.
+The original Side Chat source remains under the [MIT license](LICENSE). Peek's interface, integration, and original procedural 3D companion are under [GPL-3.0-or-later](COPYING.PEEK); distribute the combined plugin under GPL-3.0-or-later while preserving the MIT notices.
 
 Runtime dependencies, model licenses, voice attribution, and pinned revisions are documented in [THIRD_PARTY.md](THIRD_PARTY.md). The companion uses original procedural geometry and shaders—there are no purchased or downloaded character assets.

@@ -7,7 +7,7 @@ import "Theme.js" as Theme
 
 ColumnLayout {
     id: root
-    objectName: "jarvis-settings"
+    objectName: "peek-settings"
     ChatStyle { id: ui }
     required property var chat
     signal done()
@@ -22,7 +22,7 @@ ColumnLayout {
     spacing: Style.space(8)
     onSectionChanged: scroll.contentY = 0
     function reset() {
-        var next = {}; for (var key of keys) next[key] = chat.jarvis[key]
+        var next = {}; for (var key of keys) next[key] = chat.peek[key]
         saved = next; draft = Object.assign({},next)
     }
     function set(key, value) {
@@ -31,11 +31,11 @@ ColumnLayout {
         else next[key]=value
         draft=next
     }
-    Component.onCompleted: { reset(); chat.request({action:"jarvis_devices"}) }
+    Component.onCompleted: { reset(); chat.request({action:"peek_devices"}) }
     Connections {
         target: root.chat
-        function onJarvisChanged() {
-            if (root.pending && root.keys.every(key => root.draft[key] === root.chat.jarvis[key])) { root.pending=false; root.reset() }
+        function onPeekChanged() {
+            if (root.pending && root.keys.every(key => root.draft[key] === root.chat.peek[key])) { root.pending=false; root.reset() }
             else if (!root.dirty) root.reset()
         }
         function onErrorChanged() { if (root.chat.error) root.pending=false }
@@ -121,13 +121,13 @@ ColumnLayout {
                 visible: root.section === "Speech"; Layout.fillWidth: true; spacing: Style.space(6)
                 ChatSection { text: "Recognition" }
                 Choice { label: "Model"; key: "asrModel"; options: [{id:"parakeet-unified",name:"Parakeet Unified · English"},{id:"zipformer-whisper",name:"Zipformer + Whisper · English"}] }
-                Note { visible: root.draft.asrModel === "parakeet-unified"; text: chat.jarvis.parakeetAvailable ? "Installed · reuses your local model" : "Choose an installed Parakeet Unified ONNX folder below" }
+                Note { visible: root.draft.asrModel === "parakeet-unified"; text: chat.peek.parakeetAvailable ? "Installed · reuses your local model" : "Choose an installed Parakeet Unified ONNX folder below" }
                 ColumnLayout {
                     visible: root.draft.asrModel === "parakeet-unified"; Layout.fillWidth: true; spacing: Style.space(3)
                     Note { text: "Model folder · blank uses Voxtype’s model" }
                     ChatField {
                         Layout.fillWidth: true; text: root.draft.modelPath || ""
-                        placeholderText: root.chat.jarvis.modelResolvedPath || "Automatic"; placeholderTextColor: root.dim
+                        placeholderText: root.chat.peek.modelResolvedPath || "Automatic"; placeholderTextColor: root.dim
                         selectByMouse: true; Accessible.name: "Parakeet model folder"
                         onTextEdited: root.set("modelPath",text)
                     }
@@ -140,10 +140,10 @@ ColumnLayout {
                 ActionButton {
                     objectName: "voicePreview"
                     text: "Preview voice"; subtle: true
-                    enabled: root.chat.jarvis.ready && root.chat.jarvis.enabled && !root.chat.busy && root.draft.ttsModel === root.chat.jarvis.ttsModel
-                    onClicked: root.chat.request({action:"jarvis_voice_preview",voice:root.draft.voice})
+                    enabled: root.chat.peek.ready && root.chat.peek.enabled && !root.chat.busy && root.draft.ttsModel === root.chat.peek.ttsModel
+                    onClicked: root.chat.request({action:"peek_voice_preview",voice:root.draft.voice})
                 }
-                Note { text: !root.chat.jarvis.enabled ? "Turn on Peek to hear a sample." : root.draft.ttsModel !== root.chat.jarvis.ttsModel ? "Apply the speech model to preview its voices." : "Preview works while muted. Apply to save your voice." }
+                Note { text: !root.chat.peek.enabled ? "Turn on Peek to hear a sample." : root.draft.ttsModel !== root.chat.peek.ttsModel ? "Apply the speech model to preview its voices." : "Preview works while muted. Apply to save your voice." }
                 NumberSetting { label: "Speech threads"; key: "ttsThreads"; low: 1; high: 12 }
                 NumberSetting { visible: root.draft.ttsModel === "kokoro"; label: "Speaking pace"; key: "speechRate"; low: 70; high: 140; multiplier: 100; step: 5; unit: "×" }
                 NumberSetting { label: "Voice volume"; key: "volume"; low: 0; high: 150; multiplier: 100; step: 5; unit: "×" }
@@ -155,7 +155,7 @@ ColumnLayout {
                 visible: root.section === "Listening"; Layout.fillWidth: true; spacing: Style.space(6)
                 ChatSection { text: "Activation" }
                 Choice { label: "Listening"; key: "listeningMode"; options: [{id:"wake",name:"Wake phrase · wake, then follow up"},{id:"open",name:"Open microphone · every voice can trigger"},{id:"hold",name:"Hold to talk · press while speaking"}] }
-                Note { text: root.listeningMode === "wake" ? "Wake phrase: Hey Jarvis. The installed detector recognizes this phrase. Wait for the chime, then speak to Peek. Follow up after an answer, or say the phrase again to interrupt." : root.listeningMode === "hold" ? "Hold the microphone while speaking. Release to send." : "Nearby speech can trigger requests. Use wake word or hold-to-talk in shared rooms." }
+                Note { text: root.listeningMode === "wake" ? "Wake phrase: Hey Jarvis. The bundled upstream detector recognizes this phrase. Wait for the chime, then speak to Peek. Follow up after an answer, or say the phrase again to interrupt." : root.listeningMode === "hold" ? "Hold the microphone while speaking. Release to send." : "Nearby speech can trigger requests. Use wake word or hold-to-talk in shared rooms." }
                 ChatSection { text: "Detection" }
                 Choice { label: "Noise rejection"; key: "noiseRejection"; options: [{id:"balanced",name:"Balanced · includes softer speech"},{id:"strong",name:"Strong · reject more faint sounds"}] }
                 Note { text: "Strong rejection may miss quiet speech." }
@@ -171,9 +171,9 @@ ColumnLayout {
                 Toggle { label: "Echo cancellation"; key: "echoCancellation" }
                 Note { text: "Recommended with speakers; includes noise suppression." }
                 ChatSection { text: "Audio devices" }
-                Choice { label: "Microphone"; key: "source"; options: [{id:"",name:"System default"}].concat((root.chat.jarvis.devices || []).filter(d => d.kind === "Audio/Source")) }
-                Choice { label: "Speaker"; key: "sink"; options: [{id:"",name:"System default"}].concat((root.chat.jarvis.devices || []).filter(d => d.kind === "Audio/Sink")) }
-                ActionButton { text: "Refresh devices"; subtle: true; onClicked: root.chat.request({action:"jarvis_devices"}) }
+                Choice { label: "Microphone"; key: "source"; options: [{id:"",name:"System default"}].concat((root.chat.peek.devices || []).filter(d => d.kind === "Audio/Source")) }
+                Choice { label: "Speaker"; key: "sink"; options: [{id:"",name:"System default"}].concat((root.chat.peek.devices || []).filter(d => d.kind === "Audio/Sink")) }
+                ActionButton { text: "Refresh devices"; subtle: true; onClicked: root.chat.request({action:"peek_devices"}) }
             }
             ColumnLayout {
                 visible: root.section === "Control"; Layout.fillWidth: true; spacing: Style.space(6)
@@ -203,7 +203,7 @@ ColumnLayout {
         Layout.fillWidth: true
         ActionButton {
             text: root.pending ? "Applying…" : "Apply"; accent: true; enabled: root.dirty && !chat.busy && !root.pending
-            onClicked: { var changed={}; for (var key of root.keys) if (root.draft[key] !== root.saved[key]) changed[key]=root.draft[key]; root.pending=true; chat.request({action:"jarvis_settings",settings:changed}) }
+            onClicked: { var changed={}; for (var key of root.keys) if (root.draft[key] !== root.saved[key]) changed[key]=root.draft[key]; root.pending=true; chat.request({action:"peek_settings",settings:changed}) }
         }
         ActionButton { text: root.dirty ? "Discard" : "Back"; subtle: true; onClicked: { if (root.dirty) root.reset(); else root.done() } }
         Note { text: chat.busy ? "Task running" : root.dirty ? "Unsaved changes" : "Saved"; horizontalAlignment: Text.AlignRight }

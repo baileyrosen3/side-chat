@@ -8,9 +8,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from backend import Bridge
-from jarvis.control import Control
-from jarvis.quick import execute
-from jarvis.task import TaskProgress, control_evidence
+from peek.control import Control
+from peek.quick import execute
+from peek.task import TaskProgress, control_evidence
 
 
 class TaskProgressTests(unittest.TestCase):
@@ -34,7 +34,7 @@ class TaskProgressTests(unittest.TestCase):
 
     def test_verified_broker_action_does_not_cover_other_unchecked_work(self):
         self.task.record('write', 'Update settings', state='verified')
-        self.task.tools([{'id': 'native', 'name': 'mcp__jarvis__computer', 'status': 'complete'},
+        self.task.tools([{'id': 'native', 'name': 'mcp__peek__computer', 'status': 'complete'},
                          {'id': 'shell', 'name': 'bash', 'status': 'complete'}])
         self.assertEqual(self.task.finish('complete')['state'], 'review')
 
@@ -42,7 +42,7 @@ class TaskProgressTests(unittest.TestCase):
         for state in ('complete', 'error', 'running'):
             with self.subTest(state=state):
                 self.task.begin(state)
-                self.task.tools([{'id': 'missing', 'name': 'jarvis_computer', 'status': state}])
+                self.task.tools([{'id': 'missing', 'name': 'peek_computer', 'status': state}])
                 self.assertEqual(self.task.finish('complete')['state'], 'review')
         self.task.begin('failure')
         self.task.record('a', 'Use the app', state='failed')
@@ -69,11 +69,11 @@ class TaskProgressTests(unittest.TestCase):
 
     def test_quick_readbacks_distinguish_requested_and_actual_outcomes(self):
         reports = []
-        with patch('jarvis.quick.run', side_effect=['Volume: 0.50', '', 'Volume: 0.25']):
+        with patch('peek.quick.run', side_effect=['Volume: 0.50', '', 'Volume: 0.25']):
             execute({'op': 'volume', 'value': 25}, report=lambda text, verified: reports.append(verified))
-        with patch('jarvis.quick.run', side_effect=['Volume: 0.50', '', 'Volume: 0.24']):
+        with patch('peek.quick.run', side_effect=['Volume: 0.50', '', 'Volume: 0.24']):
             execute({'op': 'volume', 'value': 25}, report=lambda text, verified: reports.append(verified))
-        with patch('jarvis.quick.run', return_value=''):
+        with patch('peek.quick.run', return_value=''):
             execute({'op': 'app', 'value': 'terminal'}, report=lambda text, verified: reports.append(verified))
         self.assertEqual(reports, [True, False, False])
 
@@ -84,7 +84,7 @@ class ControllerOutcomeTests(unittest.TestCase):
         self.root = Path(self.folder.name)
         self.bridge = Bridge(self.root / 'state', lambda _: None)
         self.bridge.new()
-        self.voice = self.bridge.jarvis
+        self.voice = self.bridge.peek
         self.voice.state.update(enabled=True, ready=True, listening=False)
         self.voice.prefs['muted'] = True
         self.bridge.current['messages'] = [{'role': 'assistant', 'text': 'Done.', 'tools': [], 'status': 'complete'}]

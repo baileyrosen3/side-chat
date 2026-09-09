@@ -10,11 +10,11 @@ import subprocess
 import threading
 import time
 import uuid
-from jarvis.control import request as control_request
-from jarvis.settings import DEFAULTS, RELOAD, validate, model_info
-from jarvis.companion import Companion
-from jarvis.feedback import SpokenFeedback
-from jarvis.task import TaskProgress
+from peek.control import request as control_request
+from peek.settings import DEFAULTS, RELOAD, validate, model_info
+from peek.companion import Companion
+from peek.feedback import SpokenFeedback
+from peek.task import TaskProgress
 
 
 class SpeechSegments:
@@ -81,7 +81,7 @@ class SpeechSegments:
         return out
 
 
-class JarvisController:
+class PeekController:
     def __init__(self,bridge):
         self.bridge=bridge
         self.guard=threading.RLock()
@@ -95,7 +95,11 @@ class JarvisController:
         digest=hashlib.sha256(str(bridge.state).encode()).hexdigest()[:12]
         self.folder=Path(os.environ.get('XDG_RUNTIME_DIR','/tmp'))/('side-chat-'+str(os.getuid())+'-'+digest)
         self.socket=self.folder/'control.sock'
-        row=bridge.db.execute("SELECT value FROM settings WHERE key='jarvis'").fetchone()
+        row=bridge.db.execute("SELECT value FROM settings WHERE key='peek'").fetchone()
+        if not row:
+            # Preserve voice preferences saved by releases before the Peek
+            # rename. New writes use the canonical Peek key below.
+            row=bridge.db.execute("SELECT value FROM settings WHERE key='jarvis'").fetchone()
         self.prefs=dict(DEFAULTS)
         if row:
             saved=json.loads(row[0])
@@ -157,7 +161,7 @@ class JarvisController:
         with self.guard:self.state.update(values);state=dict(self.state)
         for key in ('memories','routines','watches','activity','restorePoints'):
             if key not in values:state.pop(key,None)
-        self.bridge.emit(type='jarvis',state=state)
+        self.bridge.emit(type='peek',state=state)
 
     def send_worker(self,command):
         with self.write_lock:
@@ -177,16 +181,16 @@ class JarvisController:
 
     def ensure_control(self):
         if self.control and self.control.poll() is None:return
-        if not self.python.is_file():raise ValueError('Run python3 jarvis/setup.py to install local speech and input support.')
+        if not self.python.is_file():raise ValueError('Run python3 peek/setup.py to install local speech and input support.')
         self.folder.mkdir(parents=True,exist_ok=True,mode=0o700)
         os.chmod(self.folder,0o700);self.socket.unlink(missing_ok=True)
-        log=open(self.bridge.state/'jarvis-control.log','a')
+        log=open(self.bridge.state/'peek-control.log','a')
         self.control=subprocess.Popen([str(self.python),'-B',str(Path(__file__).with_name('control.py')),'--serve',str(self.socket)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=log,text=True,start_new_session=True,env=dict(os.environ,SIDE_CHAT_CONTROL_LIFELINE='1',SIDE_CHAT_COMPANION_STATE=str(self.bridge.state),PYTHONDONTWRITEBYTECODE='1'))
         log.close()
         threading.Thread(target=self.read_process,args=(self.control,self.control_event,'control'),daemon=True).start()
         deadline=time.monotonic()+4
         while not self.socket.exists():
-            if self.control.poll() is not None or time.monotonic()>deadline:raise ValueError('Desktop control could not start. Check jarvis-control.log.')
+            if self.control.poll() is not None or time.monotonic()>deadline:raise ValueError('Desktop control could not start. Check peek-control.log.')
             time.sleep(.025)
 
     def configure_control(self,enabled):
@@ -196,8 +200,8 @@ class JarvisController:
     def extension_options(self):
         if not self.enabled:return {}
         self.ensure_control()
-        return {'_jarvis_extension':str(Path(__file__).with_name('agent_extension.ts')),
-                '_jarvis_socket':str(self.socket),'_jarvis_client':str(Path(__file__).with_name('control.py'))}
+        return {'_peek_extension':str(Path(__file__).with_name('agent_extension.ts')),
+                '_peek_socket':str(self.socket),'_peek_client':str(Path(__file__).with_name('control.py'))}
 
     def enable(self,enabled):
         if enabled and self.enabled and self.voice and self.voice.poll() is None:
@@ -211,7 +215,7 @@ class JarvisController:
             self.publish(enabled=True,ready=False,stage='warming',error='',caption='Warming local voice…')
             self.want_listen=self.prefs['handsFree'] or self.prefs['wakeEnabled']
             if not self.voice or self.voice.poll() is not None:
-                log=open(self.bridge.state/'jarvis-voice.log','a')
+                log=open(self.bridge.state/'peek-voice.log','a')
                 self.voice=subprocess.Popen([str(self.python),'-B',str(Path(__file__).with_name('voice_worker.py'))],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=log,text=True,start_new_session=True,env=dict(os.environ,HF_HUB_OFFLINE='1',PYTHONDONTWRITEBYTECODE='1',SIDE_CHAT_VOICE_SETTINGS=json.dumps(self.prefs)))
                 log.close()
                 threading.Thread(target=self.read_process,args=(self.voice,self.voice_event,'voice'),daemon=True).start()
@@ -222,7 +226,7 @@ class JarvisController:
             self.want_listen=False;self.pending=''
             self.send_worker({'action':'listen','enabled':False});self.send_worker({'action':'cancel'})
             self.configure_control(False)
-            self.bridge.emit(type='jarvis_pointer',pointer={'visible':False})
+            self.bridge.emit(type='peek_pointer',pointer={'visible':False})
             proc,self.voice=self.voice,None
             if proc:
                 try:proc.stdin.close()
@@ -239,38 +243,38 @@ class JarvisController:
     def dispatch(self,c):
         action=c.get('action')
         if self.companion.dispatch(c):return
-        if action=='jarvis':
+        if action=='peek':
             self.state['accent']=str(c.get('accent',''))
             self.enable(c.get('enabled') is True)
-        elif action=='jarvis_status':self.companion.publish()
-        elif action=='jarvis_say':self.submit_voice(str(c.get('text','')))
-        elif action=='jarvis_voice_preview':
+        elif action=='peek_status':self.companion.publish()
+        elif action=='peek_say':self.submit_voice(str(c.get('text','')))
+        elif action=='peek_voice_preview':
             if not self.enabled or not self.state['ready']:raise ValueError('Turn on Peek and wait for the voice to be ready before previewing.')
             if self.bridge.busy or self.bridge.ui_requests:raise ValueError('Finish or stop the task before previewing a voice.')
             voice=validate(self.prefs,{'voice':c.get('voice')},check_files=False)['voice']
             self.send_worker({'action':'cancel'})
             self.send_worker({'action':'speak','voice':voice,'text':"Hey, I'm Peek. What are we working on today? Take your time. I'm here when you need me."})
-        elif action=='jarvis_wake':self.send_worker({'action':'wake'})
-        elif action=='jarvis_standby':
+        elif action=='peek_wake':self.send_worker({'action':'wake'})
+        elif action=='peek_standby':
             self.stop()
             if self.prefs['wakeEnabled']:
                 self.want_listen=True;self.send_worker({'action':'listen','enabled':True})
                 self.send_worker({'action':'standby'});self.publish(standby=True,caption='Say the wake phrase',stage='standby')
             else:
                 self.want_listen=False;self.send_worker({'action':'listen','enabled':False});self.publish(standby=False,caption='Microphone paused',stage='idle')
-        elif action=='jarvis_stop':self.stop()
-        elif action in ('jarvis_listen','jarvis_toggle_listen'):
+        elif action=='peek_stop':self.stop()
+        elif action in ('peek_listen','peek_toggle_listen'):
             # Use the requested state: worker acknowledgements can lag behind
             # shortcuts, especially while the speech models are warming up.
-            listening=not (self.enabled and self.want_listen) if action=='jarvis_toggle_listen' else c.get('enabled') is True
-            if action=='jarvis_toggle_listen' and not self.enabled:
+            listening=not (self.enabled and self.want_listen) if action=='peek_toggle_listen' else c.get('enabled') is True
+            if action=='peek_toggle_listen' and not self.enabled:
                 self.state['accent']=str(c.get('accent',''))
                 self.enable(True)
             self.want_listen=listening
             self.send_worker({'action':'listen','enabled':True} if listening else {'action':'listen','enabled':False,'finish':True})
-        elif action=='jarvis_finish':
+        elif action=='peek_finish':
             self.want_listen=False;self.send_worker({'action':'flush'})
-        elif action=='jarvis_settings':
+        elif action=='peek_settings':
             values=c.get('settings',{})
             prefs=validate(self.prefs,values)
             changed={k for k in prefs if prefs[k]!=self.prefs[k]}
@@ -282,7 +286,7 @@ class JarvisController:
             if 'scope' in changed:self.stop()
             self.prefs=prefs
             if 'scope' in changed:self.configure_control(False)
-            self.bridge.db.execute("INSERT OR REPLACE INTO settings VALUES ('jarvis',?)",(json.dumps(self.prefs),));self.bridge.db.commit()
+            self.bridge.db.execute("INSERT OR REPLACE INTO settings VALUES ('peek',?)",(json.dumps(self.prefs),));self.bridge.db.commit()
             self.send_worker(dict(self.prefs,action='settings'))
             if self.prefs['muted']:self.send_worker({'action':'cancel'})
             elif not self.prefs['spokenProgress']:self.send_worker({'action':'clear_status'})
@@ -292,8 +296,8 @@ class JarvisController:
             if reload:
                 self.enable(True)
                 if not {'handsFree','wakeEnabled'} & changed:self.want_listen=listening
-        elif action=='jarvis_devices':
-            from jarvis.audio import devices
+        elif action=='peek_devices':
+            from peek.audio import devices
             self.publish(devices=devices(),**model_info(self.prefs))
 
     def begin_turn(self):
@@ -413,7 +417,7 @@ class JarvisController:
                 self.send_worker({'action':'engaged','enabled':False})
                 try:self.configure_control(False)
                 except (OSError,RuntimeError):pass
-                self.bridge.emit(type='jarvis_pointer',pointer={'visible':False})
+                self.bridge.emit(type='peek_pointer',pointer={'visible':False})
                 self.companion.publish()
                 current=event.get('current') or {};messages=current.get('messages',[])
                 reply=messages[-1] if messages else {}
@@ -443,8 +447,8 @@ class JarvisController:
                 local=self.companion.match(text)
                 if local and local[0] in ('stop','sleep'):
                     if local[0]=='sleep':
-                        self.dispatch({'action':'jarvis_standby'})
-                        self.bridge.emit(type='jarvis_hide')
+                        self.dispatch({'action':'peek_standby'})
+                        self.bridge.emit(type='peek_hide')
                     else:self.stop()
                     return
                 if self.prefs['bargeIn'] or not self.bridge.busy:
@@ -578,7 +582,7 @@ class JarvisController:
         elif kind=='standby':self.publish(standby=e['active']);self.refresh_activity()
         elif kind=='wake':
             self.publish(standby=False,caption='I’m listening',stage='listening')
-            self.bridge.emit(type='jarvis_wake')
+            self.bridge.emit(type='peek_wake')
         elif kind=='level':self.publish(inputLevel=e['input'])
         elif kind=='output_level':self.publish(outputLevel=e['level'])
         elif kind=='playback':
@@ -586,7 +590,7 @@ class JarvisController:
             if e.get('turn')==self.turn and self.turn:
                 with self.guard:self.feedback.spoken(time.monotonic())
             values={'speaking':e['active'],'outputLevel':0}
-            if e['active'] and not e.get('resumed') and e.get('text')!='__jarvis_chime__':values['caption']=e.get('text','')
+            if e['active'] and not e.get('resumed') and e.get('text')!='__peek_chime__':values['caption']=e.get('text','')
             self.publish(**values)
             self.refresh_activity()
         elif kind=='error':self.publish(error=e['text'],stage='error')
@@ -596,7 +600,7 @@ class JarvisController:
         kind=e.get('type')
         if kind in ('pointer','control_action') and self.task.state!='running':return
         if kind=='pointer':
-            self.bridge.emit(type='jarvis_pointer',pointer=e)
+            self.bridge.emit(type='peek_pointer',pointer=e)
             if e.get('visible'):
                 self.publish(actionTarget={'x':e['x'],'y':e['y'],'at':time.time()} if 'x' in e and 'y' in e else None,
                              gazeX=max(-1,min(1,e.get('gazeX',.6))),gazeY=max(-1,min(1,e.get('gazeY',-.15))),
@@ -612,7 +616,7 @@ class JarvisController:
                 else:self.refresh_activity()
         elif kind=='emergency_stop':self.stop()
         elif kind=='control_stopped':
-            self.bridge.emit(type='jarvis_pointer',pointer={'visible':False})
+            self.bridge.emit(type='peek_pointer',pointer={'visible':False})
             if self.enabled:self.publish(caption=e.get('reason','Stopped'),actionTarget=None)
 
     def close(self):

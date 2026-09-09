@@ -12,8 +12,8 @@ import time
 import numpy as np
 import soundfile as sf
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from jarvis.settings import DEFAULTS
-from jarvis.engines import pocket
+from peek.settings import DEFAULTS
+from peek.engines import pocket
 
 
 def run(*args):return subprocess.check_output(args,text=True).strip()
@@ -44,11 +44,11 @@ def prepare(folder):
 
 
 def main():
-    folder=Path(tempfile.mkdtemp(prefix='jarvis-listening-audit-'))
+    folder=Path(tempfile.mkdtemp(prefix='peek-listening-audit-'))
     if len(sys.argv)>1:
         for source in Path(sys.argv[1]).glob('*.wav'):shutil.copy2(source,folder/source.name)
     else:prepare(folder)
-    stem='jarvis_audit_'+str(os.getpid());input_sink=stem+'_input';output_sink=stem+'_output'
+    stem='peek_audit_'+str(os.getpid());input_sink=stem+'_input';output_sink=stem+'_output'
     defaults={k:run('pactl','get-default-'+k) for k in ('source','sink')}
     modules=[];proc=None;events=[];condition=threading.Condition()
     prefs=dict(DEFAULTS,handsFree=True,source=input_sink+'.monitor',sink=output_sink,
@@ -77,7 +77,7 @@ def main():
         for name in (input_sink,output_sink):
             modules.append(run('pactl','load-module','module-null-sink','sink_name='+name,'sink_properties="priority.session=0"'))
         with (folder/'worker.log').open('w') as log:
-            proc=subprocess.Popen([sys.executable,'-B','jarvis/voice_worker.py'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
+            proc=subprocess.Popen([sys.executable,'-B','peek/voice_worker.py'],stdin=subprocess.PIPE,stdout=subprocess.PIPE,
                 stderr=log,text=True,env=dict(os.environ,HF_HUB_OFFLINE='1',SIDE_CHAT_VOICE_SETTINGS=json.dumps(prefs)))
         threading.Thread(target=reader,daemon=True).start()
         wait(lambda e:e.get('type')=='ready',timeout=35)

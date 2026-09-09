@@ -153,7 +153,7 @@ Recommend [agent-browser](https://github.com/vercel-labs/agent-browser), pinned 
 
 ### Native desktop choice
 
-Build a small `jarvis-control` CLI/service around AT-SPI, `grim` or a PipeWire capture stream, Hyprland window metadata/focus, and a tested Wayland input backend. Prefer compositor virtual pointer/keyboard protocols when available. [ydotool](https://github.com/ReimuNotMoe/ydotool) is a concrete fallback for actual mouse and keyboard injection through Linux uinput. This computer currently allows access to `/dev/uinput`; the installer must still validate daemon/device permissions without making the whole agent run as root.
+Build a small `peek-control` CLI/service around AT-SPI, `grim` or a PipeWire capture stream, Hyprland window metadata/focus, and a tested Wayland input backend. Prefer compositor virtual pointer/keyboard protocols when available. [ydotool](https://github.com/ReimuNotMoe/ydotool) is a concrete fallback for actual mouse and keyboard injection through Linux uinput. This computer currently allows access to `/dev/uinput`; the installer must still validate daemon/device permissions without making the whole agent run as root.
 
 OMP's [native computer documentation](https://github.com/can1357/oh-my-pi/blob/main/docs/computer-use.md) describes Wayland backend restrictions and build-dependent capture support. Do not make that single backend the only route on this machine. Pin the CLI version and probe capabilities before using it; upstream main has already changed its tool surface relative to the installed OMP version.
 
@@ -202,14 +202,14 @@ The existing panel morphs into a compact companion dock, still connected to the 
 
 Proposed modules; names can change during implementation:
 
-- `JarvisView.qml`, `JarvisBuddy.qml`, `JarvisControls.qml`: mode UI, companion, captions, controls.
+- `PeekView.qml`, `PeekBuddy.qml`, `PeekControls.qml`: mode UI, companion, captions, controls.
 - `AgentPointer.qml`: one overlay per output, shared geometry transforms, no input region.
-- `jarvis/controller.py`: mode lifecycle, transcript/turn routing, stop, speech queue, and session ownership.
-- `jarvis/audio.py`, `jarvis/stt.py`, `jarvis/tts.py`: persistent local audio/model workers.
-- `jarvis/control_service.py`: desktop/browser dispatch, action records, coordinate validation.
-- `jarvis/backends/`: browser, AT-SPI, Wayland/uinput, and later isolated-desktop backends.
+- `peek/controller.py`: mode lifecycle, transcript/turn routing, stop, speech queue, and session ownership.
+- `peek/audio.py`, `peek/stt.py`, `peek/tts.py`: persistent local audio/model workers.
+- `peek/control_service.py`: desktop/browser dispatch, action records, coordinate validation.
+- `peek/backends/`: browser, AT-SPI, Wayland/uinput, and later isolated-desktop backends.
 - `agents/`: common adapter contract and OMP/Pi/Codex/Claude implementations, extracting current native bridge behavior without losing its tests.
-- `assets/jarvis/`: editable model/animation sources, generated assets, and license notices.
+- `assets/peek/`: editable model/animation sources, generated assets, and license notices.
 - `deploy/compose.yaml`, `deploy/containers/`: optional service profiles, tested container builds, health checks, and model-cache configuration.
 - Existing `Main.qml`, `ChatWindow.qml`, bridge, installer, and storage: add mode settings and supervised workers while preserving current chat history.
 

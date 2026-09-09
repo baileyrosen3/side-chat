@@ -9,6 +9,9 @@ import numpy as np
 class WakeDetector:
     def __init__(self, threshold=.97):
         from pymicro_wakeword import MicroWakeWord,MicroWakeWordFeatures,Model
+        # The bundled upstream model is trained for “Hey Jarvis”; Peek is the
+        # assistant's product name, but changing the phrase would require a
+        # different detector model.
         with contextlib.redirect_stdout(sys.stderr):self.model=MicroWakeWord.from_builtin(Model.HEY_JARVIS)
         self.model.probability_cutoff=threshold
         self.features=MicroWakeWordFeatures();self.pending=b''

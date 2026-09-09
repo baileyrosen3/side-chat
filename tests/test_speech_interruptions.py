@@ -7,13 +7,13 @@ from types import SimpleNamespace
 from contextlib import contextmanager
 from unittest.mock import Mock,patch
 
-from jarvis.speech_queue import SpeechJob,SpeechQueue
+from peek.speech_queue import SpeechJob,SpeechQueue
 
 
 @unittest.skipUnless(importlib.util.find_spec('sherpa_onnx'),'requires the local voice runtime')
 class SpeechInterruptionTests(unittest.TestCase):
     def setUp(self):
-        from jarvis.voice_worker import VoiceWorker
+        from peek.voice_worker import VoiceWorker
         self.w=VoiceWorker.__new__(VoiceWorker)
         self.w.lock=threading.RLock();self.w.queue=SpeechQueue()
         self.w.speech_paused=threading.Event();self.w.shutdown=threading.Event()
@@ -30,7 +30,7 @@ class SpeechInterruptionTests(unittest.TestCase):
     def capturing(self,voiced=True,block_finalize=False):
         """One accepted frame, then blocked capture with no silence endpoint."""
         import numpy as np
-        from jarvis.settings import DEFAULTS
+        from peek.settings import DEFAULTS
         w=self.w;reading=threading.Event();release=threading.Event()
         finalizing=threading.Event();finish_release=threading.Event()
         if not block_finalize:finish_release.set()
@@ -53,7 +53,7 @@ class SpeechInterruptionTests(unittest.TestCase):
         w.audio.record.return_value=capture
         thread=threading.Thread(target=w.record,args=(w.record_epoch,),daemon=True)
         w.capture_thread=thread
-        with patch('jarvis.voice_worker.terminate',side_effect=lambda p:release.set() if p is capture else None):
+        with patch('peek.voice_worker.terminate',side_effect=lambda p:release.set() if p is capture else None):
             thread.start()
             try:
                 self.assertTrue(reading.wait(1))
@@ -158,7 +158,7 @@ class SpeechInterruptionTests(unittest.TestCase):
 
     def test_muting_discards_a_buffered_capture_frame_before_it_can_pause_speech(self):
         import numpy as np
-        from jarvis.settings import DEFAULTS
+        from peek.settings import DEFAULTS
         w=self.w;reading=threading.Event();release=threading.Event()
         w.ready=threading.Event();w.ready.set();w.finish=threading.Event()
         w.record_epoch=1;w.input_generation=0;w.capture=None
@@ -173,7 +173,7 @@ class SpeechInterruptionTests(unittest.TestCase):
         capture=Mock();capture.stdout.read.side_effect=read
         w.audio.record.return_value=capture
         w.capture_thread=threading.Thread(target=w.record,args=(1,),daemon=True)
-        with patch('jarvis.voice_worker.terminate',side_effect=lambda _:release.set()):
+        with patch('peek.voice_worker.terminate',side_effect=lambda _:release.set()):
             w.capture_thread.start()
             try:
                 self.assertTrue(reading.wait(1))

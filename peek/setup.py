@@ -14,7 +14,7 @@ import urllib.request
 import sys
 sys.dont_write_bytecode=True
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from jarvis.settings import DEFAULTS, model_path
+from peek.settings import DEFAULTS, model_path
 
 ROOT = Path(os.environ.get('SIDE_CHAT_DATA', Path(os.environ.get('XDG_DATA_HOME', Path.home()/'.local/share'))/'side-chat'))
 ASR_REPO = 'csukuangfj/sherpa-onnx-streaming-zipformer-en-2023-06-26'
@@ -36,7 +36,7 @@ def preflight(models_only=False):
             raise SystemExit('Missing build tools: '+', '.join(missing)+
                              '. Run python3 setup.py --with-peek from the plugin root.')
         if not Path(__file__).with_name('parakeet').joinpath('Cargo.lock').is_file():
-            raise SystemExit('Missing jarvis/parakeet/Cargo.lock. Download the complete plugin source.')
+            raise SystemExit('Missing peek/parakeet/Cargo.lock. Download the complete plugin source.')
 
 
 def digest(path):
@@ -132,11 +132,11 @@ if __name__ == '__main__':
         subprocess.run(['cargo','build','--release','--locked','--manifest-path',str(Path(__file__).with_name('parakeet')/'Cargo.toml')],
                        env=dict(os.environ,CARGO_TARGET_DIR=str(ROOT/'build/parakeet')),check=True)
         (ROOT/'bin').mkdir(parents=True,exist_ok=True)
-        shutil.copy2(ROOT/'build/parakeet/release/jarvis-parakeet',ROOT/'bin/jarvis-parakeet.new')
-        (ROOT/'bin/jarvis-parakeet.new').replace(ROOT/'bin/jarvis-parakeet')
+        shutil.copy2(ROOT/'build/parakeet/release/peek-parakeet',ROOT/'bin/peek-parakeet.new')
+        (ROOT/'bin/peek-parakeet.new').replace(ROOT/'bin/peek-parakeet')
         if args.with_legacy_asr:subprocess.run([str(ROOT/'runtime/bin/python'), '-c',
             "from huggingface_hub import snapshot_download; snapshot_download('Systran/faster-whisper-base.en',revision='3d3d5dee26484f91867d81cb899cfcf72b96be6c',local_dir="+repr(str(ROOT/'models/whisper-base.en'))+",allow_patterns=['config.json','model.bin','tokenizer.json','vocabulary.*','README.md'])"], check=True)
-        subprocess.run([str(ROOT/'runtime/bin/python'), '-c', 'from jarvis.engines import pocket; pocket()'],
+        subprocess.run([str(ROOT/'runtime/bin/python'), '-c', 'from peek.engines import pocket; pocket()'],
                        cwd=Path(__file__).resolve().parent.parent, check=True)
         browser=ROOT/'bin/agent-browser'
         fetch('https://github.com/vercel-labs/agent-browser/releases/download/v0.36.0/agent-browser-linux-x64', browser,

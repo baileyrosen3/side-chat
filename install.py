@@ -12,14 +12,14 @@ import time
 
 FILES = ["manifest.json", "Main.qml", "ChatWindow.qml", "MessageCard.qml", "ActionButton.qml",
          "Icon.qml", "Theme.js", "Markdown.js", "backend.py", "agent_session.py", "native_bridge.py",
-         "terminal_session.py", "ToolActivity.qml", "AgentPrompt.qml", "JarvisView.qml", "JarvisBuddy.qml",
-         "AgentPointer.qml", "JarvisSettings.qml", "CompanionSettings.qml", "CompanionWindow.qml", "CompanionSurface.qml", "RoundedGeometry.qml", "VoiceStatus.js", "COPYING.JARVIS", "THIRD_PARTY.md", "README.md", "LICENSE"]
+         "terminal_session.py", "ToolActivity.qml", "AgentPrompt.qml", "PeekView.qml", "PeekBuddy.qml",
+         "AgentPointer.qml", "PeekSettings.qml", "CompanionSettings.qml", "CompanionWindow.qml", "CompanionSurface.qml", "RoundedGeometry.qml", "VoiceStatus.js", "COPYING.PEEK", "THIRD_PARTY.md", "README.md", "LICENSE"]
 FILES += ["RobotExpressions.js", "CompanionMotion.qml", "RobotAppearance.qml", "PeekModel.qml",
           "RobotFace.qml", "SculptGeometry.qml", "assets/companion/studio.hdr",
           "assets/companion/face.vert", "assets/companion/face.frag"]
 FILES += ["docs/speech-audit.md", "docs/implementation.md", "docs/publishing.md", "setup.py",
           "deploy/70-side-chat-input.rules", "deploy/side-chat-input.conf"]
-FILES += sorted(str(p.relative_to(Path(__file__).parent)) for p in (Path(__file__).parent / "jarvis").rglob("*")
+FILES += sorted(str(p.relative_to(Path(__file__).parent)) for p in (Path(__file__).parent / "peek").rglob("*")
                 if p.is_file() and "__pycache__" not in p.parts and p.suffix in (".py", ".ts", ".txt", ".json", ".yaml", ".rs", ".toml", ".lock"))
 FILES += sorted(str(p.relative_to(Path(__file__).parent)) for p in (Path(__file__).parent / "agents").glob("*.py"))
 FILES += ["WindowBorder.js", "WindowBorder.qml", "DrawerSurface.qml", "LookSettings.qml", "BashApprovalSettings.qml"]
@@ -91,7 +91,7 @@ def main():
         manifest=json.loads((source/'manifest.json').read_text())
         manifest['entryPoints']['service']=release_name+'/Main.qml'
         (staged/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
-        for name in ('README.md','LICENSE','COPYING.JARVIS','THIRD_PARTY.md','preview.png',
+        for name in ('README.md','LICENSE','COPYING.PEEK','THIRD_PARTY.md','preview.png',
                      'screenshots/history.png','screenshots/preferences.png','screenshots/permissions.png',
                      'screenshots/peek.png','screenshots/peek-controls.png','docs/speech-audit.md',
                      'docs/implementation.md','docs/publishing.md'):

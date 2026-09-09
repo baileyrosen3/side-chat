@@ -26,7 +26,7 @@ class CodexSession:
         self.agent=agent;self.options=options;self.lease=SessionLease(folder)
         self.events=queue.Queue();self.pending={};self.ui_pending={};self.guard=threading.Lock();self.write_lock=threading.Lock()
         self.ui_callback=ui_callback;self.stderr='';self.closed=False;self.thread={};self.turn='';self.model='';self.tools={};self.failure=''
-        self.jarvis_enabled=bool(options.get('_jarvis_extension'))
+        self.peek_enabled=bool(options.get('_peek_extension'))
         env=dict(os.environ);env.pop('CLAUDECODE',None)
         self.proc=None;self.reader=None;self.err_reader=None
         try:
@@ -39,9 +39,9 @@ class CodexSession:
             params={'cwd':options['cwd']}
             params.update(codex_permissions(options.get('_permission_mode','default')))
             if options.get('model'):params['model']=options['model']
-            if self.jarvis_enabled:
-                params['config']={'mcp_servers.jarvis':{'command':'python3','args':[str(Path(options['_jarvis_client']).with_name('mcp_server.py'))],
-                                  'env':{'SIDE_CHAT_CONTROL_SOCKET':options['_jarvis_socket']},'startup_timeout_sec':10}}
+            if self.peek_enabled:
+                params['config']={'mcp_servers.peek':{'command':'python3','args':[str(Path(options['_peek_client']).with_name('mcp_server.py'))],
+                                  'env':{'SIDE_CHAT_CONTROL_SOCKET':options['_peek_socket']},'startup_timeout_sec':10}}
                 params['developerInstructions']='This session also has a local voice interface. Keep public progress and final replies concise and natural to speak. Use the Peek computer MCP tool for visible browser and desktop actions, and normal file/shell tools for config edits. Verify results before reporting success.'
             if session_file:
                 if options.get('_permission_mode','default')=='default':

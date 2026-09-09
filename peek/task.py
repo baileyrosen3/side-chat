@@ -77,7 +77,7 @@ class TaskProgress:
                 name = str(tool.get('name', 'tool'))
                 identity = tool.get('id') or str(index) + ':' + name
                 state = tool.get('status', 'running')
-                is_control = ('jarvis' in name.lower() and 'computer' in name.lower()) or name.lower() == 'computer'
+                is_control = ('peek' in name.lower() and 'computer' in name.lower()) or name.lower() == 'computer'
                 if is_control:
                     if len(self.wrappers) < 200 or identity in self.wrappers:
                         self.wrappers[identity] = state

@@ -7,7 +7,7 @@ import select
 import subprocess
 import threading
 import time
-from jarvis.settings import DATA, model_path
+from peek.settings import DATA, model_path
 
 
 class Parakeet:
@@ -15,8 +15,13 @@ class Parakeet:
         import onnxruntime
         library=next((Path(onnxruntime.__file__).parent/'capi').glob('libonnxruntime.so.*'))
         chunk={'fast':.32,'balanced':.56,'accurate':1.12}[prefs['streamingProfile']]
+        binary=DATA/'bin/peek-parakeet'
+        if not binary.is_file():
+            # Reuse the pre-Peek runtime until setup rebuilds it under its
+            # canonical name.
+            binary=DATA/'bin/jarvis-parakeet'
         self.lock=threading.Lock()
-        self.proc=subprocess.Popen([str(DATA/'bin/jarvis-parakeet'),str(model_path(prefs)),str(prefs['asrThreads']),str(chunk)],
+        self.proc=subprocess.Popen([str(binary),str(model_path(prefs)),str(prefs['asrThreads']),str(chunk)],
                                    stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=None,text=True,bufsize=1,
                                    env=dict(os.environ,ORT_DYLIB_PATH=str(library)))
         try:

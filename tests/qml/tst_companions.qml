@@ -7,17 +7,17 @@ import "../../RobotExpressions.js" as Expressions
 Rectangle {
     color: "#12151b"
     width: 420; height: 640
-    JarvisBuddy { id: buddy; width: 400; height: 400 }
+    PeekBuddy { id: buddy; width: 400; height: 400 }
     RobotAppearance { id: appearance; width: 320; visible: false }
     QtObject {
         id: chat
-        property var jarvis: ({stage:"idle",ready:false,preview:true,expressiveness:1,listening:false,speaking:false,muted:false})
+        property var peek: ({stage:"idle",ready:false,preview:true,expressiveness:1,listening:false,speaking:false,muted:false})
         property bool busy: false
         property string error: ""
         function request(command) { }
         function openConversation() { }
-        function openJarvisSettings() { }
-        function setJarvis(enabled,reopen) { }
+        function openPeekSettings() { }
+        function setPeek(enabled,reopen) { }
     }
     CompanionSurface { id: surface; width: 326; height: 248; chat: chat; visible: false }
     TestCase {

@@ -1,14 +1,14 @@
 import json,sys,time
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
-from jarvis.control import Control,hypr,bounds
+from peek.control import Control,hypr,bounds
 c=Control(lambda e: print(json.dumps(e),flush=True))
 try:
  target=next(w for w in hypr('clients') if w.get('title')=='Peek control fixture')
  monitor=next(m for m in hypr('monitors') if m['id']==target['monitor'])
  c.handle({'op':'_configure','enabled':True})
  c.handle({'op':'focus','window':target['address']})
- layout=json.loads(Path('/tmp/jarvis-control-fixture/layout.json').read_text())
+ layout=json.loads(Path('/tmp/peek-control-fixture/layout.json').read_text())
  def action(op,widget,**extra):
   frame=c.handle({'op':'screenshot','screen':monitor['name']})['details']
   target=next(w for w in hypr('clients') if w.get('title')=='Peek control fixture')
@@ -27,5 +27,5 @@ try:
  bx=ax+(w-40)*frame['width']/lw
  c.handle({'op':'drag','frame':frame['id'],'x':ax,'y':ay,'toX':bx,'toY':ay})
  time.sleep(.2)
- print('RESULT',Path('/tmp/jarvis-control-fixture/result.json').read_text())
+ print('RESULT',Path('/tmp/peek-control-fixture/result.json').read_text())
 finally:c.close()

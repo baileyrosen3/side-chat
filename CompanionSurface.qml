@@ -36,7 +36,7 @@ Item {
     property var desktopPointer: null
     property point desktopOrigin: Qt.point(0, 0)
     property real gazeDistance: Style.space(280)
-    readonly property var voice: chat.jarvis
+    readonly property var voice: chat.peek
     readonly property var task: voice.task || ({state:"idle",steps:[],total:0})
     readonly property alias bodyRegion: bodyHit
     readonly property alias panelRegion: dock
@@ -89,14 +89,14 @@ Item {
     implicitHeight: Math.max(Style.space(218),dock.y+dock.height+Style.space(8))
     function showControls() { if(!interactive) return;controlsDismiss.stop();controlsVisible=true;controlsPinned=true;Qt.callLater(()=>mic.forceActiveFocus()) }
     function hideControls() { controlsDismiss.stop();controlsVisible=false;controlsPinned=false;taskDetails.expanded=false }
-    function setting(key,value) { var s={};s[key]=value;chat.request({action:"jarvis_settings",settings:s}) }
+    function setting(key,value) { var s={};s[key]=value;chat.request({action:"peek_settings",settings:s}) }
     Keys.onEscapePressed: hideControls()
 
     Item {
         id: bodyHit
         x: 0; y: Style.space(35); width: Style.space(108); height: Style.space(170)
         clip: true
-        JarvisBuddy {
+        PeekBuddy {
             id: buddy
             objectName: "companion-body"
             x: -Style.space(66); y: -Style.space(15); width: Style.space(200); height: width
@@ -196,12 +196,12 @@ Item {
                     glyph:root.voice.listening ? "mic" : "mic-off";accent:!!root.voice.listening
                     enabled:!!root.voice.ready && !root.voice.preview
                     hint:root.voice.preview ? "Preview · microphone disabled" : root.voice.standby ? "Wake Peek" : !root.voice.handsFree && !root.voice.wakeEnabled ? "Hold to talk" : root.voice.listening ? "Mute microphone" : "Listen"
-                    onClicked: if(root.voice.standby) chat.request({action:"jarvis_wake"}); else if(root.voice.handsFree || root.voice.wakeEnabled) chat.request({action:"jarvis_listen",enabled:!root.voice.listening})
-                    onPressed: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"jarvis_listen",enabled:true})
-                    onReleased: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"jarvis_finish"})
-                    onCanceled: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"jarvis_listen",enabled:false})
+                    onClicked: if(root.voice.standby) chat.request({action:"peek_wake"}); else if(root.voice.handsFree || root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:!root.voice.listening})
+                    onPressed: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:true})
+                    onReleased: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_finish"})
+                    onCanceled: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:false})
                 }
-                ActionButton { objectName:"companion-stop";glyph:"stop";hint:"Stop speech and actions · Ctrl+Alt+Esc";enabled:chat.busy || root.voice.speaking || root.voice.stage === "acting";onClicked:chat.request({action:"jarvis_stop"}) }
+                ActionButton { objectName:"companion-stop";glyph:"stop";hint:"Stop speech and actions · Ctrl+Alt+Esc";enabled:chat.busy || root.voice.speaking || root.voice.stage === "acting";onClicked:chat.request({action:"peek_stop"}) }
                 ActionButton { glyph:"chat";hint:"Open conversation";onClicked:chat.openConversation() }
                 Item { Layout.fillWidth:true }
                 ActionButton { objectName:"companion-more";glyph:root.controlsPinned ? "chevron-up" : "chevron-down";hint:root.controlsPinned ? "Fewer controls" : "More controls";selected:root.controlsPinned;checkable:true;checked:root.controlsPinned;onClicked:root.controlsPinned=!root.controlsPinned }
@@ -211,10 +211,10 @@ Item {
                 Layout.fillWidth:true;spacing:Style.space(4)
                 ActionButton { glyph:root.voice.muted ? "muted" : "volume";hint:root.voice.muted ? "Unmute replies" : "Mute spoken replies";accent:!!root.voice.muted;onClicked:root.setting("muted",!root.voice.muted) }
                 ActionButton { glyph:root.voice.scope === "browser" ? "globe" : "desktop";hint:root.voice.scope === "browser" ? "Switch to desktop" : "Switch to isolated browser";enabled:!chat.busy;onClicked:root.setting("scope",root.voice.scope === "desktop" ? "browser" : "desktop") }
-                ActionButton { glyph:"settings";hint:"Peek settings";onClicked: { root.controlsPinned=false;chat.openJarvisSettings() } }
-                ActionButton { glyph:"sleep";hint:root.voice.wakeEnabled ? "Stand by for the wake phrase" : "Mute microphone and pause";onClicked: { chat.request({action:"jarvis_standby"});root.controlsPinned=false } }
+                ActionButton { glyph:"settings";hint:"Peek settings";onClicked: { root.controlsPinned=false;chat.openPeekSettings() } }
+                ActionButton { glyph:"sleep";hint:root.voice.wakeEnabled ? "Stand by for the wake phrase" : "Mute microphone and pause";onClicked: { chat.request({action:"peek_standby"});root.controlsPinned=false } }
                 Item { Layout.fillWidth:true }
-                ActionButton { glyph:"power";hint:"Turn Peek off";onClicked:chat.setJarvis(false,false) }
+                ActionButton { glyph:"power";hint:"Turn Peek off";onClicked:chat.setPeek(false,false) }
             }
         }
     }

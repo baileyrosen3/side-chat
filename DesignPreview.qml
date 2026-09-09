@@ -6,7 +6,7 @@ ShellRoot {
  id: fixture
  QtObject {
   id: chat
-  property var jarvis: {"preview": true, "scope": "desktop", "source": "", "sink": "", "voice": "alba", "handsFree": true, "muted": false, "reducedMotion": false, "bargeIn": true, "echoCancellation": true, "asrModel": "parakeet-unified", "modelPath": "", "asrThreads": 4, "streamingProfile": "balanced", "endSilence": 0.65, "minSpeech": 0.18, "vadThreshold": 0.55, "maxUtterance": 25, "ttsModel": "pocket", "ttsThreads": 4, "volume": 1.0, "speechRate": 1.0, "wakeEnabled": false, "wakeThreshold": 0.97, "followupSeconds": 12, "screenContext": "on-request", "selectionContext": false, "screenImages": true, "memoryEnabled": true, "quickCommands": true, "personality": "balanced", "expressiveness": 1.0, "companionPosition": 0.16, "enabled": false, "ready": true, "listening": false, "speaking": false, "stage": "listening", "caption": "", "partial": "", "inputLevel": 0.35, "outputLevel": 0.3, "devices": [], "memories": [], "routines": [], "watches": [], "restorePoints": []}
+  property var peek: {"preview": true, "scope": "desktop", "source": "", "sink": "", "voice": "alba", "handsFree": true, "muted": false, "reducedMotion": false, "bargeIn": true, "echoCancellation": true, "asrModel": "parakeet-unified", "modelPath": "", "asrThreads": 4, "streamingProfile": "balanced", "endSilence": 0.65, "minSpeech": 0.18, "vadThreshold": 0.55, "maxUtterance": 25, "ttsModel": "pocket", "ttsThreads": 4, "volume": 1.0, "speechRate": 1.0, "wakeEnabled": false, "wakeThreshold": 0.97, "followupSeconds": 12, "screenContext": "on-request", "selectionContext": false, "screenImages": true, "memoryEnabled": true, "quickCommands": true, "personality": "balanced", "expressiveness": 1.0, "companionPosition": 0.16, "enabled": false, "ready": true, "listening": false, "speaking": false, "stage": "listening", "caption": "", "partial": "", "inputLevel": 0.35, "outputLevel": 0.3, "devices": [], "memories": [], "routines": [], "watches": [], "restorePoints": []}
   property string companionScreen: Quickshell.screens[Quickshell.screens.length-1].name
   property string openScreen: companionScreen
   property string page: "chat"
@@ -41,16 +41,16 @@ ShellRoot {
    lastRequest=c
    if(c.action === "appearance") meta=Object.assign({},meta,{appearance:c.settings})
    if(c.action === "permission_mode") current=Object.assign({},current,{permissionMode:c.mode})
-   if(c.action === "jarvis_settings") jarvis=Object.assign({},jarvis,c.settings)
-   if(c.action === "jarvis_listen") jarvis=Object.assign({},jarvis,{listening:c.enabled})
+   if(c.action === "peek_settings") peek=Object.assign({},peek,c.settings)
+   if(c.action === "peek_listen") peek=Object.assign({},peek,{listening:c.enabled})
   }
   function hover(screen,inside) { }
   function pin() { pinned=true }
   function close() { openScreen="" }
   function show(screen,persistent) { openScreen=screen;pinned=persistent }
-  function setJarvis(v,reopen) { jarvis=Object.assign({},jarvis,{enabled:v});if(v) close();else if(reopen !== false) openConversation() }
+  function setPeek(v,reopen) { peek=Object.assign({},peek,{enabled:v});if(v) close();else if(reopen !== false) openConversation() }
   function openConversation() { openScreen=companionScreen;page="chat" }
-  function openJarvisSettings() { openConversation();page="jarvis_settings" }
+  function openPeekSettings() { openConversation();page="peek_settings" }
   function startNew() { current=Object.assign({},current,{messages:[]});draft="";page="chat" }
   function submit() { lastRequest={action:"send",text:draft};draft="" }
   function edit(i) { draft=messages[i].text;editIndex=i }
@@ -77,15 +77,15 @@ ShellRoot {
  CompanionWindow { id: buddy; screen: panel.screen; chat: chat }
  IpcHandler {
   target: "side-chat-design"
-  function mode(stage: string): void { chat.jarvis=Object.assign({},chat.jarvis,{stage:stage,standby:stage === "standby",speaking:stage === "speaking",caption:stage === "speaking" ? "Ready when you are." : ""});chat.busy=stage === "thinking" || stage === "acting" }
+  function mode(stage: string): void { chat.peek=Object.assign({},chat.peek,{stage:stage,standby:stage === "standby",speaking:stage === "speaking",caption:stage === "speaking" ? "Ready when you are." : ""});chat.busy=stage === "thinking" || stage === "acting" }
   function page(name: string): void { chat.openConversation();if(name === "settings") panel.showSettings();else chat.page=name }
   function controls(): void { chat.companionControlsRequested() }
-  function show(): void { chat.jarvis=Object.assign({},chat.jarvis,{enabled:true});chat.openConversation() }
+  function show(): void { chat.peek=Object.assign({},chat.peek,{enabled:true});chat.openConversation() }
   function hide(): void { chat.close() }
   function empty(): void { chat.startNew() }
-  function status(): string { return JSON.stringify({request:chat.lastRequest,voice:chat.jarvis,open:chat.openScreen,page:chat.page,buddy:{left:buddy.margins.left,bottom:buddy.margins.bottom,width:buddy.width,height:buddy.height},panel:{width:panel.width,height:panel.height}}) }
+  function status(): string { return JSON.stringify({request:chat.lastRequest,voice:chat.peek,open:chat.openScreen,page:chat.page,buddy:{left:buddy.margins.left,bottom:buddy.margins.bottom,width:buddy.width,height:buddy.height},panel:{width:panel.width,height:panel.height}}) }
   function section(name: string): void {
-   var settings=chat.findItem(panel.contentItem,"jarvis-settings")
+   var settings=chat.findItem(panel.contentItem,"peek-settings")
    if(settings) settings.section=name
   }
   function companion(name: string): void {
@@ -94,17 +94,17 @@ ShellRoot {
   }
   function expand(enabled: bool): void { panel.expanded=enabled }
   function finish(): void { Qt.quit() }
-  function peek(enabled: bool): void { chat.jarvis=Object.assign({},chat.jarvis,{enabled:enabled}) }
+  function peek(enabled: bool): void { chat.peek=Object.assign({},chat.peek,{enabled:enabled}) }
   function taskScenario(name: string): void {
    var working=name === "working" || name === "question"
    var steps=[{id:"read",label:"Read settings",state:"observed",kind:"observation",evidence:""},
               {id:"write",label:"Update settings",state:name === "working" ? "running" : name === "review" ? "performed" : "verified",kind:"action",evidence:name === "review" ? "" : "File contents checked after the update"}]
    var task={turn:"preview-"+name,state:working ? "running" : name,label:working ? "Update settings" : name === "verified" ? "Actions verified" : "Review the result",detail:name === "verified" ? "Action results matched their checks." : name === "review" ? "Some results still need checking." : "",total:2,checked:name === "verified" ? 1 : 0,steps:steps}
    chat.busy=working;chat.agentRequests=name === "question" ? [{id:"preview",method:"confirm",title:"Apply these settings?"}] : []
-   chat.jarvis=Object.assign({},chat.jarvis,{enabled:true,previewScenario:true,stage:name === "question" ? "needs_input" : working ? "acting" : "idle",taskCaption:task.label,task:task,caption:"",speaking:false,partial:"",completedAt:name === "verified" ? Date.now()/1000 : 0})
+   chat.peek=Object.assign({},chat.peek,{enabled:true,previewScenario:true,stage:name === "question" ? "needs_input" : working ? "acting" : "idle",taskCaption:task.label,task:task,caption:"",speaking:false,partial:"",completedAt:name === "verified" ? Date.now()/1000 : 0})
    chat.close()
   }
-  function taskDetails(enabled: bool): void { buddy.contentItem.children.find(c=>c.objectName === "jarvis-surface").details.expanded=enabled }
+  function taskDetails(enabled: bool): void { buddy.contentItem.children.find(c=>c.objectName === "peek-surface").details.expanded=enabled }
   function latest(visible: bool): void { panel.followBottom=!visible }
   function jumpLatest(): void { var button=chat.findItem(panel.contentItem,"jump-to-latest");if(button) button.clicked() }
   function geometry(): string {
@@ -140,7 +140,7 @@ ShellRoot {
   }
   function capture(): void {
    panel.contentItem.children.find(c=>c.objectName === "chat-drawer").grabToImage(r=>r.saveToFile("/tmp/side-chat-design-panel.png"))
-   buddy.contentItem.children.find(c=>c.objectName === "jarvis-surface").grabToImage(r=>r.saveToFile("/tmp/side-chat-design-buddy.png"))
+   buddy.contentItem.children.find(c=>c.objectName === "peek-surface").grabToImage(r=>r.saveToFile("/tmp/side-chat-design-buddy.png"))
   }
  }
 }

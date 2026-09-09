@@ -31,7 +31,7 @@ Scope {
     property string streamingModel: ""
     property var streamingTools: []
     property var agentRequests: []
-    property var jarvis: ({enabled:false,ready:false,listening:false,speaking:false,stage:"off",caption:"",partial:"",inputLevel:0,outputLevel:0,scope:"desktop",handsFree:true,muted:false,reducedMotion:false,voice:"alba",devices:[]})
+    property var peek: ({enabled:false,ready:false,listening:false,speaking:false,stage:"off",caption:"",partial:"",inputLevel:0,outputLevel:0,scope:"desktop",handsFree:true,muted:false,reducedMotion:false,voice:"alba",devices:[]})
     property var aiPointer: ({visible:false})
     readonly property bool nativeSession: (meta.nativeAgents || []).indexOf(current ? current.agent : meta.agent) >= 0
     readonly property bool terminalOpen: !!(current && current.terminalOpen)
@@ -71,16 +71,16 @@ Scope {
         companionScreen=openScreen || (focused ? focused.name : Quickshell.screens[0].name)
         close(); page="chat"
     }
-    function setJarvis(enabled, reopen) {
+    function setPeek(enabled, reopen) {
         if (enabled) showCompanion()
         else if (reopen !== false) openConversation()
-        request({action:"jarvis",enabled:enabled,accent:String(Color.accent)})
+        request({action:"peek",enabled:enabled,accent:String(Color.accent)})
     }
     function openConversation() { show(companionScreen || (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : Quickshell.screens[0].name),true); page="chat" }
-    function openJarvisSettings() { openConversation(); page="jarvis_settings" }
+    function openPeekSettings() { openConversation(); page="peek_settings" }
     function toggle() { openScreen ? close() : open() }
     function hover(screenName, inside) {
-        if (jarvis.enabled && !openScreen) return
+        if (peek.enabled && !openScreen) return
         if (inside) {
             hoveredScreen = screenName
             show(screenName, false)
@@ -107,8 +107,8 @@ Scope {
         if (draft.trim() === "/permissions") {
             draftSave.stop(); draft = ""; page = "permissions"; pin(); return
         }
-        if (jarvis.enabled && busy && draft.trim()) {
-            request({action:"jarvis_say",text:draft}); draft=""; return
+        if (peek.enabled && busy && draft.trim()) {
+            request({action:"peek_say",text:draft}); draft=""; return
         }
         if (busy || terminalOpen || !draft.trim()) return
         pin(); draftSave.stop(); error = ""
@@ -137,13 +137,13 @@ Scope {
     }
     function removeAttachment(index) { var list = attachments.slice(); list.splice(index, 1); attachments = list }
     function receive(event) {
-        if (event.type === "jarvis_wake") {
+        if (event.type === "peek_wake") {
             if (!companionScreen) companionScreen=Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : Quickshell.screens[0].name
-        } else if (event.type === "jarvis_hide") {
+        } else if (event.type === "peek_hide") {
             root.openScreen=""; root.pinned=false
-        } else if (event.type === "jarvis") {
-            jarvis = Object.assign({},jarvis,event.state)
-        } else if (event.type === "jarvis_pointer") {
+        } else if (event.type === "peek") {
+            peek = Object.assign({},peek,event.state)
+        } else if (event.type === "peek_pointer") {
             aiPointer = event.pointer
             if (aiPointer.visible) pointerClear.restart()
         } else if (event.type === "state") {
@@ -193,7 +193,7 @@ Scope {
         command: ["env", "PYTHONDONTWRITEBYTECODE=1", "python3", "-B", "-u", decodeURIComponent(Qt.resolvedUrl("backend.py").toString().replace("file://", ""))]
         stdinEnabled: true
         running: true
-        onStarted: { root.connected = true; root.error = ""; root.request({action:"jarvis_status"}) }
+        onStarted: { root.connected = true; root.error = ""; root.request({action:"peek_status"}) }
         stdout: SplitParser {
             onRead: data => {
                 try { root.receive(JSON.parse(data)) }
@@ -203,7 +203,7 @@ Scope {
         stderr: SplitParser { onRead: data => console.warn("Side Chat:", data) }
         onExited: {
             root.connected = false; root.busy = false; root.agentRequests = []
-            root.jarvis = Object.assign({},root.jarvis,{enabled:false,ready:false,listening:false,speaking:false}); root.aiPointer = ({visible:false})
+            root.peek = Object.assign({},root.peek,{enabled:false,ready:false,listening:false,speaking:false}); root.aiPointer = ({visible:false})
             root.error = "The chat connection closed. Reconnecting…"
             restart.restart()
         }
@@ -215,35 +215,27 @@ Scope {
         function close(): void { root.close() }
         function toggle(): void { root.toggle() }
         function newChat(): void { root.open(); root.startNew() }
-        function peek(): void { root.setJarvis(!root.jarvis.enabled, false) }
-        function peekOpen(): void { root.setJarvis(true) }
+        function peek(): void { root.setPeek(!root.peek.enabled, false) }
+        function peekOpen(): void { root.setPeek(true) }
         function peekOnScreen(name: string): void {
             if(!Quickshell.screens.some(s=>s.name === name)) return
-            if(!root.jarvis.enabled) root.setJarvis(true)
+            if(!root.peek.enabled) root.setPeek(true)
             root.companionScreen=name
         }
-        function microphone(source: string): void { root.request({action:"jarvis_settings",settings:{source:source}}) }
-        function peekListening(enabled: bool): void { root.request({action:"jarvis_listen",enabled:enabled}) }
+        function microphone(source: string): void { root.request({action:"peek_settings",settings:{source:source}}) }
+        function peekListening(enabled: bool): void { root.request({action:"peek_listen",enabled:enabled}) }
         function peekToggleMicrophone(): void {
-            if (!root.jarvis.enabled) root.showCompanion()
-            root.request({action:"jarvis_toggle_listen",accent:String(Color.accent)})
+            if (!root.peek.enabled) root.showCompanion()
+            root.request({action:"peek_toggle_listen",accent:String(Color.accent)})
         }
         function peekPreferences(settings: string): void {
-            try { root.request({action:"jarvis_settings",settings:JSON.parse(settings)}) }
+            try { root.request({action:"peek_settings",settings:JSON.parse(settings)}) }
             catch (e) { root.error="Invalid Peek preferences: " + e }
         }
-        function peekSettings(): void { root.openJarvisSettings() }
-        // Keep existing shortcuts and automation compatible with the new name.
-        function jarvis(): void { peek() }
-        function jarvisOpen(): void { peekOpen() }
-        function jarvisOnScreen(name: string): void { peekOnScreen(name) }
-        function jarvisListening(enabled: bool): void { peekListening(enabled) }
-        function jarvisToggleMicrophone(): void { peekToggleMicrophone() }
-        function jarvisPreferences(settings: string): void { peekPreferences(settings) }
-        function jarvisSettings(): void { peekSettings() }
-        function companionControls(): void { if(root.jarvis.enabled) root.companionControlsRequested() }
-        function stop(): void { root.request({action:"jarvis_stop"}) }
-        function status(): string { return JSON.stringify({uiVersion:root.uiVersion,uiSource:String(Qt.resolvedUrl("Main.qml")),connected: root.connected, busy: root.busy, agent: root.meta.agent, conversationAgent:root.current ? root.current.agent : "", agentLabel:root.agentName, open: root.openScreen, page:root.page,companionScreen:root.companionScreen, appearance:root.meta.appearance || {outline:true}, bashApproval:root.current ? (root.current.bashApproval || "ask") : "ask", jarvis:root.jarvis}) }
+        function peekSettings(): void { root.openPeekSettings() }
+        function companionControls(): void { if(root.peek.enabled) root.companionControlsRequested() }
+        function stop(): void { root.request({action:"peek_stop"}) }
+        function status(): string { return JSON.stringify({uiVersion:root.uiVersion,uiSource:String(Qt.resolvedUrl("Main.qml")),connected: root.connected, busy: root.busy, agent: root.meta.agent, conversationAgent:root.current ? root.current.agent : "", agentLabel:root.agentName, open: root.openScreen, page:root.page,companionScreen:root.companionScreen, appearance:root.meta.appearance || {outline:true}, bashApproval:root.current ? (root.current.bashApproval || "ask") : "ask", peek:root.peek}) }
     }
     Variants {
         model: Quickshell.screens

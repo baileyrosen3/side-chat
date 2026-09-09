@@ -12,4 +12,4 @@ dev/*.png
 /.codex/
 /.21st/
 /:memory:.ses
-jarvis/parakeet/target/
+peek/parakeet/target/

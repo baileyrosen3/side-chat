@@ -13,7 +13,7 @@ def devices():
     nodes=json.loads(run('pw-dump'))
     return [{'id':p.get('node.name',''), 'name':p.get('node.description',p.get('node.name','')), 'kind':p['media.class']}
             for obj in nodes if (p:=obj.get('info',{}).get('props',{})).get('media.class') in ('Audio/Source','Audio/Sink')
-            and not p.get('node.name','').startswith('side_chat_jarvis_')]
+            and not p.get('node.name','').startswith('side_chat_peek_')]
 
 
 class EchoAudio:
@@ -30,8 +30,8 @@ class EchoAudio:
             self.sink=sink or run('pactl','get-default-sink')
             return
         suffix=str(os.getpid())
-        self.source='side_chat_jarvis_mic_'+suffix
-        self.sink='side_chat_jarvis_speaker_'+suffix
+        self.source='side_chat_peek_mic_'+suffix
+        self.sink='side_chat_peek_speaker_'+suffix
         args=['pactl','load-module','module-echo-cancel', 'aec_method=webrtc', 'rate=48000', 'channels=1',
               'aec_args="high_pass_filter=1 noise_suppression=1 analog_gain_control=0 digital_gain_control=0"',
               'source_name='+self.source,'sink_name='+self.sink,

@@ -7,7 +7,7 @@ Rectangle {
     width: 360; height: 760; color: "#14171d"
     QtObject {
         id: chat
-        property var jarvis: ({enabled:true,ready:true,ttsModel:"pocket",voice:"marius",spokenProgress:true,
+        property var peek: ({enabled:true,ready:true,ttsModel:"pocket",voice:"marius",spokenProgress:true,
             asrModel:"parakeet-unified",streamingProfile:"fast",asrThreads:4,ttsThreads:4,volume:1,
             speechRate:1,endSilence:.45,minSpeech:.18,vadThreshold:.55,maxUtterance:25,
             handsFree:true,echoCancellation:true,bargeIn:true,source:"",sink:"",devices:[],
@@ -17,7 +17,7 @@ Rectangle {
         property var commands: []
         function request(command) { commands=commands.concat([command]) }
     }
-    JarvisSettings { id: settings; anchors.fill: parent; anchors.margins: 12; chat: chat }
+    PeekSettings { id: settings; anchors.fill: parent; anchors.margins: 12; chat: chat }
     TestCase {
         name: "SpeechSettings"
         when: windowShown
@@ -27,9 +27,9 @@ Rectangle {
             var button=findChild(settings,"voicePreview"); verify(button); verify(button.enabled);
             button.clicked();
             compare(chat.commands.length,1);
-            compare(chat.commands[0].action,"jarvis_voice_preview");
+            compare(chat.commands[0].action,"peek_voice_preview");
             compare(chat.commands[0].voice,"fantine");
-            compare(chat.jarvis.voice,"marius"); verify(settings.dirty);
+            compare(chat.peek.voice,"marius"); verify(settings.dirty);
             grabImage(settings).save("/tmp/side-chat-voice-settings.png");
         }
         function test_busy_or_unapplied_model_disables_preview() {

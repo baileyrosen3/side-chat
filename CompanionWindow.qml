@@ -9,11 +9,11 @@ PanelWindow {
 
     required property var chat
     readonly property bool selected: chat.companionScreen === screen.name
-    readonly property bool activeCompanion: chat.jarvis.enabled && selected
+    readonly property bool activeCompanion: chat.peek.enabled && selected
     property real dragOrigin: 0
     property real dragOffset: 0
     property real pendingPosition: -1
-    readonly property real savedPosition: chat.jarvis.companionPosition === undefined ? 0.16 : chat.jarvis.companionPosition
+    readonly property real savedPosition: chat.peek.companionPosition === undefined ? 0.16 : chat.peek.companionPosition
     readonly property real placementHeight: Style.space(248)
     // Expanding the attached controls keeps Peek at the same screen position.
     readonly property real restingBottom: Math.max(Style.space(16), Math.min(screen.height - height - Style.space(32), (pendingPosition >= 0 ? pendingPosition : savedPosition) * (screen.height - placementHeight) + placementHeight - height))
@@ -33,7 +33,7 @@ PanelWindow {
     // Hidden mode has no painted content or input region.
     visible: true
     exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "omarchy-jarvis-companion"
+    WlrLayershell.namespace: "omarchy-peek-companion"
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.keyboardFocus: activeCompanion && (surface.controlsPinned || surface.details.expanded) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
@@ -44,9 +44,9 @@ PanelWindow {
 
     CompanionCursor {
         id: cursor
-        enabled: window.activeCompanion && !chat.jarvis.reducedMotion
-                 && (chat.jarvis.expressiveness === undefined || chat.jarvis.expressiveness > 0)
-                 && chat.jarvis.stage !== "standby" && chat.jarvis.stage !== "off"
+        enabled: window.activeCompanion && !chat.peek.reducedMotion
+                 && (chat.peek.expressiveness === undefined || chat.peek.expressiveness > 0)
+                 && chat.peek.stage !== "standby" && chat.peek.stage !== "off"
     }
 
     CompanionSurface {
@@ -61,7 +61,7 @@ PanelWindow {
         desktopOrigin: Qt.point(window.screen.x + window.margins.left,
                                 window.screen.y + window.screen.height - window.margins.bottom - window.height)
         gazeDistance: Math.max(Style.space(200), Math.min(window.screen.width, window.screen.height) * 0.35)
-        objectName: "jarvis-surface"
+        objectName: "peek-surface"
         onDragStarted: window.dragOrigin = window.margins.bottom
         onDragMoved: (delta) => {
             return window.dragOffset = window.dragOrigin - delta - window.restingBottom;
@@ -71,7 +71,7 @@ PanelWindow {
             window.pendingPosition = position;
             window.dragOffset = 0;
             chat.request({
-                "action": "jarvis_settings",
+                "action": "peek_settings",
                 "settings": {
                     "companionPosition": position
                 }

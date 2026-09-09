@@ -3,8 +3,8 @@ import json,sys,time,queue,tempfile
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from agent_session import RpcSession,NativeTurn
-agent=sys.argv[1];record=json.load(open('/tmp/jarvis-'+agent+'-live.json'))
-s=RpcSession(agent,tempfile.mkdtemp(prefix='jarvis-branch-check-'),{'cwd':record['folder']},record['native']['sessionFile'])
+agent=sys.argv[1];record=json.load(open('/tmp/peek-'+agent+'-live.json'))
+s=RpcSession(agent,tempfile.mkdtemp(prefix='peek-branch-check-'),{'cwd':record['folder']},record['native']['sessionFile'])
 def turn(text):
  while not s.events.empty():s.events.get_nowait()
  s.send({'type':'prompt','message':text});t=NativeTurn();end=time.monotonic()+60
@@ -21,5 +21,5 @@ try:
  after=s.request('get_state');messages=s.request('get_messages')['messages']
  visible='\n'.join(str(m.get('content','')) for m in messages)
  result={'agent':agent,'text':text,'new_session':before['sessionId']!=after['sessionId'],'removed_turn_absent':'disposable branch marker 7421' not in visible,'original_file_preserved':Path(before['sessionFile']).exists()}
- Path('/tmp/jarvis-'+agent+'-branch.json').write_text(json.dumps(result));print(json.dumps(result),flush=True)
+ Path('/tmp/peek-'+agent+'-branch.json').write_text(json.dumps(result));print(json.dumps(result),flush=True)
 finally:s.close()

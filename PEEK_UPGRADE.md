@@ -2,7 +2,7 @@
 
 Authorized: implement all eight proposed additions, preserving the Omarchy default CLI, theme, free/open-source dependencies, and existing chat/terminal session.
 
-- Wake word: local Hey Jarvis detector, hidden-panel standby, bounded follow-up window, explicit off control.
+- Wake word: local upstream Hey Jarvis detector for Peek, hidden-panel standby, bounded follow-up window, explicit off control.
 - Screen context: optional active-window metadata, selected text, on-demand screenshot; highlight observed targets.
 - Memory: explicit remember/forget commands, local persistent records and editable UI.
 - Fast commands: bounded native command router for volume, brightness, media, app/browser launch and workspaces.

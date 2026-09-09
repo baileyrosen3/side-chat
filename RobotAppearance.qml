@@ -24,7 +24,7 @@ ColumnLayout {
         radius: 0; color: ui.secondary
         border.width: 1; border.color: ui.border
         clip: true
-        JarvisBuddy {
+        PeekBuddy {
             id: preview
             objectName: "companion-preview"
             anchors.centerIn: parent

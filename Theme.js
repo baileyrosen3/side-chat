@@ -2,7 +2,7 @@
 
 function toolName(name) {
     // Native tool IDs also occur in saved conversations and must stay stable.
-    return /^(jarvis_computer|mcp__jarvis__computer|mcp__jarvis[._]computer|jarvis[._]computer)$/.test(String(name)) ? "Peek computer" : name
+    return /^(peek_computer|mcp__peek__computer|mcp__peek[._]computer|peek[._]computer)$/.test(String(name)) ? "Peek computer" : name
 }
 
 function alpha(color, opacity) {

@@ -8,9 +8,9 @@ import subprocess
 import threading
 import time
 import uuid
-from jarvis.store import Store
-from jarvis import quick
-from jarvis.undo import UndoJournal
+from peek.store import Store
+from peek import quick
+from peek.undo import UndoJournal
 
 
 def process_identity(pid):
@@ -83,8 +83,8 @@ class Companion:
 
     def match(self,text):
         stripped=text.strip();clean=stripped.lower().rstrip('.!?')
-        if clean in ('stop','stop peek','peek stop','stop jarvis','cancel that','never mind'):return ('stop',None)
-        if clean in ('go to sleep','sleep peek','peek go to sleep','sleep jarvis','stand by'):return ('sleep',None)
+        if clean in ('stop','stop peek','peek stop','stop peek','cancel that','never mind'):return ('stop',None)
+        if clean in ('go to sleep','sleep peek','peek go to sleep','sleep peek','stand by'):return ('sleep',None)
         m=re.fullmatch(r'(?:remember|save) routine ([^:]+):\s*(.+)',stripped,re.I|re.S)
         if m:return ('routine_save',(m[1],m[2].split(';')))
         m=re.fullmatch(r'remember(?: that)?\s+(.+)',stripped,re.I|re.S)
@@ -133,7 +133,7 @@ class Companion:
 
     def command(self,command):
         def browser(url):
-            from jarvis.control import request
+            from peek.control import request
             self.owner.ensure_control();self.owner.configure_control(True)
             return request(self.owner.socket,{'op':'browser','args':['open',url]})
         identity=uuid.uuid4().hex
@@ -155,18 +155,18 @@ class Companion:
 
     def dispatch(self,c):
         action=c['action']
-        if action=='jarvis_memory_save':self.store.remember(c.get('text',''),c.get('id',''))
-        elif action=='jarvis_memory_delete':self.store.delete('memory',c['id'])
-        elif action=='jarvis_routine_save':self.routine(c.get('name',''),c.get('steps',[]),c.get('id',''))
-        elif action=='jarvis_routine_delete':self.store.delete('routine',c['id'])
-        elif action=='jarvis_watch_add':self.watch(c.get('kind'),c.get('message'),c.get('seconds',0),c.get('pid',0))
-        elif action=='jarvis_watch_cancel':
+        if action=='peek_memory_save':self.store.remember(c.get('text',''),c.get('id',''))
+        elif action=='peek_memory_delete':self.store.delete('memory',c['id'])
+        elif action=='peek_routine_save':self.routine(c.get('name',''),c.get('steps',[]),c.get('id',''))
+        elif action=='peek_routine_delete':self.store.delete('routine',c['id'])
+        elif action=='peek_watch_add':self.watch(c.get('kind'),c.get('message'),c.get('seconds',0),c.get('pid',0))
+        elif action=='peek_watch_cancel':
             r=next((r for r in self.store.items('watch') if r['id']==c['id']),None)
             if r:self.store.put('watch',dict(r,state='cancelled'),r['id'])
-        elif action=='jarvis_undo':
+        elif action=='peek_undo':
             if self.owner.bridge.busy:raise ValueError('Wait for the current task before restoring a config file.')
             r=self.undo.restore(c['id'],self.owner.cwd());self.owner.publish(caption='Restored '+r['restored'])
-        elif action!='jarvis_companion_status':return False
+        elif action!='peek_companion_status':return False
         self.publish()
         if c.get('requestId'):self.owner.publish(companionSavedRequest=c['requestId'])
         return True

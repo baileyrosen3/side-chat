@@ -8,8 +8,8 @@ service and does not replace Omarchy's Agents bar widget.
 
 The public repository is [baileyrosen3/side-chat](https://github.com/baileyrosen3/side-chat).
 Keep one plugin and its `manifest.json` at the repository root. Include
-`setup.py`, the full `jarvis/` source and `Cargo.lock`, `deploy/`, companion
-assets, the README, `LICENSE`, `COPYING.JARVIS`, and `THIRD_PARTY.md`.
+`setup.py`, the full `peek/` source and `Cargo.lock`, `deploy/`, companion
+assets, the README, `LICENSE`, `COPYING.PEEK`, and `THIRD_PARTY.md`.
 
 Do not commit development import symlinks (`Commons`, `Ui`), Python caches,
 runtime environments, credentials, chat history, downloaded models, or Rust

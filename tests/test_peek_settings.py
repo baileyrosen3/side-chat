@@ -4,15 +4,15 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from backend import Bridge
-from jarvis.control import Control
-from jarvis.settings import DEFAULTS,validate,scope_instruction
+from peek.control import Control
+from peek.settings import DEFAULTS,validate,scope_instruction
 
 
 class SettingsTests(unittest.TestCase):
     def test_validation_is_atomic_and_rejects_bad_ranges_types_paths(self):
         for values in ({'asrThreads':0},{'volume':float('nan')},{'handsFree':'false'},
                        {'scope':'hidden'},{'asrThreads':2.5},{'ttsModel':'cloud'},
-                       {'modelPath':'/missing/jarvis-model'},{'speechRate':1.3}):
+                       {'modelPath':'/missing/peek-model'},{'speechRate':1.3}):
             original=dict(DEFAULTS)
             with self.assertRaises(ValueError):validate(original,values)
             self.assertEqual(original,DEFAULTS)
@@ -21,16 +21,16 @@ class SettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             b=Bridge(folder,lambda _:None)
             try:
-                b.dispatch({'action':'jarvis_settings','settings':{'asrThreads':6,'endSilence':.85,'handsFree':False,'volume':.8}})
-                self.assertIsNone(b.jarvis.voice)
-                self.assertFalse(b.jarvis.enabled)
+                b.dispatch({'action':'peek_settings','settings':{'asrThreads':6,'endSilence':.85,'handsFree':False,'volume':.8}})
+                self.assertIsNone(b.peek.voice)
+                self.assertFalse(b.peek.enabled)
             finally:b.close()
             b=Bridge(folder,lambda _:None)
             try:
-                self.assertEqual(b.jarvis.prefs['asrThreads'],6)
-                self.assertEqual(b.jarvis.prefs['endSilence'],.85)
-                self.assertFalse(b.jarvis.prefs['handsFree'])
-                self.assertEqual(b.jarvis.prefs['volume'],.8)
+                self.assertEqual(b.peek.prefs['asrThreads'],6)
+                self.assertEqual(b.peek.prefs['endSilence'],.85)
+                self.assertFalse(b.peek.prefs['handsFree'])
+                self.assertEqual(b.peek.prefs['volume'],.8)
             finally:b.close()
         prefs=validate(DEFAULTS,{'ttsModel':'kokoro'},check_files=False)
         self.assertEqual(prefs['voice'],'af_heart')
@@ -40,11 +40,11 @@ class SettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             b=Bridge(folder,lambda _:None)
             try:
-                b.busy=True;b.jarvis.state['enabled']=True
-                before=dict(b.jarvis.prefs)
+                b.busy=True;b.peek.state['enabled']=True
+                before=dict(b.peek.prefs)
                 for values in ({'asrThreads':6},{'scope':'browser'}):
-                    with self.assertRaises(ValueError):b.jarvis.dispatch({'action':'jarvis_settings','settings':values})
-                    self.assertEqual(b.jarvis.prefs,before)
+                    with self.assertRaises(ValueError):b.peek.dispatch({'action':'peek_settings','settings':values})
+                    self.assertEqual(b.peek.prefs,before)
                     self.assertFalse(b.cancelled.is_set())
             finally:b.busy=False;b.close()
 
@@ -52,10 +52,10 @@ class SettingsTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as folder:
             b=Bridge(folder,lambda _:None)
             try:
-                b.jarvis.state['enabled']=True
+                b.peek.state['enabled']=True
                 chat={'native':{},'messages':[]};user={'text':'Open Google'}
                 desktop,_=b.native_prompt(chat,user)
-                b.jarvis.prefs['scope']='browser'
+                b.peek.prefs['scope']='browser'
                 browser,_=b.native_prompt(chat,user)
                 self.assertIn('DESKTOP',desktop);self.assertIn('BROWSER',browser)
                 self.assertIn('visible default Omarchy browser',desktop)
@@ -71,7 +71,7 @@ class BrowserRoutingTests(unittest.TestCase):
     def tearDown(self):self.c.close()
 
     def test_desktop_open_uses_omarchy_default_launcher_and_never_agent_browser(self):
-        with patch('jarvis.control.run',return_value=b'zen.desktop\n') as run,patch('jarvis.control.hypr',return_value={'class':'zen'}):
+        with patch('peek.control.run',return_value=b'zen.desktop\n') as run,patch('peek.control.hypr',return_value={'class':'zen'}):
             result=self.c.browser({'args':['open','https://www.google.com']},self.c.epoch)
         self.assertEqual(result['defaultBrowser'],'zen.desktop')
         self.assertEqual(result['scope'],'desktop')
@@ -80,7 +80,7 @@ class BrowserRoutingTests(unittest.TestCase):
 
     def test_desktop_rejects_dom_and_non_web_urls(self):
         for args in (['snapshot','-i'],['open','file:///etc/passwd'],['open','--headless'],['open','javascript:alert(1)']):
-            with patch('jarvis.control.run') as run:
+            with patch('peek.control.run') as run:
                 with self.assertRaises(ValueError):self.c.browser({'args':args},self.c.epoch)
                 run.assert_not_called()
 
@@ -92,7 +92,7 @@ class BrowserRoutingTests(unittest.TestCase):
 
     def test_switching_to_desktop_closes_only_the_owned_browser_session(self):
         self.c.scope='browser';self.c.browser_started=True
-        with patch('jarvis.control.run') as run:
+        with patch('peek.control.run') as run:
             self.c.handle({'op':'_configure','enabled':False,'scope':'desktop'})
             self.assertEqual(run.call_args.args[0][-3:],['--session',self.c.browser_session,'close'])
         self.assertFalse(self.c.browser_started)

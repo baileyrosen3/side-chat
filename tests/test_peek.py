@@ -10,8 +10,8 @@ import unittest
 from unittest.mock import patch
 
 from backend import Bridge
-from jarvis.controller import SpeechSegments
-from jarvis.control import bounds,point,Control
+from peek.controller import SpeechSegments
+from peek.control import bounds,point,Control
 
 
 class SpeechTests(unittest.TestCase):
@@ -64,7 +64,7 @@ class ActivityTests(unittest.TestCase):
     def setUp(self):
         self.folder=tempfile.TemporaryDirectory()
         self.bridge=Bridge(self.folder.name,lambda _:None)
-        self.voice=self.bridge.jarvis
+        self.voice=self.bridge.peek
         self.voice.state.update(enabled=True,ready=True,listening=True)
         self.voice.prefs['muted']=True
         self.bridge.current={'messages':[{'role':'assistant','text':'','tools':[]}]}
@@ -116,14 +116,14 @@ class RecoveryTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             b=Bridge(temp,lambda _:None)
             try:
-                v=b.jarvis
+                v=b.peek
                 v.state.update(enabled=True,ready=True)
                 for wake in (False,True):
                     for spoken in (False,True):
                         with self.subTest(wake=wake,spoken=spoken), patch.object(v,'send_worker') as send, patch.object(v,'stop'):
                             v.prefs['wakeEnabled']=wake;v.want_listen=True
                             if spoken:v.submit_voice('go to sleep')
-                            else:v.dispatch({'action':'jarvis_standby'})
+                            else:v.dispatch({'action':'peek_standby'})
                             self.assertEqual(v.state['stage'],'standby' if wake else 'idle')
                             self.assertEqual(v.state['standby'],wake)
                             send.assert_called_with({'action':'standby'} if wake else {'action':'listen','enabled':False})
@@ -158,7 +158,7 @@ class RecoveryTests(unittest.TestCase):
 class WorkerLifecycleTests(unittest.TestCase):
     def test_control_sigterm_with_open_lifeline_does_not_crash(self):
         with tempfile.TemporaryDirectory() as folder:
-            p=subprocess.Popen([sys.executable,'-B','jarvis/control.py','--serve',str(Path(folder)/'control.sock')],
+            p=subprocess.Popen([sys.executable,'-B','peek/control.py','--serve',str(Path(folder)/'control.sock')],
                 stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=dict(os.environ,SIDE_CHAT_CONTROL_LIFELINE='1'))
             try:
                 self.assertEqual(json.loads(p.stdout.readline())['type'],'control_ready')
@@ -172,7 +172,7 @@ class WorkerLifecycleTests(unittest.TestCase):
     def test_control_stops_when_parent_pipe_closes(self):
         with tempfile.TemporaryDirectory() as folder:
             socket=Path(folder)/'control.sock'
-            p=subprocess.Popen([sys.executable,'-B','jarvis/control.py','--serve',str(socket)],
+            p=subprocess.Popen([sys.executable,'-B','peek/control.py','--serve',str(socket)],
                 stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=subprocess.PIPE,
                 env=dict(os.environ,SIDE_CHAT_CONTROL_LIFELINE='1'))
             try:

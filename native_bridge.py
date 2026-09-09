@@ -157,13 +157,13 @@ class NativeBridge:
         if self.terminal_state(chat):
             raise ValueError("Exit the agent in its terminal to continue this session here.")
         self.recover_pending_native(chat)
-        jarvis_options = self.jarvis.extension_options() if self.jarvis else {}
+        peek_options = self.peek.extension_options() if self.peek else {}
         if self.rpc and (self.rpc_chat != chat["id"] or self.rpc.proc.poll() is not None
-                         or getattr(self.rpc, "jarvis_enabled", False) != bool(jarvis_options)):
+                         or getattr(self.rpc, "peek_enabled", False) != bool(peek_options)):
             self.close_rpc()
         if not self.rpc:
             native = chat.setdefault("native", {"prefixCount": max(0, len(chat["messages"]) - 2)})
-            self.rpc = RpcSession(chat["agent"], self.session_folder(chat), dict(session_options(chat), **jarvis_options),
+            self.rpc = RpcSession(chat["agent"], self.session_folder(chat), dict(session_options(chat), **peek_options),
                                   native.get("sessionFile"), self.native_ui)
             self.rpc_chat = chat["id"]
         self.process = self.rpc.proc
@@ -179,21 +179,21 @@ class NativeBridge:
 
     def native_prompt(self, chat, user_message):
         text = user_message["text"]
-        if self.jarvis and self.jarvis.enabled:
-            from jarvis.settings import scope_instruction
+        if self.peek and self.peek.enabled:
+            from peek.settings import scope_instruction
             persona={'concise':'Brief, direct spoken replies. Usually one sentence.',
                      'balanced':'Warm, clear, concise spoken replies. Explain only what helps.',
-                     'witty':'Concise, capable, lightly witty. Never let jokes obscure results or failures.'}[self.jarvis.prefs['personality']]
-            text = ('[Current Peek interface context]\nYour companion name is Peek. Use Peek when referring to yourself.\n' + scope_instruction(self.jarvis.prefs['scope'])
+                     'witty':'Concise, capable, lightly witty. Never let jokes obscure results or failures.'}[self.peek.prefs['personality']]
+            text = ('[Current Peek interface context]\nYour companion name is Peek. Use Peek when referring to yourself.\n' + scope_instruction(self.peek.prefs['scope'])
                     + '\n'+persona+' Your public replies are spoken aloud as they stream. Use natural contractions, short sentences, and conversational language. '
                     + 'Lead with the useful answer; avoid ceremonial introductions, markdown-heavy lists, and reading paths or code aloud. '
                     + ('For work requiring tools, give one short public sentence about the next useful step before starting; add a brief update only at meaningful milestones or delays. '
-                       'The interface supplies a quick acknowledgment, so skip filler like "Got it". ' if self.jarvis.prefs['spokenProgress'] else '')
+                       'The interface supplies a quick acknowledgment, so skip filler like "Got it". ' if self.peek.prefs['spokenProgress'] else '')
                     + 'Report verified results; do not narrate every tool call or disclose private reasoning.'
                     + ' A finished tool call alone does not establish that the request succeeded. Check the requested outcome before claiming success. If a result cannot be checked, say so briefly. The companion displays observed actions separately from verified readbacks.'
                     + '\nFor app controls prefer inspect_app and accessible_action using returned target IDs; use screenshots and native input when accessibility is unavailable.'
                     + '\nFor small UTF-8 user config edits prefer config_read then config_write with its expected SHA-256 so the user can undo them. Ordinary CLI file tools remain available, but their edits are not tracked by Peek undo.'
-                    + '\n'+self.jarvis.companion.context()+'\n\n[User request]\n'+text)
+                    + '\n'+self.peek.companion.context()+'\n\n[User request]\n'+text)
         images = []
         for attachment in user_message.get("attachments", []):
             path = Path(attachment["path"])
@@ -208,13 +208,13 @@ class NativeBridge:
                     "Earlier replies came from a text-only interface; their tool limitations no longer apply. "
                     "Use this earlier conversation as context, then act on the latest request below.\n\n"
                     + history + "\n\nLATEST REQUEST:\n" + text)
-        if self.jarvis and self.jarvis.enabled and self.jarvis.prefs['scope']=='desktop':
-            from jarvis.context import capture
-            context,observations=capture(self.jarvis.prefs,user_message['text'])
+        if self.peek and self.peek.enabled and self.peek.prefs['scope']=='desktop':
+            from peek.context import capture
+            context,observations=capture(self.peek.prefs,user_message['text'])
             text+=context
             if len(json.dumps({'message':text,'images':images+observations}).encode())<=1_000_000:
                 images+=observations
-            if context:self.jarvis.publish(taskCaption='Using the active window as context')
+            if context:self.peek.publish(taskCaption='Using the active window as context')
         if len(json.dumps({"message": text, "images": images}).encode()) > 1_000_000:
             raise ValueError("This prompt and its images exceed the CLI's 1 MB RPC limit. Attach a smaller image or give the agent its file path.")
         return text, images

@@ -230,7 +230,7 @@ def build_command(agent, prompt, images, options, prompt_file):
 
 class Bridge(NativeBridge):
     def __init__(self, state=None, emit=None, exclusive=False):
-        self.jarvis = None
+        self.peek = None
         self.home = Path.home()
         self.state = Path(state or os.environ.get("SIDE_CHAT_STATE", Path(os.environ.get("XDG_STATE_HOME", self.home / ".local/state")) / "omarchy/side-chat"))
         self.state.mkdir(parents=True, exist_ok=True, mode=0o700)
@@ -281,8 +281,8 @@ class Bridge(NativeBridge):
         if row:
             self.current = json.loads(row[0])
             self.active = self.current["id"]
-        from jarvis.controller import JarvisController
-        self.jarvis = JarvisController(self)
+        from peek.controller import PeekController
+        self.peek = PeekController(self)
 
     def emit(self, **event):
         with self.output_lock:
@@ -290,8 +290,8 @@ class Bridge(NativeBridge):
                 self.emit_callback(event)
             else:
                 print(json.dumps(event, ensure_ascii=False), flush=True)
-        if self.jarvis:
-            self.jarvis.observe(event)
+        if self.peek:
+            self.peek.observe(event)
 
     def default_agent(self):
         config = Path(os.environ.get("XDG_CONFIG_HOME", self.home / ".config"))
@@ -428,7 +428,7 @@ class Bridge(NativeBridge):
         if agent in NATIVE_AGENTS:
             self.recover_pending_native(self.current)
         edit = command.get("edit", -1)
-        if edit == -1 and not attachments and self.jarvis.try_local(text):
+        if edit == -1 and not attachments and self.peek.try_local(text):
             return
         branch = ""
         if isinstance(edit, int) and edit >= 0:
@@ -442,7 +442,7 @@ class Bridge(NativeBridge):
         if branch:
             user_message["branchFrom"] = branch
         proposed = dict(self.current, messages=messages + [user_message])
-        self.jarvis.begin_turn()
+        self.peek.begin_turn()
         try:
             if agent in NATIVE_AGENTS:
                 if edit >= 0 and not branch:
@@ -451,9 +451,9 @@ class Bridge(NativeBridge):
                 prompt, images = self.native_prompt(proposed, user_message)
             else:
                 prompt, images = self.context(proposed)
-            if self.jarvis.enabled and self.cancelled.is_set():raise ValueError("Stopped before the task began.")
+            if self.peek.enabled and self.cancelled.is_set():raise ValueError("Stopped before the task began.")
         except Exception:
-            self.jarvis.abort_turn()
+            self.peek.abort_turn()
             raise
         self.current = proposed
         if not messages:
@@ -584,20 +584,20 @@ class Bridge(NativeBridge):
     def dispatch(self, command):
         with self.lock:
             action = command.get("action")
-            if isinstance(action, str) and action.startswith("jarvis"):
-                self.jarvis.dispatch(command)
+            if isinstance(action, str) and action.startswith("peek"):
+                self.peek.dispatch(command)
             elif action in ("hello", "refresh"):
                 self.sync_default_agent()
                 self.snapshot()
-                self.jarvis.publish()
+                self.peek.publish()
             elif action == "new":
                 self.new()
                 self.snapshot()
             elif action == "send":
                 self.send(command)
             elif action == "stop":
-                if self.jarvis.enabled:
-                    self.jarvis.stop()
+                if self.peek.enabled:
+                    self.peek.stop()
                 else:
                     self.cancelled.set()
             elif action == "agent_ui_response":
@@ -607,7 +607,7 @@ class Bridge(NativeBridge):
             elif action == "permission_mode":
                 self.set_permission_mode(command)
             elif action == "terminal":
-                self.jarvis.enable(False)
+                self.peek.enable(False)
                 self.open_terminal()
             elif action == "open":
                 self.require_idle()
@@ -712,8 +712,8 @@ class Bridge(NativeBridge):
 
     def close(self):
         self.cancelled.set()
-        if self.jarvis:
-            self.jarvis.close()
+        if self.peek:
+            self.peek.close()
         if self.worker and self.worker.is_alive():
             self.worker.join(timeout=8)
         self.close_rpc()

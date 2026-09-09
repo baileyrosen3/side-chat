@@ -8,8 +8,8 @@ from unittest.mock import patch
 
 import install
 import setup
-from jarvis import settings
-from jarvis import setup as speech_setup
+from peek import settings
+from peek import setup as speech_setup
 
 
 class SetupTests(unittest.TestCase):
@@ -55,15 +55,15 @@ class SetupTests(unittest.TestCase):
             packages.assert_called_once_with(True)
             command = mutate.call_args.args[0]
             self.assertEqual(command[-2:], ["--with-kokoro", "--with-legacy-asr"])
-            self.assertEqual(Path(command[2]), setup.SOURCE / "jarvis/setup.py")
+            self.assertEqual(Path(command[2]), setup.SOURCE / "peek/setup.py")
             permissions.assert_not_called()
 
     def test_active_voice_blocks_runtime_replacement(self):
         with patch("setup.shutil.which", return_value="/bin/tool"), \
              patch("setup.missing_packages", return_value=[]), \
              patch("setup.subprocess.run", return_value=subprocess.CompletedProcess(
-                 [], 0, '{"jarvis":{"enabled":true}}')), patch("setup.run") as mutate:
-            for flag in ('--with-peek','--with-jarvis'):
+                 [], 0, '{"peek":{"enabled":true}}')), patch("setup.run") as mutate:
+            for flag in ('--with-peek',):
                 with self.subTest(flag=flag),self.assertRaisesRegex(SystemExit, "power Peek off"):
                     setup.main([flag])
             mutate.assert_not_called()
@@ -73,7 +73,7 @@ class SetupTests(unittest.TestCase):
              patch("setup.missing_packages", return_value=["chromium"]), \
              patch("setup.run", side_effect=subprocess.CalledProcessError(1, "omarchy")) as mutate:
             with self.assertRaises(subprocess.CalledProcessError):
-                setup.main(["--with-jarvis"])
+                setup.main(["--with-peek"])
             self.assertEqual(mutate.call_count, 1)
 
     def test_reuses_existing_tools_and_skips_installed_packages(self):
@@ -97,7 +97,7 @@ class SetupTests(unittest.TestCase):
     def test_unsupported_architecture_stops_before_installs(self):
         with patch("setup.platform.machine", return_value="aarch64"), patch("setup.run") as mutate:
             with self.assertRaises(SystemExit):
-                setup.main(["--with-jarvis"])
+                setup.main(["--with-peek"])
             mutate.assert_not_called()
 
     def test_git_checkout_and_symlink_are_never_replaced(self):
@@ -128,13 +128,13 @@ class SetupTests(unittest.TestCase):
                 self.assertEqual(settings.model_path({"modelPath": str(private)}), private)
 
     def test_build_prerequisites_checked_before_downloading(self):
-        with patch("jarvis.setup.shutil.which", side_effect=lambda name: None if name == "cargo" else "/bin/tool"):
+        with patch("peek.setup.shutil.which", side_effect=lambda name: None if name == "cargo" else "/bin/tool"):
             with self.assertRaisesRegex(SystemExit, "Missing build tools: cargo"):
                 speech_setup.preflight()
 
     def test_copy_distribution_contains_setup_and_pinned_sources(self):
-        expected = {"setup.py", "jarvis/setup.py", "jarvis/parakeet/Cargo.lock",
-                    "jarvis/requirements-legacy.txt", "docs/publishing.md", *setup.INPUT_FILES}
+        expected = {"setup.py", "peek/setup.py", "peek/parakeet/Cargo.lock",
+                    "peek/requirements-legacy.txt", "docs/publishing.md", *setup.INPUT_FILES}
         self.assertTrue(expected.issubset(install.FILES))
         for name in install.FILES:
             self.assertTrue((setup.SOURCE / name).is_file(), name)

@@ -12,10 +12,10 @@ ColumnLayout {
     required property var chat
     required property var host
     property bool preferences: false
-    readonly property var voice: chat.jarvis
+    readonly property var voice: chat.peek
     readonly property color dim: ui.muted
     spacing: Style.space(6)
-    function setting(key,value) { var s={};s[key]=value;chat.request({action:"jarvis_settings",settings:s}) }
+    function setting(key,value) { var s={};s[key]=value;chat.request({action:"peek_settings",settings:s}) }
     RowLayout {
         Layout.fillWidth: true
         spacing: Style.space(5)
@@ -30,7 +30,7 @@ ColumnLayout {
         Loader {
             anchors.fill: parent
             active: root.visible && host.opened && !root.preferences
-            source: "JarvisBuddy.qml"
+            source: "PeekBuddy.qml"
             onLoaded: {
                 item.mood = Qt.binding(() => chat.error || root.voice.error ? "error" : root.voice.stage)
                 item.inputLevel = Qt.binding(() => root.voice.inputLevel || 0)
@@ -47,7 +47,7 @@ ColumnLayout {
     Loader {
         visible: root.preferences; active: root.preferences
         Layout.fillWidth: true; Layout.fillHeight: true
-        sourceComponent: Component { JarvisSettings { chat: root.chat; onDone: root.preferences = false } }
+        sourceComponent: Component { PeekSettings { chat: root.chat; onDone: root.preferences = false } }
     }
     ColumnLayout {
         visible: !root.preferences
@@ -75,15 +75,15 @@ ColumnLayout {
             glyph: voice.listening ? "mic" : "mic-off"; accent: voice.listening
             enabled: voice.ready
             hint: voice.standby ? "Wake Peek" : voice.handsFree || voice.wakeEnabled ? (voice.listening ? "Mute microphone" : "Listen") : "Hold to talk"
-            onClicked: if (voice.standby) chat.request({action:"jarvis_wake"}); else if (voice.handsFree || voice.wakeEnabled) chat.request({action:"jarvis_listen",enabled:!voice.listening})
-            onPressed: if (!voice.handsFree && !voice.wakeEnabled) chat.request({action:"jarvis_listen",enabled:true})
-            onReleased: if (!voice.handsFree && !voice.wakeEnabled) chat.request({action:"jarvis_finish"})
-            onCanceled: if (!voice.handsFree && !voice.wakeEnabled) chat.request({action:"jarvis_listen",enabled:false})
+            onClicked: if (voice.standby) chat.request({action:"peek_wake"}); else if (voice.handsFree || voice.wakeEnabled) chat.request({action:"peek_listen",enabled:!voice.listening})
+            onPressed: if (!voice.handsFree && !voice.wakeEnabled) chat.request({action:"peek_listen",enabled:true})
+            onReleased: if (!voice.handsFree && !voice.wakeEnabled) chat.request({action:"peek_finish"})
+            onCanceled: if (!voice.handsFree && !voice.wakeEnabled) chat.request({action:"peek_listen",enabled:false})
         }
-        ActionButton { glyph: "stop"; hint: "Stop speech and actions · Ctrl+Alt+Esc"; enabled: chat.busy || voice.speaking || voice.stage === "acting"; onClicked: chat.request({action:"jarvis_stop"}) }
+        ActionButton { glyph: "stop"; hint: "Stop speech and actions · Ctrl+Alt+Esc"; enabled: chat.busy || voice.speaking || voice.stage === "acting"; onClicked: chat.request({action:"peek_stop"}) }
         Item { Layout.fillWidth: true }
         ActionButton { text: voice.scope === "browser" ? "Browser" : "Desktop"; subtle: true; hint: voice.scope === "browser" ? "Headless browser · click for desktop" : "Desktop and default browser · click for headless browser"; onClicked: root.setting("scope",voice.scope === "desktop" ? "browser" : "desktop") }
-        ActionButton { glyph: "chat"; subtle: true; hint: "Return to conversation"; onClicked: chat.setJarvis(false) }
+        ActionButton { glyph: "chat"; subtle: true; hint: "Return to conversation"; onClicked: chat.setPeek(false) }
     }
     ChatField {
         Layout.fillWidth: true

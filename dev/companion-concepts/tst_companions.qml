@@ -6,7 +6,7 @@ import "../../CompanionCatalog.js" as Catalog
 Rectangle {
     color: "#12151b"
     width: 420; height: 640
-    JarvisBuddy { id: buddy; width: 400; height: 400 }
+    PeekBuddy { id: buddy; width: 400; height: 400 }
     CompanionPicker { id: picker; width: 320; visible: false; onSettingChanged: (key,value) => { if (key === "companion") companion=value; } }
     TestCase {
         name: "Companions"

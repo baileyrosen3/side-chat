@@ -5,22 +5,22 @@ import time
 import unittest
 from unittest.mock import patch,Mock
 from backend import Bridge
-from jarvis.quick import parse,execute
-from jarvis.undo import UndoJournal
-from jarvis.store import Store
-from jarvis.wake import ConversationGate
+from peek.quick import parse,execute
+from peek.undo import UndoJournal
+from peek.store import Store
+from peek.wake import ConversationGate
 
 class CompanionTests(unittest.TestCase):
     def setUp(self):
         self.temp=tempfile.TemporaryDirectory();self.root=Path(self.temp.name)
         self.b=Bridge(self.root/'state',lambda _:None);self.b.settings['cwd']=str(self.root)
-        self.b.jarvis.state.update(enabled=True,ready=True);self.b.jarvis.prefs.update(muted=True,screenContext='off')
-        self.c=self.b.jarvis.companion
+        self.b.peek.state.update(enabled=True,ready=True);self.b.peek.prefs.update(muted=True,screenContext='off')
+        self.c=self.b.peek.companion
     def tearDown(self):self.b.close();self.temp.cleanup()
     def test_peek_stop_and_sleep_commands_stay_local(self):
-        for text in ('Stop Peek.','Peek stop!','Stop Jarvis.'):
+        for text in ('Stop Peek.','Peek stop!','Stop Peek.'):
             self.assertEqual(self.c.match(text),('stop',None))
-        for text in ('Sleep Peek.','Peek go to sleep.','Sleep Jarvis.'):
+        for text in ('Sleep Peek.','Peek go to sleep.','Sleep Peek.'):
             self.assertEqual(self.c.match(text),('sleep',None))
         self.assertIsNone(self.c.match('Explain how Peek works.'))
     def test_local_commands_persist_without_starting_agent(self):
@@ -51,7 +51,7 @@ class CompanionTests(unittest.TestCase):
     def test_timer_restart_and_process_reuse_only_notify_once(self):
         self.c.watch('timer','Done',seconds=1)
         self.c.watch('process','Exited',pid=os.getpid())
-        with patch('jarvis.companion.time.time',return_value=time.time()+2),patch('jarvis.companion.process_identity',return_value='different-start'),patch('jarvis.companion.subprocess.run') as notify:
+        with patch('peek.companion.time.time',return_value=time.time()+2),patch('peek.companion.process_identity',return_value='different-start'),patch('peek.companion.subprocess.run') as notify:
             self.c.check_watches();self.c.check_watches()
             self.assertEqual(notify.call_count,2)
         self.assertTrue(all(r['state']=='done' for r in Store(self.root/'state').items('watch')))
@@ -60,16 +60,16 @@ class CompanionTests(unittest.TestCase):
         self.b.current['agent']='omp'
         self.b.busy=True;self.b.rpc=Mock();self.b.rpc.proc=None
         rpc=self.b.rpc
-        with patch.object(self.b.jarvis,'configure_control'):
-            self.b.jarvis.steer('Use 12 instead')
+        with patch.object(self.b.peek,'configure_control'):
+            self.b.peek.steer('Use 12 instead')
         rpc.request.assert_called_once_with('steer',message='User correction to the running task. Preserve completed work and adjust the remaining steps: Use 12 instead',timeout=5)
         self.assertFalse(self.b.cancelled.is_set());self.assertIs(self.b.rpc,rpc)
         self.assertEqual(self.b.current['messages'][-1]['tools'][0]['status'],'complete')
         self.b.busy=False;self.b.rpc=None
     def test_unsupported_steering_queues_correction_in_same_chat(self):
         self.b.new();self.b.current['agent']='claude';self.b.busy=True
-        identity=self.b.current['id'];self.b.jarvis.steer('Use the other file')
-        self.assertTrue(self.b.cancelled.is_set());self.assertIn('other file',self.b.jarvis.pending)
+        identity=self.b.current['id'];self.b.peek.steer('Use the other file')
+        self.assertTrue(self.b.cancelled.is_set());self.assertIn('other file',self.b.peek.pending)
         self.assertEqual(self.b.current['id'],identity);self.b.busy=False
 
 class QuickTests(unittest.TestCase):
@@ -79,7 +79,7 @@ class QuickTests(unittest.TestCase):
         with self.assertRaises(ValueError):parse('set volume to 200')
         with self.assertRaises(ValueError):execute(parse('open terminal'),'browser')
     def test_volume_reports_readback(self):
-        with patch('jarvis.quick.run',side_effect=['Volume: 0.50','','Volume: 0.24']) as run:
+        with patch('peek.quick.run',side_effect=['Volume: 0.50','','Volume: 0.24']) as run:
             self.assertEqual(execute(parse('set volume to 25')),'Volume 24 percent.')
             self.assertEqual(run.call_args_list[1].args[0][-1],'25%')
 
@@ -102,10 +102,10 @@ class UndoTests(unittest.TestCase):
 class GateTests(unittest.TestCase):
     def test_wake_followup_expiry_and_sleep(self):
         gate=ConversationGate(12)
-        with patch('jarvis.wake.time.monotonic',return_value=100):
+        with patch('peek.wake.time.monotonic',return_value=100):
             self.assertFalse(gate.active());gate.wake();self.assertTrue(gate.active())
-        with patch('jarvis.wake.time.monotonic',return_value=111):self.assertTrue(gate.active())
-        with patch('jarvis.wake.time.monotonic',return_value=113):
+        with patch('peek.wake.time.monotonic',return_value=111):self.assertTrue(gate.active())
+        with patch('peek.wake.time.monotonic',return_value=113):
             self.assertFalse(gate.active());gate.wake();gate.standby();self.assertFalse(gate.active())
 
 if __name__=='__main__':unittest.main()
