@@ -69,6 +69,20 @@ python3 setup.py --with-legacy-asr
 
 These flags include Peek setup. Select the installed engine in **Preferences → Peek → Speech**.
 
+### Optional Peek keybindings
+
+Side Chat does not install or replace keybindings. The maintainer uses the physical numpad 0 key to open or close Peek and numpad decimal to toggle Peek's microphone. Add these exact bindings to `~/.config/hypr/bindings.lua`:
+
+```lua
+-- Peek: bare numpad shortcuts, with Num Lock on or off.
+o.bind("KP_0", "Toggle Peek", "omarchy-shell blr.side-chat peek")
+o.bind("KP_Insert", "Toggle Peek", "omarchy-shell blr.side-chat peek")
+o.bind("KP_Decimal", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
+o.bind("KP_Delete", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
+```
+
+`KP_0`/`KP_Insert` are the same physical key in the two Num Lock states; so are `KP_Decimal`/`KP_Delete`. To bind the chat panel instead of Peek, use `omarchy-shell blr.side-chat toggle` with any unused key. After editing bindings, run `hyprctl reload` and `hyprctl configerrors`; the second command should report no errors.
+
 ### What setup installs
 
 | Feature | System dependencies |
@@ -92,7 +106,13 @@ cd ~/.config/omarchy/plugins/blr.side-chat
 python3 setup.py
 ```
 
-If you use Peek, run `python3 setup.py --with-peek` instead, adding your optional engine flags. Omarchy add/update does not run dependency installers; setup is an explicit step. The checkout and its Git metadata remain intact for future updates. This follows the same Git installation approach as [Enhanced Agents](https://github.com/baileyrosen3/omarchy-agents) and [Omarchy's plugin reference](https://github.com/omacom/omarchy/blob/quattro/shell/README.md).
+The update command first displays the incoming Git diff so you can review it. This is expected, not an error. If it opens in a pager, press `q`, then confirm **Update** at the prompt. To update this trusted plugin without printing the diff or asking for confirmation, use:
+
+```bash
+omarchy plugin update blr.side-chat --yes
+```
+
+If you use Peek, run `python3 setup.py --with-peek` instead, adding your optional engine flags. Omarchy add/update does not run dependency installers; setup is an explicit step. The checkout and its Git metadata remain intact for future updates. Confirm what was installed with `git -C ~/.config/omarchy/plugins/blr.side-chat log -1 --oneline` and `jq -r .version ~/.config/omarchy/plugins/blr.side-chat/manifest.json`. This follows the same Git installation approach as [Enhanced Agents](https://github.com/baileyrosen3/omarchy-agents) and [Omarchy's plugin reference](https://github.com/omacom/omarchy/blob/quattro/shell/README.md).
 
 ```bash
 omarchy plugin disable blr.side-chat
@@ -121,13 +141,14 @@ If an older copy install already occupies `blr.side-chat`, back up that folder, 
 - **No sound or microphone:** check the default devices in Omarchy's audio settings and `pactl info`. Peek settings offer device selection. Setup does not replace your audio routing.
 - **Desktop clicks or takeover unavailable:** use `--check --with-desktop-input` from the active local desktop session. Browser mode can use isolated Chromium without native input access.
 - **Interrupted model download/build:** rerun setup with the same flags. Completed verified downloads are reused.
+- **Update only showed a Git diff:** the diff is Omarchy's review step. Exit its pager with `q` if needed and confirm the update, or rerun `omarchy plugin update blr.side-chat --yes`.
 - **Plugin copied but not visible:** inspect `omarchy-shell blr.side-chat status` and run `omarchy-shell shell rescanPlugins`. Keep Peek off during dependency updates.
 
 ## Use
 
 Move the pointer to the bottom 160 scaled pixels of the left edge on either monitor. The whole chat peels out; move away to dismiss the preview. Clicking or typing keeps it open until Escape, Close, or a click outside. It continues generating while closed.
 
-The header has New Chat, Preferences, and Close controls, with Conversation, History, and Peek navigation underneath. Terminal handoff sits beside the working folder below the composer. Hover a message to copy, edit, or retry it. Code blocks have a separate copy control. Settings contain model and thinking overrides, the working folder, conversation rename, and Markdown export. New conversations follow `~/.config/omarchy/defaults/agent`; existing ones retain their original agent. The active default is checked every three seconds.
+The compact header shows the conversation name and controls for History, New Chat, width, Preferences, and Close. Subpages replace those controls with a clear Back action. Peek and Terminal sit beside the working folder below the composer. Hover a message to copy, edit, or retry it. Code blocks have a separate copy control. Settings contain model and thinking overrides, the working folder, conversation rename, and Markdown export. New conversations follow `~/.config/omarchy/defaults/agent`; existing ones retain their original agent. The active default is checked every three seconds.
 
 The interface pairs a rounded, screen-connected outer outline with compact neo-brutalist controls: square fields, flat fills, hard shadows, and uppercase navigation. A crisp offset shadow follows the outer silhouette in your theme’s accent color. Colors come from your active Omarchy theme, including readable text on accent fills, and update live with theme changes. Short conversations fit their content; longer conversations scroll. Settings, history, permissions, and Peek use the same controls.
 
@@ -147,14 +168,7 @@ You can also use `omarchy-shell blr.side-chat toggle`, `open`, `close`, `newChat
 
 For voice mode, `omarchy-shell blr.side-chat peekOnScreen DP-3` enables Peek on that display, `companionControls` opens its controls, and `peekSettings` opens advanced settings. `omarchy-shell blr.side-chat microphone ""` selects the system-default input; a PipeWire source name selects a specific microphone. Selecting an input does not itself enable listening.
 
-For keyboard access, `peek` toggles Peek on or off without reopening chat when he turns off. `peekOpen` only opens him, and `peekToggleMicrophone` toggles his microphone (starting Peek if needed). The microphone toggle preserves your hands-free and wake-word preferences. To bind numpad 0 and numpad decimal without a modifier, add these to `~/.config/hypr/bindings.lua`; both keys work with Num Lock on or off:
-
-```lua
-o.bind("KP_0", "Toggle Peek", "omarchy-shell blr.side-chat peek")
-o.bind("KP_Insert", "Toggle Peek", "omarchy-shell blr.side-chat peek")
-o.bind("KP_Decimal", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
-o.bind("KP_Delete", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
-```
+For keyboard access, `peek` toggles Peek on or off without reopening chat when he turns off. `peekOpen` only opens him, and `peekToggleMicrophone` toggles his microphone (starting Peek if needed). The microphone toggle preserves your hands-free and wake-word preferences. See **Optional Peek keybindings** above for the maintainer's exact numpad bindings.
 
 ## Chat behavior
 
@@ -207,7 +221,7 @@ OMP (Oh My Pi), Pi, Codex, and Claude run as persistent native sessions behind t
 
 Each reply has expandable tool activity with commands, arguments, results, and completion/error states. CLI confirmation, selection, and text-input requests appear above the composer. By default, approval requests have **Allow** and **Deny** and follow the CLI's existing policy.
 
-Click **Permissions · …** above the composer, or type **`/permissions`**, to choose a mode for the current conversation. The selector also lives in Preferences. Choices save automatically and apply to the next message; finish or stop the current reply before changing them. The existing native session is resumed with the selected policy. New conversations start at their default, and changing the agent or working folder before the first message clears the choice. Global CLI configuration is never edited.
+Click the shield and current access mode above the composer, or type **`/permissions`**, to choose a mode for the current conversation. The selector also lives in Preferences. Choices save automatically and apply to the next message; finish or stop the current reply before changing them. The existing native session is resumed with the selected policy. New conversations start at their default, and changing the agent or working folder before the first message clears the choice. Global CLI configuration is never edited.
 
 | CLI | Side Chat choices |
 | --- | --- |
