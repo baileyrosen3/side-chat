@@ -28,6 +28,8 @@ FILES += ["ChatStyle.qml", "ChatField.qml", "ChatComboBox.qml"]
 FILES += ["CompanionCursor.qml", "CompanionGaze.js", "companion_cursor.py"]
 FILES += ["ChatSection.qml", "ChatSwitch.qml", "ChatSpinBox.qml", "ChatScrollBar.qml"]
 FILES += ["TaskDetails.qml", "CompanionTransition.qml"]
+FILES += ["preview.png", "screenshots/history.png", "screenshots/preferences.png",
+          "screenshots/permissions.png", "screenshots/peek.png", "screenshots/peek-controls.png"]
 PLUGIN = "blr.side-chat"
 
 
@@ -89,7 +91,9 @@ def main():
         manifest=json.loads((source/'manifest.json').read_text())
         manifest['entryPoints']['service']=release_name+'/Main.qml'
         (staged/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
-        for name in ('README.md','LICENSE','COPYING.JARVIS','THIRD_PARTY.md','docs/speech-audit.md',
+        for name in ('README.md','LICENSE','COPYING.JARVIS','THIRD_PARTY.md','preview.png',
+                     'screenshots/history.png','screenshots/preferences.png','screenshots/permissions.png',
+                     'screenshots/peek.png','screenshots/peek-controls.png','docs/speech-audit.md',
                      'docs/implementation.md','docs/publishing.md'):
             (staged/name).parent.mkdir(parents=True,exist_ok=True)
             shutil.copy2(source/name,staged/name)

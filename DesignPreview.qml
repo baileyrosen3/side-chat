@@ -16,11 +16,12 @@ ShellRoot {
   property bool busy: false
   property bool terminalOpen: false
   property bool nativeSession: true
-  property string agentName: "Oh My Pi"
-  property var permissionModes: [{id:"default",label:"CLI default",description:"Use the CLI's configured permissions."}, {id:"always-ask",label:"Ask",description:"Allow reads; ask before writes and execution."}, {id:"write",label:"Allow writes",description:"Allow reads and writes; ask before execution."}, {id:"yolo",label:"YOLO",description:"Automatically allow tools unless your OMP rules require a prompt or denial."}]
+  property string uiVersion: "development"
+  property string agentName: "Codex"
+  property var permissionModes: [{id:"default",label:"CLI default",description:"Use the CLI's configured permissions."}, {id:"read-only",label:"Read-only",description:"Inspect files without changing the workspace."}, {id:"workspace-write",label:"Workspace",description:"Read and write inside the working folder."}, {id:"auto-review",label:"Auto review",description:"Keep the workspace sandbox and review escalation requests."}]
   readonly property string permissionLabel: (permissionModes.find(m => m.id === (current.permissionMode || "default")) || permissionModes[0]).label
-  property var meta: ({agent:"omp",agentName:"Oh My Pi",available:true,permissionModes:{omp:permissionModes},settings:{cwd:"/home/blr/Work/side-chat",model:"",thinking:"default"}})
-  property var current: ({id:"preview",title:"Theme",agent:"omp",options:{cwd:"/home/blr/Work/side-chat"},native:{},messages:[{role:"user",text:"Make the panel compact and neo-brutalist.",status:"complete",time:Date.now()/1000},{role:"assistant",text:"Bold borders, flat colors, and a panel that fits the conversation.\n\nReady for your next task.",status:"complete",time:Date.now()/1000,model:""}]})
+  property var meta: ({agent:"codex",agentName:"Codex",available:true,permissionModes:{codex:permissionModes},settings:{cwd:"/home/demo/Projects/side-chat",model:"",thinking:"default"}})
+  property var current: ({id:"preview",title:"Ship Side Chat",agent:"codex",options:{cwd:"/home/demo/Projects/side-chat"},native:{},messages:[{role:"user",text:"Review this repo, fix the failing tests, and explain what changed.",status:"complete",time:Date.now()/1000},{role:"assistant",text:"Fixed the session handoff race and verified the full suite.\n\n170 checks passed. Ready for your next task.",status:"complete",time:Date.now()/1000,model:""}]})
   readonly property var messages: current.messages
   property var chats: []
   property var agentRequests: []
@@ -63,6 +64,14 @@ ShellRoot {
   }
   function addAttachment(p) { }
   function removeAttachment(i) { }
+ }
+ FileView {
+  path: String(Qt.resolvedUrl("manifest.json")).replace("file://", "")
+  printErrors: false
+  onLoaded: {
+   try { chat.uiVersion=String(JSON.parse(text()).version || "development") }
+   catch(e) { chat.uiVersion="development" }
+  }
  }
  ChatWindow { id: panel; screen: Quickshell.screens[Quickshell.screens.length-1]; chat: chat }
  CompanionWindow { id: buddy; screen: panel.screen; chat: chat }
@@ -118,6 +127,16 @@ ShellRoot {
   function snapshot(name: string): void {
    if(!/^[a-z-]+$/.test(name)) return
    panel.contentItem.children.find(c=>c.objectName === "chat-drawer").grabToImage(r=>r.saveToFile("/tmp/side-chat-"+name+".png"))
+  }
+  function snapshotCompanion(name: string): void {
+   if(!/^[a-z-]+$/.test(name)) return
+   var body=chat.findItem(buddy.contentItem,"companion-body")
+   if(body) body.grabToImage(r=>r.saveToFile("/tmp/side-chat-"+name+".png"))
+  }
+  function snapshotControls(name: string): void {
+   if(!/^[a-z-]+$/.test(name)) return
+   var dock=chat.findItem(buddy.contentItem,"companion-dock")
+   if(dock) dock.grabToImage(r=>r.saveToFile("/tmp/side-chat-"+name+".png"))
   }
   function capture(): void {
    panel.contentItem.children.find(c=>c.objectName === "chat-drawer").grabToImage(r=>r.saveToFile("/tmp/side-chat-design-panel.png"))
