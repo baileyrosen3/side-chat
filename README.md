@@ -101,18 +101,22 @@ Existing working `uv` and Rust executables are reused. Python speech packages ar
 Finish any reply and power Peek off before updating:
 
 ```bash
-omarchy plugin update blr.side-chat
+omarchy plugin update blr.side-chat --yes
 cd ~/.config/omarchy/plugins/blr.side-chat
 python3 setup.py
 ```
 
-The update command first displays the incoming Git diff so you can review it. This is expected, not an error. If it opens in a pager, press `q`, then confirm **Update** at the prompt. To update this trusted plugin without printing the diff or asking for confirmation, use:
+`--yes` updates this trusted plugin without printing the review diff or asking for confirmation. Omit `--yes` when you want to inspect changes first; Omarchy will print the incoming Git diff and ask you to confirm. That diff is terminal output, not a file or an error.
+
+Confirm that the checkout, manifest, and running UI agree after an update:
 
 ```bash
-omarchy plugin update blr.side-chat --yes
+git -C ~/.config/omarchy/plugins/blr.side-chat log -1 --oneline
+jq -r .version ~/.config/omarchy/plugins/blr.side-chat/manifest.json
+omarchy-shell blr.side-chat status | jq -r '.uiVersion, .uiSource'
 ```
 
-If you use Peek, run `python3 setup.py --with-peek` instead, adding your optional engine flags. Omarchy add/update does not run dependency installers; setup is an explicit step. The checkout and its Git metadata remain intact for future updates. Confirm what was installed with `git -C ~/.config/omarchy/plugins/blr.side-chat log -1 --oneline` and `jq -r .version ~/.config/omarchy/plugins/blr.side-chat/manifest.json`. This follows the same Git installation approach as [Enhanced Agents](https://github.com/baileyrosen3/omarchy-agents) and [Omarchy's plugin reference](https://github.com/omacom/omarchy/blob/quattro/shell/README.md).
+The two version values should match, and `uiSource` should point inside `~/.config/omarchy/plugins/blr.side-chat`. The same version is visible at the bottom of **Preferences**. If you use Peek, run `python3 setup.py --with-peek` instead, adding your optional engine flags. Omarchy add/update does not run dependency installers; setup is an explicit step. The checkout and its Git metadata remain intact for future updates. This follows the same Git installation approach as [Enhanced Agents](https://github.com/baileyrosen3/omarchy-agents) and [Omarchy's plugin reference](https://github.com/omacom/omarchy/blob/quattro/shell/README.md).
 
 ```bash
 omarchy plugin disable blr.side-chat
@@ -141,8 +145,8 @@ If an older copy install already occupies `blr.side-chat`, back up that folder, 
 - **No sound or microphone:** check the default devices in Omarchy's audio settings and `pactl info`. Peek settings offer device selection. Setup does not replace your audio routing.
 - **Desktop clicks or takeover unavailable:** use `--check --with-desktop-input` from the active local desktop session. Browser mode can use isolated Chromium without native input access.
 - **Interrupted model download/build:** rerun setup with the same flags. Completed verified downloads are reused.
-- **Update only showed a Git diff:** the diff is Omarchy's review step. Exit its pager with `q` if needed and confirm the update, or rerun `omarchy plugin update blr.side-chat --yes`.
-- **Plugin copied but not visible:** inspect `omarchy-shell blr.side-chat status` and run `omarchy-shell shell rescanPlugins`. Keep Peek off during dependency updates.
+- **Update only showed a Git diff:** the diff is Omarchy's review output, not a downloaded file. Confirm the update at the prompt, or rerun `omarchy plugin update blr.side-chat --yes`.
+- **Old UI after update:** compare the manifest and live versions with the commands above, then run `omarchy-shell shell rescanPlugins`. If the plugin folder has no `.git` directory, follow the older-copy migration note above. Keep Peek off during dependency updates.
 
 ## Use
 

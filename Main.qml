@@ -7,6 +7,8 @@ import qs.Commons
 Scope {
     id: root
     property var shell: null
+    property var manifest: ({})
+    readonly property string uiVersion: String(manifest && manifest.version ? manifest.version : "development")
     property var meta: ({agent: "", agentName: "Connecting…", available: false, settings: {model: "", thinking: "default", cwd: ""}})
     property var chats: []
     property var current: null
@@ -241,7 +243,7 @@ Scope {
         function jarvisSettings(): void { peekSettings() }
         function companionControls(): void { if(root.jarvis.enabled) root.companionControlsRequested() }
         function stop(): void { root.request({action:"jarvis_stop"}) }
-        function status(): string { return JSON.stringify({uiVersion:"1.11.2",uiSource:String(Qt.resolvedUrl("Main.qml")),connected: root.connected, busy: root.busy, agent: root.meta.agent, conversationAgent:root.current ? root.current.agent : "", agentLabel:root.agentName, open: root.openScreen, page:root.page,companionScreen:root.companionScreen, appearance:root.meta.appearance || {outline:true}, bashApproval:root.current ? (root.current.bashApproval || "ask") : "ask", jarvis:root.jarvis}) }
+        function status(): string { return JSON.stringify({uiVersion:root.uiVersion,uiSource:String(Qt.resolvedUrl("Main.qml")),connected: root.connected, busy: root.busy, agent: root.meta.agent, conversationAgent:root.current ? root.current.agent : "", agentLabel:root.agentName, open: root.openScreen, page:root.page,companionScreen:root.companionScreen, appearance:root.meta.appearance || {outline:true}, bashApproval:root.current ? (root.current.bashApproval || "ask") : "ask", jarvis:root.jarvis}) }
     }
     Variants {
         model: Quickshell.screens

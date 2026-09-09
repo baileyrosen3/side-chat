@@ -25,6 +25,10 @@ python3 -B -m unittest discover -s tests -v
 python3 setup.py --check
 ```
 
+The release tests require the runtime status to obtain its version from the
+host-injected manifest and require Preferences to display it. Do not add a
+second hard-coded QML version; bump `manifest.json` once per release instead.
+
 Test the README's Git install on a fresh Omarchy Quattro user/session, then
 enable, disable, update, and remove the plugin. Test chat without the speech
 runtime first. Test Peek setup without an existing Voxtype model or
@@ -33,16 +37,19 @@ checks in [TEST_PLAN.md](../TEST_PLAN.md). Dependency diagnostics do not
 establish microphone quality, provider authentication, or end-to-end speech
 readiness.
 
-Use `omarchy plugin update blr.side-chat` for Git installations. The custom
+Use `omarchy plugin update blr.side-chat --yes` for the documented trusted
+Git update path. Omitting `--yes` intentionally prints the incoming diff and
+asks for confirmation. The custom
 `install.py` copies development builds into timestamped runtime directories;
 it must not be used to replace a Git-managed installation. Omarchy never
 executes setup hooks during add/update, so dependency installation remains
 the documented `python3 setup.py` step.
 
 For releases that change dependencies, call out the setup flags users must
-rerun. Keep `manifest.json`'s version and `Main.qml`'s reported `uiVersion`
-aligned. A root `preview.png` showing the real interface is optional; use
-fixture content without private conversations.
+rerun. The host injects `manifest.json` into `Main.qml`, making its version the
+single source for IPC status and the Preferences label. A root `preview.png`
+showing the real interface is optional; use fixture content without private
+conversations.
 
 ## Marketplace listing
 

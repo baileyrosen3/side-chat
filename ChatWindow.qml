@@ -1178,6 +1178,12 @@ PanelWindow {
                             wrapMode: Text.WordWrap
                         }
 
+                        SettingLabel {
+                            Layout.fillWidth: true
+                            text: "Side Chat " + chat.uiVersion + " · blr.side-chat"
+                            Accessible.name: "Installed Side Chat version " + chat.uiVersion
+                        }
+
                     }
 
                 }
