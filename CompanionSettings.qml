@@ -7,6 +7,8 @@ import "Theme.js" as Theme
 
 Flickable {
     id: root
+    objectName: "companion-settings"
+    ChatStyle { id: ui }
     required property var chat
     property string section: "Appearance"
     property var draft: chat.jarvis
@@ -31,38 +33,38 @@ Flickable {
     }
     contentWidth: width; contentHeight: body.implicitHeight
     clip: true; boundsBehavior: Flickable.StopAtBounds
-    ScrollBar.vertical: ScrollBar {}
+    ScrollBar.vertical: ChatScrollBar {}
     Component.onCompleted: chat.request({action:"jarvis_companion_status"})
     component Label: Text {
         textFormat: Text.PlainText
         Layout.fillWidth: true; wrapMode: Text.Wrap
-        color: Theme.alpha(Color.foreground,0.62)
-        font.family: Style.font.family; font.pixelSize: Style.font.body
+        color: ui.muted
+        font.family: Style.font.family; font.pixelSize: ui.small
     }
-    component Field: TextField {
-        Layout.fillWidth: true; color: Color.foreground
-        font.family: Style.font.family; font.pixelSize: Style.font.body
-        selectByMouse: true; placeholderTextColor: Theme.alpha(Color.foreground,0.45)
-        background: Rectangle { radius: Style.space(5); color: Theme.alpha(Color.foreground,0.05); border.width: parent.activeFocus ? 1 : 0; border.color: Color.accent }
+    component Field: ChatField {
+        Layout.fillWidth: true
     }
     component Area: TextArea {
         Layout.fillWidth: true; wrapMode: TextEdit.Wrap
-        font.family: Style.font.family; font.pixelSize: Style.font.body
-        color: Color.foreground; selectByMouse: true
-        placeholderTextColor: Theme.alpha(Color.foreground,0.45)
-        background: Rectangle { radius: Style.space(5); color: Theme.alpha(Color.foreground,0.05); border.width: parent.activeFocus ? 1 : 0; border.color: Color.accent }
+        font.family: Style.font.family; font.pixelSize: ui.small
+        color: ui.foreground; selectByMouse: true
+        padding: Style.space(7)
+        selectionColor: Theme.alpha(ui.accent, 0.35)
+        selectedTextColor: ui.foreground
+        placeholderTextColor: ui.muted
+        background: Rectangle { radius: ui.radius; color: ui.field; border.width: 1; border.color: ui.border }
     }
     ColumnLayout {
         id: body
-        width: root.width-Style.space(8); spacing: Style.space(9)
+        width: root.width-Style.space(8); spacing: Style.space(7)
         Flow {
             Layout.fillWidth: true; spacing: Style.space(3)
             Repeater {
                 model: ["Appearance","Memory","Routines","Watches","Undo"]
-                ActionButton { required property string modelData; text: modelData; selected: root.section === modelData; onClicked: { root.section=modelData; root.contentY=0 } }
+                ActionButton { required property string modelData; text: modelData; tab: true; selected: root.section === modelData; onClicked: { root.section=modelData; root.contentY=0 } }
             }
         }
-        Label { visible: !!chat.error; text: chat.error; color: Color.accent }
+        Label { visible: !!chat.error; text: chat.error; color: ui.emphasis }
         RobotAppearance {
             visible: root.section === "Appearance"
             Layout.fillWidth: true
@@ -71,8 +73,9 @@ Flickable {
             onSettingChanged: (key,value) => root.settingChanged(key,value)
         }
         ColumnLayout {
-            visible: root.section === "Memory"; Layout.fillWidth: true; spacing: Style.space(8)
-            Label { text: "Only things you explicitly save are remembered. Say ‘remember that…’ or edit them here. Forget removes the saved memory; chat history remains." }
+            visible: root.section === "Memory"; Layout.fillWidth: true; spacing: Style.space(6)
+            ChatSection { text: "Memory" }
+            Label { text: "Say “remember that…” or save a fact here. Forget removes the memory, keeping chat history." }
             Area { id: memory; placeholderText: "A preference or fact to remember…"; Accessible.name: "Memory text"; Layout.minimumHeight: Style.space(44) }
             RowLayout {
                 ActionButton { text: root.memoryId ? "Update memory" : "Remember"; enabled: !!memory.text.trim() && !root.pending; onClicked: root.save({action:"jarvis_memory_save",id:root.memoryId,text:memory.text},"memory") }
@@ -84,7 +87,7 @@ Flickable {
                 ColumnLayout {
                     required property var modelData
                     Layout.fillWidth: true; spacing: Style.space(2)
-                    Label { text: modelData.text; color: Color.foreground }
+                    Label { text: modelData.text; color: ui.foreground }
                     RowLayout {
                         ActionButton { text: "Edit"; subtle: true; onClicked: { root.memoryId=modelData.id; memory.text=modelData.text; root.contentY=0 } }
                         ActionButton { text: "Forget"; subtle: true; onClicked: chat.request({action:"jarvis_memory_delete",id:modelData.id}) }
@@ -93,8 +96,9 @@ Flickable {
             }
         }
         ColumnLayout {
-            visible: root.section === "Routines"; Layout.fillWidth: true; spacing: Style.space(8)
-            Label { text: "Name a sequence, then say its name to run it. Use one local command per line: open terminal, open Google, set volume to 30, switch to workspace 2, pause music…" }
+            visible: root.section === "Routines"; Layout.fillWidth: true; spacing: Style.space(6)
+            ChatSection { text: "Routines" }
+            Label { text: "Add one local command per line, then say the routine’s name to run it." }
             Field { id: routineName; placeholderText: "Routine name"; Accessible.name: "Routine name" }
             Area { id: steps; placeholderText: "open terminal\nset volume to 30"; Accessible.name: "Routine commands"; Layout.minimumHeight: Style.space(60) }
             RowLayout {
@@ -106,7 +110,7 @@ Flickable {
                 ColumnLayout {
                     required property var modelData
                     Layout.fillWidth: true; spacing: Style.space(2)
-                    Label { text: modelData.name; color: Color.foreground; font.bold: true }
+                    Label { text: modelData.name; color: ui.foreground; font.bold: true }
                     Label { text: modelData.steps.join(" · ") }
                     RowLayout {
                         ActionButton { text: "Run"; enabled: !chat.busy && chat.jarvis.enabled; onClicked: chat.request({action:"jarvis_say",text:"run "+modelData.name}) }
@@ -117,8 +121,9 @@ Flickable {
             }
         }
         ColumnLayout {
-            visible: root.section === "Watches"; Layout.fillWidth: true; spacing: Style.space(8)
-            Label { text: "Say ‘remind me in 10 minutes to stretch’ or ‘watch process 1234’. Notifications still arrive with the panel hidden, while Omarchy Shell is running." }
+            visible: root.section === "Watches"; Layout.fillWidth: true; spacing: Style.space(6)
+            ChatSection { text: "Watches" }
+            Label { text: "Set a reminder or watch a process. Notifications work with the panel hidden while the shell is running." }
             Field { id: watchText; placeholderText: "Reminder text"; Accessible.name: "Reminder text" }
             RowLayout {
                 Field { id: minutes; placeholderText: "Minutes"; inputMethodHints: Qt.ImhDigitsOnly; validator: IntValidator { bottom: 1; top: 10080 } Accessible.name: "Timer minutes" }
@@ -139,15 +144,16 @@ Flickable {
             }
         }
         ColumnLayout {
-            visible: root.section === "Undo"; Layout.fillWidth: true; spacing: Style.space(8)
-            Label { text: "Restore config edits made through Jarvis’s tracked config tool. Restore refuses if the file has changed since. Other CLI edits and app actions are not covered." }
+            visible: root.section === "Undo"; Layout.fillWidth: true; spacing: Style.space(6)
+            ChatSection { text: "Undo" }
+            Label { text: "Restore tracked Peek config edits if the file hasn’t changed since. Other CLI edits and app actions aren’t covered." }
             Label { visible: !(chat.jarvis.restorePoints || []).length; text: "No tracked config changes yet." }
             Repeater {
                 model: chat.jarvis.restorePoints || []
                 ColumnLayout {
                     required property var modelData
                     Layout.fillWidth: true; spacing: Style.space(2)
-                    Label { text: modelData.path; color: Color.foreground; wrapMode: Text.WrapAnywhere }
+                    Label { text: modelData.path; color: ui.foreground; wrapMode: Text.WrapAnywhere }
                     RowLayout {
                         Label { text: modelData.state+" · "+new Date(modelData.updated*1000).toLocaleString() }
                         ActionButton { text: "Restore"; enabled: modelData.state === "available" && !chat.busy; onClicked: chat.request({action:"jarvis_undo",id:modelData.id}) }

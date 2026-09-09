@@ -35,7 +35,7 @@ class EchoAudio:
         args=['pactl','load-module','module-echo-cancel', 'aec_method=webrtc', 'rate=48000', 'channels=1',
               'aec_args="high_pass_filter=1 noise_suppression=1 analog_gain_control=0 digital_gain_control=0"',
               'source_name='+self.source,'sink_name='+self.sink,
-              'source_properties=device.description=JarvisMicrophone','sink_properties=device.description=JarvisSpeaker']
+              'source_properties=device.description=PeekMicrophone','sink_properties=device.description=PeekSpeaker']
         # Explicit masters avoid selecting a previous echo-cancellation virtual device.
         source=source or run('pactl','get-default-source')
         sink=sink or run('pactl','get-default-sink')

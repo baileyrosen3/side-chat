@@ -10,5 +10,6 @@ dev/*.png
 /Ui
 /.agents/
 /.codex/
+/.21st/
 /:memory:.ses
 jarvis/parakeet/target/

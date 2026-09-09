@@ -35,6 +35,12 @@ Scope {
     readonly property bool terminalOpen: !!(current && current.terminalOpen)
     readonly property string agentName: current && current.agent ? agentLabel(current.agent) : meta.agentName
     readonly property var messages: current ? current.messages : []
+    readonly property var permissionModes: (meta.permissionModes || {})[current ? current.agent : meta.agent] || []
+    readonly property string permissionLabel: {
+        var mode = current ? (current.permissionMode || "default") : "default"
+        var entry = permissionModes.find(m => m.id === mode)
+        return entry ? entry.label : "Permissions"
+    }
     signal focusComposer()
     signal companionControlsRequested()
 
@@ -58,12 +64,14 @@ Scope {
     function close() {
         openScreen = ""; pinned = false
     }
+    function showCompanion() {
+        var focused=Hyprland.focusedMonitor
+        companionScreen=openScreen || (focused ? focused.name : Quickshell.screens[0].name)
+        close(); page="chat"
+    }
     function setJarvis(enabled, reopen) {
-        if (enabled) {
-            var focused=Hyprland.focusedMonitor
-            companionScreen=openScreen || (focused ? focused.name : Quickshell.screens[0].name)
-            close(); page="chat"
-        } else if (reopen !== false) openConversation()
+        if (enabled) showCompanion()
+        else if (reopen !== false) openConversation()
         request({action:"jarvis",enabled:enabled,accent:String(Color.accent)})
     }
     function openConversation() { show(companionScreen || (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : Quickshell.screens[0].name),true); page="chat" }
@@ -94,6 +102,9 @@ Scope {
         request({action: "open", id: id})
     }
     function submit() {
+        if (draft.trim() === "/permissions") {
+            draftSave.stop(); draft = ""; page = "permissions"; pin(); return
+        }
         if (jarvis.enabled && busy && draft.trim()) {
             request({action:"jarvis_say",text:draft}); draft=""; return
         }
@@ -202,22 +213,35 @@ Scope {
         function close(): void { root.close() }
         function toggle(): void { root.toggle() }
         function newChat(): void { root.open(); root.startNew() }
-        function jarvis(): void { root.setJarvis(!root.jarvis.enabled) }
-        function jarvisOnScreen(name: string): void {
+        function peek(): void { root.setJarvis(!root.jarvis.enabled, false) }
+        function peekOpen(): void { root.setJarvis(true) }
+        function peekOnScreen(name: string): void {
             if(!Quickshell.screens.some(s=>s.name === name)) return
             if(!root.jarvis.enabled) root.setJarvis(true)
             root.companionScreen=name
         }
         function microphone(source: string): void { root.request({action:"jarvis_settings",settings:{source:source}}) }
-        function jarvisListening(enabled: bool): void { root.request({action:"jarvis_listen",enabled:enabled}) }
-        function jarvisPreferences(settings: string): void {
-            try { root.request({action:"jarvis_settings",settings:JSON.parse(settings)}) }
-            catch (e) { root.error="Invalid Jarvis preferences: " + e }
+        function peekListening(enabled: bool): void { root.request({action:"jarvis_listen",enabled:enabled}) }
+        function peekToggleMicrophone(): void {
+            if (!root.jarvis.enabled) root.showCompanion()
+            root.request({action:"jarvis_toggle_listen",accent:String(Color.accent)})
         }
-        function jarvisSettings(): void { root.openJarvisSettings() }
+        function peekPreferences(settings: string): void {
+            try { root.request({action:"jarvis_settings",settings:JSON.parse(settings)}) }
+            catch (e) { root.error="Invalid Peek preferences: " + e }
+        }
+        function peekSettings(): void { root.openJarvisSettings() }
+        // Keep existing shortcuts and automation compatible with the new name.
+        function jarvis(): void { peek() }
+        function jarvisOpen(): void { peekOpen() }
+        function jarvisOnScreen(name: string): void { peekOnScreen(name) }
+        function jarvisListening(enabled: bool): void { peekListening(enabled) }
+        function jarvisToggleMicrophone(): void { peekToggleMicrophone() }
+        function jarvisPreferences(settings: string): void { peekPreferences(settings) }
+        function jarvisSettings(): void { peekSettings() }
         function companionControls(): void { if(root.jarvis.enabled) root.companionControlsRequested() }
         function stop(): void { root.request({action:"jarvis_stop"}) }
-        function status(): string { return JSON.stringify({uiVersion:"1.9.3",uiSource:String(Qt.resolvedUrl("Main.qml")),connected: root.connected, busy: root.busy, agent: root.meta.agent, open: root.openScreen, page:root.page,companionScreen:root.companionScreen, appearance:root.meta.appearance || {outline:true}, bashApproval:root.current ? (root.current.bashApproval || "ask") : "ask", jarvis:root.jarvis}) }
+        function status(): string { return JSON.stringify({uiVersion:"1.11.2",uiSource:String(Qt.resolvedUrl("Main.qml")),connected: root.connected, busy: root.busy, agent: root.meta.agent, conversationAgent:root.current ? root.current.agent : "", agentLabel:root.agentName, open: root.openScreen, page:root.page,companionScreen:root.companionScreen, appearance:root.meta.appearance || {outline:true}, bashApproval:root.current ? (root.current.bashApproval || "ask") : "ask", jarvis:root.jarvis}) }
     }
     Variants {
         model: Quickshell.screens

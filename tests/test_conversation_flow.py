@@ -55,11 +55,85 @@ class ConversationTests(unittest.TestCase):
     def tearDown(self):
         self.b.busy=False;self.b.rpc=None;self.b.close();self.temp.cleanup()
 
+    def test_microphone_shortcut_toggles_requested_state_while_warming(self):
+        self.v.state.update(ready=False,listening=False)
+        self.v.want_listen=True
+        prefs=dict(self.v.prefs)
+        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.assertFalse(self.v.want_listen)
+        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.assertTrue(self.v.want_listen)
+        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.assertFalse(self.v.want_listen)
+        self.v.voice_event({'type':'ready'})
+        listens=[c['enabled'] for c in self.sent if c['action']=='listen']
+        self.assertEqual(listens,[False,True,False,False])
+        self.assertEqual(self.v.prefs,prefs)
+        self.assertFalse(any(c['action']=='cancel' for c in self.sent))
+
+    def test_microphone_shortcut_starts_jarvis_with_microphone_enabled(self):
+        for hands_free in (False,True):
+            with self.subTest(hands_free=hands_free):
+                self.v.state.update(enabled=False,ready=False,listening=False)
+                self.v.prefs['handsFree']=hands_free
+                self.v.prefs['wakeEnabled']=False
+                prefs=dict(self.v.prefs)
+                def enable(enabled):
+                    self.v.state['enabled']=enabled
+                    self.v.want_listen=self.v.prefs['handsFree']
+                with patch.object(self.v,'enable',side_effect=enable) as start:
+                    self.v.dispatch({'action':'jarvis_toggle_listen','accent':'#57c2ff'})
+                start.assert_called_once_with(True)
+                self.assertTrue(self.v.want_listen)
+                self.assertEqual(self.sent[-1],{'action':'listen','enabled':True})
+                self.assertEqual(self.v.prefs,prefs)
+                self.assertEqual(self.v.state['accent'],'#57c2ff')
+
+    def test_microphone_shortcut_finishes_input_without_stopping_answer(self):
+        self.b.busy=True;self.v.want_listen=True
+        self.v.state['speaking']=True
+        self.v.voice_event({'type':'speech_start'})
+        generation=self.v.input_generation
+        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.assertEqual(self.v.input_generation,generation)
+        self.assertEqual(self.sent[-1],{'action':'listen','enabled':False,'finish':True})
+        self.assertFalse(self.v.want_listen)
+        self.assertTrue(self.b.busy)
+        self.assertTrue(self.v.state['speaking'])
+        self.assertFalse(any(c['action']=='cancel' for c in self.sent))
+
+    def test_microphone_off_sends_pending_phrase_to_agent(self):
+        self.v.want_listen=True
+        generation=self.v.input_generation
+        self.v.voice_event({'type':'speech_start','generation':generation,'utterance':1})
+        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        self.v.voice_event({'type':'microphone','active':False,'finishing':True})
+        self.assertFalse(self.v.state['listening'])
+        self.assertTrue(self.v.state['transcribing'])
+        self.assertFalse(any(c['action']=='resume_speech' for c in self.sent))
+        with patch.object(self.b,'send') as send:
+            self.v.voice_event({'type':'transcript','text':'Use the blue theme.','generation':generation,'utterance':1})
+            self.v.voice_event({'type':'utterance_end','recognized':True,'hadSpeech':True,'generation':generation,'utterance':1})
+            self.v.input_queue.join()
+            send.assert_called_once_with({'text':'Use the blue theme.','attachments':[]})
+        self.assertFalse(self.v.want_listen)
+        self.assertFalse(self.v.state['transcribing'])
+
+    def test_microphone_off_without_speech_preserves_answer(self):
+        self.v.want_listen=True;self.v.state['speaking']=True
+        self.v.dispatch({'action':'jarvis_toggle_listen'})
+        with patch.object(self.b,'send') as send:
+            self.v.voice_event({'type':'microphone','active':False,'finishing':False})
+            send.assert_not_called()
+        self.assertTrue(self.v.state['speaking'])
+        self.assertFalse(self.v.state['transcribing'])
+        self.assertFalse(any(c['action']=='cancel' for c in self.sent))
+
     def test_noise_pauses_instead_of_discarding_reply(self):
         self.b.busy=True
         with patch.object(self.v,'configure_control') as control:
             self.v.voice_event({'type':'speech_start'})
-            self.assertIn({'action':'pause_speech'},self.sent)
+            self.assertIn({'action':'pause_speech','generation':self.v.input_generation,'utterance':0},self.sent)
             self.assertFalse(any(c['action']=='cancel' for c in self.sent))
             self.v.voice_event({'type':'utterance_end','recognized':False,'hadSpeech':True})
             self.assertIn({'action':'resume_speech','utterance':0},self.sent)

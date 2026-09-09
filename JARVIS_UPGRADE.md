@@ -1,4 +1,4 @@
-# Jarvis companion upgrade
+# Peek companion upgrade
 
 Authorized: implement all eight proposed additions, preserving the Omarchy default CLI, theme, free/open-source dependencies, and existing chat/terminal session.
 

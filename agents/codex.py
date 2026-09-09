@@ -10,6 +10,7 @@ import threading
 import time
 import uuid
 from agent_session import SessionLease,text_content,cli_binary
+from permission_modes import codex_permissions
 
 
 def session_id(path):
@@ -36,16 +37,27 @@ class CodexSession:
             self.call('initialize',{'clientInfo':{'name':'side_chat','title':'Omarchy Side Chat','version':'1.2.0'},'capabilities':{'experimentalApi':True}})
             self.write({'method':'initialized'})
             params={'cwd':options['cwd']}
+            params.update(codex_permissions(options.get('_permission_mode','default')))
             if options.get('model'):params['model']=options['model']
             if self.jarvis_enabled:
                 params['config']={'mcp_servers.jarvis':{'command':'python3','args':[str(Path(options['_jarvis_client']).with_name('mcp_server.py'))],
                                   'env':{'SIDE_CHAT_CONTROL_SOCKET':options['_jarvis_socket']},'startup_timeout_sec':10}}
-                params['developerInstructions']='This session also has a local voice interface. Keep public progress and final replies concise and natural to speak. Use the Jarvis computer MCP tool for visible browser and desktop actions, and normal file/shell tools for config edits. Verify results before reporting success.'
+                params['developerInstructions']='This session also has a local voice interface. Keep public progress and final replies concise and natural to speak. Use the Peek computer MCP tool for visible browser and desktop actions, and normal file/shell tools for config edits. Verify results before reporting success.'
             if session_file:
+                if options.get('_permission_mode','default')=='default':
+                    # Resume can inherit the old approval policy even when the
+                    # caller omits it. Resolve the CLI's actual defaults without
+                    # a model turn or a persisted scratch conversation.
+                    baseline=self.call('thread/start',{'cwd':options['cwd'],'ephemeral':True},timeout=40)
+                    self.default_approvals={k:baseline[k] for k in ('approvalPolicy','approvalsReviewer') if k in baseline}
+                    self.call('thread/unsubscribe',{'threadId':baseline['thread']['id']})
+                    params.update(self.default_approvals)
                 params['threadId']=session_id(session_file)
                 result=self.call('thread/resume',params,timeout=40)
             else:result=self.call('thread/start',params,timeout=40)
             self.thread=result['thread'];self.model=result.get('model','')
+            if options.get('_permission_mode','default')=='default':
+                self.default_approvals={k:result[k] for k in ('approvalPolicy','approvalsReviewer') if k in result}
         except Exception:self.close();raise
 
     def write(self,value):
@@ -202,7 +214,8 @@ class CodexSession:
         if kind=='get_messages':return {'messages':self.history()[0]}
         if kind in ('get_branch_messages','get_fork_messages'):return {'messages':self.history()[1]}
         if kind in ('branch','fork'):
-            result=self.call('thread/fork',{'threadId':self.thread['id'],'beforeTurnId':values['entryId']})
+            result=self.call('thread/fork',dict(codex_permissions(self.options.get('_permission_mode','default')),
+                                              threadId=self.thread['id'],beforeTurnId=values['entryId']))
             self.thread=result['thread'];return {'cancelled':False}
         raise ValueError('Unsupported Codex session command: '+kind)
 

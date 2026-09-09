@@ -23,6 +23,11 @@ FILES += sorted(str(p.relative_to(Path(__file__).parent)) for p in (Path(__file_
                 if p.is_file() and "__pycache__" not in p.parts and p.suffix in (".py", ".ts", ".txt", ".json", ".yaml", ".rs", ".toml", ".lock"))
 FILES += sorted(str(p.relative_to(Path(__file__).parent)) for p in (Path(__file__).parent / "agents").glob("*.py"))
 FILES += ["WindowBorder.js", "WindowBorder.qml", "DrawerSurface.qml", "LookSettings.qml", "BashApprovalSettings.qml"]
+FILES += ["permission_modes.py", "PermissionSettings.qml", "agents/pi_permissions.ts"]
+FILES += ["ChatStyle.qml", "ChatField.qml", "ChatComboBox.qml"]
+FILES += ["CompanionCursor.qml", "CompanionGaze.js", "companion_cursor.py"]
+FILES += ["ChatSection.qml", "ChatSwitch.qml", "ChatSpinBox.qml", "ChatScrollBar.qml"]
+FILES += ["TaskDetails.qml", "CompanionTransition.qml"]
 PLUGIN = "blr.side-chat"
 
 
@@ -49,7 +54,8 @@ def main():
             raise SystemExit(f"Install requires {binary} on PATH.")
     if json.loads((source / "manifest.json").read_text())["id"] != PLUGIN:
         raise SystemExit("Unexpected plugin manifest.")
-    compile((source / "backend.py").read_text(), "backend.py", "exec")
+    for script in ("backend.py", "companion_cursor.py"):
+        compile((source / script).read_text(), script, "exec")
     print(f"Install {len(FILES)} files to {destination}", flush=True)
     if args.check:
         return

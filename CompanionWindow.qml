@@ -14,7 +14,9 @@ PanelWindow {
     property real dragOffset: 0
     property real pendingPosition: -1
     readonly property real savedPosition: chat.jarvis.companionPosition === undefined ? 0.16 : chat.jarvis.companionPosition
-    readonly property real restingBottom: Math.max(Style.space(16), Math.min(screen.height - height - Style.space(32), (pendingPosition >= 0 ? pendingPosition : savedPosition) * (screen.height - height)))
+    readonly property real placementHeight: Style.space(248)
+    // Expanding the attached controls keeps Peek at the same screen position.
+    readonly property real restingBottom: Math.max(Style.space(16), Math.min(screen.height - height - Style.space(32), (pendingPosition >= 0 ? pendingPosition : savedPosition) * (screen.height - placementHeight) + placementHeight - height))
 
     onSavedPositionChanged: {
         if (Math.abs(savedPosition - pendingPosition) < 0.0001) {
@@ -33,11 +35,18 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "omarchy-jarvis-companion"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: activeCompanion && surface.controlsPinned ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: activeCompanion && (surface.controlsPinned || surface.details.expanded) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors {
         left: true
         bottom: true
+    }
+
+    CompanionCursor {
+        id: cursor
+        enabled: window.activeCompanion && !chat.jarvis.reducedMotion
+                 && (chat.jarvis.expressiveness === undefined || chat.jarvis.expressiveness > 0)
+                 && chat.jarvis.stage !== "standby" && chat.jarvis.stage !== "off"
     }
 
     CompanionSurface {
@@ -45,14 +54,20 @@ PanelWindow {
 
         anchors.fill: parent
         chat: window.chat
-        visible: window.activeCompanion
+        present: window.activeCompanion
+        desktopPointer: cursor.valid ? cursor.position : null
+        // Layer-shell windows do not reliably expose their global Qt position.
+        // Hyprland cursor coordinates and screen geometry use logical pixels.
+        desktopOrigin: Qt.point(window.screen.x + window.margins.left,
+                                window.screen.y + window.screen.height - window.margins.bottom - window.height)
+        gazeDistance: Math.max(Style.space(200), Math.min(window.screen.width, window.screen.height) * 0.35)
         objectName: "jarvis-surface"
         onDragStarted: window.dragOrigin = window.margins.bottom
         onDragMoved: (delta) => {
             return window.dragOffset = window.dragOrigin - delta - window.restingBottom;
         }
         onDragFinished: {
-            var position = Math.max(0, Math.min(1, window.margins.bottom / Math.max(1, window.screen.height - window.height)));
+            var position = Math.max(0, Math.min(1, (window.margins.bottom + window.height - window.placementHeight) / Math.max(1, window.screen.height - window.placementHeight)));
             window.pendingPosition = position;
             window.dragOffset = 0;
             chat.request({
@@ -85,28 +100,14 @@ PanelWindow {
         Region {
             x: surface.bodyRegion.x
             y: surface.bodyRegion.y
-            width: window.activeCompanion ? surface.bodyRegion.width : 0
+            width: surface.interactive ? surface.bodyRegion.width : 0
             height: surface.bodyRegion.height
         }
         Region {
-            x: surface.statusRegion.x
-            y: surface.statusRegion.y
-            width: window.activeCompanion ? surface.statusRegion.width : 0
-            height: surface.statusRegion.height
-        }
-
-        Region {
-            x: surface.controlsRegion.x
-            y: surface.controlsRegion.y
-            width: window.activeCompanion && surface.controlsRegion.visible ? surface.controlsRegion.width : 0
-            height: surface.controlsRegion.height
-        }
-
-        Region {
-            x: surface.captionRegion.x
-            y: surface.captionRegion.y
-            width: window.activeCompanion && surface.captionRegion.visible ? surface.captionRegion.width : 0
-            height: surface.captionRegion.height
+            x: surface.panelRegion.x
+            y: surface.panelRegion.y
+            width: surface.interactive && surface.panelRegion.visible ? surface.panelRegion.width : 0
+            height: surface.panelRegion.height
         }
 
     }

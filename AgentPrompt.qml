@@ -6,68 +6,155 @@ import "Theme.js" as Theme
 
 Rectangle {
     id: root
+
     required property var request
     required property var chat
     required property var host
-    implicitHeight: Math.min(host.px(210), promptColumn.implicitHeight + host.px(18))
-    radius: host.px(7)
-    color: Theme.alpha(Color.accent, 0.07)
-    border.width: 1; border.color: Theme.alpha(Color.accent, 0.25)
+
     function answer(values) {
-        values.action = "agent_ui_response"; values.id = request.id
-        values.chatId = chat.current ? chat.current.id : ""
-        chat.request(values)
+        values.action = "agent_ui_response";
+        values.id = request.id;
+        values.chatId = chat.current ? chat.current.id : "";
+        chat.request(values);
     }
-    Flickable {
-        anchors.fill: parent; anchors.margins: root.host.px(9)
-        contentWidth: width; contentHeight: promptColumn.implicitHeight
-        clip: true; boundsBehavior: Flickable.StopAtBounds
-        ColumnLayout {
-            id: promptColumn
-            width: parent.width; spacing: root.host.px(7)
-            Text { Layout.fillWidth: true; text: root.request.title || "Agent needs your input"; wrapMode: Text.WordWrap; color: root.host.fg; font.family: root.host.family; font.pixelSize: root.host.textSize; font.weight: Font.DemiBold }
-            TextEdit {
-                Layout.fillWidth: true; visible: !!root.request.message
-                text: root.request.message || ""; readOnly: true; selectByMouse: true; wrapMode: TextEdit.WrapAnywhere
-                color: root.host.fg; font.family: root.host.family; font.pixelSize: root.host.textSize
-            }
-            Repeater {
-                model: root.request.method === "select" ? root.request.options : []
-                ActionButton {
-                    required property string modelData
-                    Layout.fillWidth: true
-                    text: modelData; onClicked: root.answer({value: modelData})
-                }
-            }
-            TextField {
-                id: answerField
-                visible: root.request.method === "input" || root.request.method === "editor"
-                Layout.fillWidth: true
-                text: root.request.prefill || ""; placeholderText: root.request.placeholder || "Your answer…"
-                color: root.host.fg; placeholderTextColor: root.host.dim; font.family: root.host.family; font.pixelSize: root.host.textSize
-                onAccepted: root.answer({value: text})
-                background: Rectangle { radius: root.host.px(5); color: Theme.alpha(root.host.fg, 0.05); border.color: parent.activeFocus ? Color.accent : root.host.line }
-            }
-            RowLayout {
-                ActionButton { objectName: "allow-once"; visible: root.request.method === "confirm"; text: "Allow"; accent: true; onClicked: root.answer({confirmed: true}) }
-                ActionButton {
-                    objectName: "allow-bash-always"
-                    visible: root.request.method === "confirm" && root.request.allowAlwaysBash === true
-                    text: "Always allow Bash"
-                    hint: "Allow all Bash commands in this conversation. Change this in Preferences."
-                    onClicked: root.answer({confirmed: true, alwaysAllowBash: true})
-                }
-                ActionButton { visible: answerField.visible; text: "Send"; accent: true; onClicked: root.answer({value: answerField.text}) }
-                ActionButton { objectName: "deny-action"; text: root.request.method === "confirm" ? "Deny" : "Cancel"; subtle: true; onClicked: root.answer({cancelled: true}) }
-                Item { Layout.fillWidth: true }
-            }
-            Text {
-                Layout.fillWidth: true
-                visible: root.request.allowAlwaysBash === true
-                text: "Always allow applies to Bash in this conversation."
-                color: root.host.dim; font.family: root.host.family; font.pixelSize: root.host.textSize
-                wrapMode: Text.WordWrap
-            }
+
+    implicitHeight: layout.implicitHeight + host.px(16)
+    radius: ui.radius
+    color: ui.secondary
+    border.width: ui.stroke
+    border.color: ui.accent
+
+    ChatStyle {
+        id: ui
+    }
+
+    ColumnLayout {
+        id: layout
+
+        anchors.fill: parent
+        anchors.margins: root.host.px(8)
+        spacing: root.host.px(6)
+
+        ChatSection { text: "Your approval"; Layout.topMargin: 0; Layout.bottomMargin: 0 }
+
+        Text {
+            Layout.fillWidth: true
+            text: root.request.title || "Agent needs your input"
+            wrapMode: Text.WordWrap
+            color: ui.foreground
+            font.family: ui.family
+            font.pixelSize: ui.body
+            font.weight: Font.Bold
         }
+
+        Flickable {
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(root.host.px(120), promptColumn.implicitHeight)
+            contentWidth: width
+            contentHeight: promptColumn.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+
+            ColumnLayout {
+                id: promptColumn
+
+                width: parent.width
+                spacing: root.host.px(4)
+
+                TextEdit {
+                    Layout.fillWidth: true
+                    visible: !!root.request.message
+                    text: root.request.message || ""
+                    readOnly: true
+                    selectByMouse: true
+                    wrapMode: TextEdit.WrapAnywhere
+                    color: ui.foreground
+                    font.family: ui.family
+                    font.pixelSize: ui.small
+                }
+
+                Repeater {
+                    model: root.request.method === "select" ? root.request.options : []
+
+                    ActionButton {
+                        required property string modelData
+
+                        Layout.fillWidth: true
+                        text: modelData
+                        hint: modelData
+                        onClicked: root.answer({
+                            "value": modelData
+                        })
+                    }
+
+                }
+
+            }
+
+            ScrollBar.vertical: ChatScrollBar {
+                width: root.host.px(3)
+            }
+
+        }
+
+        ChatField {
+            id: answerField
+
+            visible: root.request.method === "input" || root.request.method === "editor"
+            Layout.fillWidth: true
+            text: root.request.prefill || ""
+            placeholderText: root.request.placeholder || "Your answer…"
+            Accessible.name: root.request.title || "Your answer"
+            onAccepted: root.answer({
+                "value": text
+            })
+        }
+
+        Flow {
+            Layout.fillWidth: true
+            spacing: root.host.px(4)
+
+            ActionButton {
+                objectName: "allow-once"
+                visible: root.request.method === "confirm"
+                text: "Allow"
+                accent: true
+                onClicked: root.answer({
+                    "confirmed": true
+                })
+            }
+
+            ActionButton {
+                objectName: "allow-bash-always"
+                visible: root.request.method === "confirm" && root.request.allowAlwaysBash === true
+                text: "Always allow Bash"
+                hint: "Allow all Bash commands in this conversation. Change this in Preferences."
+                onClicked: root.answer({
+                    "confirmed": true,
+                    "alwaysAllowBash": true
+                })
+            }
+
+            ActionButton {
+                visible: answerField.visible
+                text: "Send"
+                accent: true
+                onClicked: root.answer({
+                    "value": answerField.text
+                })
+            }
+
+            ActionButton {
+                objectName: "deny-action"
+                text: root.request.method === "confirm" ? "Deny" : "Cancel"
+                subtle: true
+                onClicked: root.answer({
+                    "cancelled": true
+                })
+            }
+
+        }
+
     }
+
 }

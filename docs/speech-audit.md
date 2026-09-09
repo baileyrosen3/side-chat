@@ -1,6 +1,6 @@
-# Jarvis conversation audit — September 6, 2026
+# Peek conversation audit — September 6, 2026
 
-Jarvis should behave like a conversational desktop companion: know when it is being addressed, let the user finish, visibly acknowledge what it heard, explain useful progress, and yield when interrupted. Natural turn-taking matters as much as voice timbre or the time to the first sound.
+Peek should behave like a conversational desktop companion: know when it is being addressed, let the user finish, visibly acknowledge what it heard, explain useful progress, and yield when interrupted. Natural turn-taking matters as much as voice timbre or the time to the first sound.
 
 **What the timing numbers actually mean**
 
@@ -15,7 +15,7 @@ The cached acknowledgment makes this wait feel responsive once the request is ac
 | Microphone mute | Stopping capture also canceled the spoken answer and removed its audio route. | Capture stops independently. Current speech finishes; its echo-filter route is released after that sentence drains. |
 | False interruptions | A VAD trigger immediately discarded the active answer and queue, even if no words were recognized. | Pause playback first. An empty recognition resumes it; an accepted correction discards obsolete speech. |
 | Corrections | `utterance_end` could resume desktop input while asynchronous steering was still waiting for acceptance. | Keep input paused until the correction has been handled and the user has finished speaking. |
-| Stale input | Independent submission threads could act on old transcripts after Stop. | One ordered intake consumer and input generations reject superseded speech after Stop, microphone pause, or shutdown. |
+| Stale input | Independent submission threads could act on old transcripts after Stop. | One ordered intake consumer and input generations reject superseded speech after Stop or shutdown. Explicit mic-off retains and finalizes the accepted phrase. |
 | Follow-ups | With interruption disabled, another request overwrote the first pending request. | Preserve pending text in arrival order for the next turn. |
 | Room noise | Echo suppression existed, but every speech-like start could interrupt the conversation. | Strong mode adds a stricter speech threshold, sustained onset, and a bounded ambient-level check for faint false starts. |
 | Resuming a thought | A stronger onset detector was too slow to notice resumed speech, cutting off part of a word during endpoint waiting. | Separate start-of-request detection from faster continuation detection. Adaptive pauses allow extra time after unfinished phrases. |
@@ -28,7 +28,7 @@ The cached acknowledgment makes this wait feel responsive once the request is ac
 
 **Noise: practical limits and recommended setup**
 
-PipeWire's WebRTC filter already enables high-pass filtering and high noise suppression by default, with automatic gain control disabled. These settings are now explicit in Jarvis's own temporary filter. Its reference signal is Jarvis's output through that filter; unrelated apps' speaker audio is not necessarily part of that reference. [PipeWire implementation](https://github.com/PipeWire/pipewire/blob/1.6.8/spa/plugins/aec/aec-webrtc.cpp), [echo-cancel signal path](https://docs.pipewire.org/page_module_echo_cancel.html).
+PipeWire's WebRTC filter already enables high-pass filtering and high noise suppression by default, with automatic gain control disabled. These settings are now explicit in Peek's own temporary filter. Its reference signal is Peek's output through that filter; unrelated apps' speaker audio is not necessarily part of that reference. [PipeWire implementation](https://github.com/PipeWire/pipewire/blob/1.6.8/spa/plugins/aec/aec-webrtc.cpp), [echo-cancel signal path](https://docs.pipewire.org/page_module_echo_cancel.html).
 
 - For fans and typing: try **Strong** rejection, keep echo cancellation enabled, and speak near the selected microphone. Strong mode can miss soft voices; Balanced remains available.
 - For TV and other people: use **Hey Jarvis** or **hold-to-talk**. Ordinary speech detection does not identify who spoke or whether they meant to address the assistant. Noise suppression is not speaker authentication.
@@ -59,3 +59,13 @@ Observed fixture results: fan/keyboard noise produced no speech events; clean an
 Reproduced two replay paths: a shorter/empty reply snapshot rewound the speech cursor, and a delayed resume from one utterance could release playback after capture had already detected the next utterance. Shorter prefix snapshots now preserve the consumed cursor. Resume commands carry an utterance number and the worker rejects stale resumes or resumes while input is active. Cancellation during input keeps replacement speech held, including native steering. Playback checks pauses during PCM pacing and immediately before writing audio.
 
 Resume events no longer announce the entire previous sentence as a new caption, and exited/draining players cannot announce a new playback start. Regression tests compare the full PCM byte sequence across interruption, proving that samples are neither repeated nor skipped. The virtual listening fixture additionally verifies stale-resume rejection during actual recognition, cancellation of the previous queued answer, and successful playback of the new reply.
+
+### 1.11.1: microphone toggle and immediate submission
+
+A buffered capture frame could arrive after microphone mute and pause speech again. Capture frames, recognition events and controller pause acknowledgements now belong to the microphone session and input generation that produced them. A stopped capture cannot start a fresh speech interruption, and superseded recognition cannot publish a transcript.
+
+Mic-off now stops capture immediately and finalizes the accepted phrase once, preserving its generation so the controller can send it to the agent. It bypasses the configured silence timer; recognition finalization still contributes latency. Leaving capture on retains the configured silence and adaptive pause behavior. A rapid off/on waits for finalization before reopening the recognizer, and a subsequent off cancels that reopening without duplicating the phrase. Stop and power-off still discard pending input. The toggle itself preserves ongoing and queued speech; an accepted new phrase follows the existing interruption policy.
+
+Deterministic worker and controller tests cover these transitions, including the final phrase reaching agent submission. The virtual listening fixture checks real local recognition on mic-off, normal pauses, and off/on/off during one continuing spoken reply.
+
+Validation: 26 speech tests and 17 conversation tests passed. In the virtual audio run, mic-off was acknowledged within the measurement's millisecond resolution, and the phrase was recognized once 518 ms after the toggle (268 ms in final recognition). The normal pause, unfinished-thought pause, hold-to-talk, noise rejection, ongoing playback, and stale-resume checks passed; system default audio devices were unchanged. These timings describe this synthetic fixture, not a guaranteed end-to-end agent response time.

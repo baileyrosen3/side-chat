@@ -77,6 +77,17 @@ Rectangle {
             chat.current = {id: "fixture-chat", agent: "omp"}
             verify(!settings.visible)
         }
+        function test_long_command_keeps_decisions_visible() {
+            prompt.request = {id: "long-command", method: "confirm", title: "Allow Bash?",
+                              message: Array(40).fill("A command line to review before allowing.").join("\n"), allowAlwaysBash: true}
+            wait(30)
+            var deny = findChild(prompt, "deny-action")
+            verify(deny.mapToItem(prompt, 0, deny.height).y <= prompt.height)
+            verify(prompt.height < 230)
+            mouseClick(deny)
+            compare(chat.commands.length, 1)
+            compare(chat.commands[0].cancelled, true)
+        }
         function test_buttons_fit_narrow_panel() {
             wait(30)
             var always = findChild(prompt, "allow-bash-always")

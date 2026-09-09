@@ -27,7 +27,7 @@ python3 setup.py --check
 
 Test the README's Git install on a fresh Omarchy Quattro user/session, then
 enable, disable, update, and remove the plugin. Test chat without the speech
-runtime first. Test Jarvis setup without an existing Voxtype model or
+runtime first. Test Peek setup without an existing Voxtype model or
 Hugging Face cache as well as model reuse. Finish the manual desktop/audio
 checks in [TEST_PLAN.md](../TEST_PLAN.md). Dependency diagnostics do not
 establish microphone quality, provider authentication, or end-to-end speech

@@ -36,12 +36,15 @@ def run(argv):
     return result.stdout.strip()
 
 
-def execute(command, scope='desktop', browser=None):
+def execute(command, scope='desktop', browser=None, report=None):
+    def done(text, verified=False):
+        if report:report(text,verified)
+        return text
     op=command['op']
     if op=='url':
         if not browser:raise ValueError('Browser controller is unavailable.')
         browser(command['value'])
-        return ('Sent to your default browser: ' if scope=='desktop' else 'Opened in the isolated browser: ')+command['value']
+        return done(('Sent to your default browser: ' if scope=='desktop' else 'Opened in the isolated browser: ')+command['value'])
     if scope!='desktop':raise ValueError('Switch to Desktop mode to control apps, media, or system settings.')
     if op=='volume':
         current=run(['wpctl','get-volume','@DEFAULT_AUDIO_SINK@'])
@@ -50,23 +53,27 @@ def execute(command, scope='desktop', browser=None):
         target=command.get('value',max(0,min(100,round(float(match[1])*100)+command.get('delta',0))))
         run(['wpctl','set-volume','@DEFAULT_AUDIO_SINK@',str(target)+'%'])
         actual=run(['wpctl','get-volume','@DEFAULT_AUDIO_SINK@'])
-        return 'Volume '+str(round(float(re.search(r'Volume:\s*([\d.]+)',actual)[1])*100))+' percent.'
+        actual=round(float(re.search(r'Volume:\s*([\d.]+)',actual)[1])*100)
+        return done('Volume '+str(actual)+' percent.',actual==target)
     if op=='mute':
         run(['wpctl','set-mute','@DEFAULT_AUDIO_SINK@','1' if command['value'] else '0'])
         actual=run(['wpctl','get-volume','@DEFAULT_AUDIO_SINK@'])
-        return 'Audio muted.' if '[MUTED]' in actual else 'Audio unmuted.'
+        muted='[MUTED]' in actual
+        return done('Audio muted.' if muted else 'Audio unmuted.',muted==command['value'])
     if op=='brightness':
         maximum=int(run(['brightnessctl','max']));current=int(run(['brightnessctl','get']))
         target=command.get('value',max(1,min(100,round(current/maximum*100)+command.get('delta',0))))
         run(['brightnessctl','set',str(max(1,target))+'%'])
-        return f'Brightness {round(int(run(["brightnessctl","get"]))/maximum*100)} percent.'
+        actual=int(run(['brightnessctl','get']))
+        return done(f'Brightness {round(actual/maximum*100)} percent.',abs(actual-maximum*max(1,target)/100)<=1)
     if op=='media':
-        run(['playerctl',command['value']]);return 'Media '+run(['playerctl','status']).lower()+'.'
+        run(['playerctl',command['value']]);actual=run(['playerctl','status']).lower()
+        return done('Media '+actual+'.',{'pause':'paused','play':'playing'}.get(command['value'])==actual)
     if op=='workspace':
         run(['hyprctl','dispatch',f'hl.dsp.focus({{ workspace = "{command["value"]}" }})'])
         if json.loads(run(['hyprctl','activeworkspace','-j'])).get('id')!=command['value']:
             raise ValueError('The workspace did not change. Check whether the desktop is locked.')
-        return f'Workspace {command["value"]}.'
+        return done(f'Workspace {command["value"]}.',True)
     if op=='app':
-        run(['omarchy','launch',command['value']]);return 'Launched '+('Files' if command['value']=='nautilus' else command['value'])+'.'
+        run(['omarchy','launch',command['value']]);return done('Launched '+('Files' if command['value']=='nautilus' else command['value'])+'.')
     raise ValueError('Unsupported quick command.')

@@ -29,6 +29,7 @@ Rectangle {
             buddy.visible=true;
             buddy.reducedMotion=false; buddy.expressiveness=1;
             buddy.mood="idle"; buddy.dragging=false; buddy.engaged=false;
+            buddy.voiceReady=false;buddy.hearing=false;
             buddy.animation.previewAction=""; buddy.animation.settle();
             buddy.animation.greetings=0;
         }
@@ -48,7 +49,7 @@ Rectangle {
             var phase=buddy.animation.phase; wait(150); compare(buddy.animation.phase,phase);
         }
         function test_render_expressions() {
-            for (var action of ["idle","greet","thinking","speaking","success","needs_input","error","standby","drag"]) {
+            for (var action of ["idle","warming","ready","listening","hearing","greet","thinking","acting","speaking","success","needs_input","error","standby","drag"]) {
                 buddy.preview(action); wait(action === "standby" ? 750 : 420);
                 var shot=grabImage(buddy);
                 verify(shot.width>0);
@@ -72,6 +73,52 @@ Rectangle {
             for (var reaction of Expressions.actions) {
                 buddy.preview(reaction.id); compare(buddy.currentAction,reaction.id); wait(20);
             }
+        }
+        function test_warmup_completion_has_one_ready_reaction() {
+            buddy.mood="warming"
+            buddy.voiceReady=true;buddy.mood="idle"
+            compare(buddy.currentAction,"ready")
+            wait(180);verify(buddy.animation.readySignal>0)
+            var before=buddy.animation.progress
+            buddy.mood="listening";buddy.inputLevel=.02
+            verify(buddy.animation.progress>=before)
+            compare(buddy.currentAction,"ready")
+            tryCompare(buddy,"currentAction","listening",1600)
+            buddy.voiceReady=true;buddy.inputLevel=.08
+            compare(buddy.currentAction,"listening")
+        }
+        function test_real_speech_interrupts_the_ready_flourish() {
+            buddy.mood="warming";buddy.voiceReady=true;buddy.mood="listening"
+            compare(buddy.currentAction,"ready")
+            buddy.hearing=true
+            compare(buddy.currentAction,"hearing");compare(buddy.animation.gesture,"")
+            buddy.hearing=false;buddy.mood="thinking"
+            compare(buddy.currentAction,"thinking")
+            buddy.mood="needs_input";compare(buddy.currentAction,"needs_input")
+        }
+        function test_state_colors_follow_the_theme_and_stay_distinct() {
+            buddy.reducedMotion=true
+            var colors=[]
+            for(var state of ["listening","thinking","speaking","success","needs_input","error"]) {
+                buddy.preview(state)
+                colors.push(String(buddy.expressionColor))
+            }
+            compare(new Set(colors).size,colors.length)
+            buddy.preview("thinking")
+            var before=String(buddy.expressionColor)
+            Color.accent="#da8fca"
+            verify(String(buddy.expressionColor)!==before)
+        }
+        function test_listening_responds_to_audio_and_quiet_input_settles() {
+            buddy.mood="listening";buddy.animation.settle();buddy.inputLevel=0
+            tryCompare(buddy.animation,"energy",0,300)
+            buddy.inputLevel=.035
+            tryVerify(()=>buddy.animation.energy>.3,400)
+            compare(buddy.currentAction,"listening")
+            buddy.inputLevel=0
+            tryCompare(buddy.animation,"energy",0,400)
+            buddy.reducedMotion=true;buddy.inputLevel=.5
+            compare(buddy.animation.energy,0)
         }
         function test_reduced_motion_stops_all_animation() {
             buddy.preview("success"); wait(100);

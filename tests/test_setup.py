@@ -63,8 +63,9 @@ class SetupTests(unittest.TestCase):
              patch("setup.missing_packages", return_value=[]), \
              patch("setup.subprocess.run", return_value=subprocess.CompletedProcess(
                  [], 0, '{"jarvis":{"enabled":true}}')), patch("setup.run") as mutate:
-            with self.assertRaisesRegex(SystemExit, "power Jarvis off"):
-                setup.main(["--with-jarvis"])
+            for flag in ('--with-peek','--with-jarvis'):
+                with self.subTest(flag=flag),self.assertRaisesRegex(SystemExit, "power Peek off"):
+                    setup.main([flag])
             mutate.assert_not_called()
 
     def test_package_failure_stops_before_downloads(self):

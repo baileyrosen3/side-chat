@@ -6,10 +6,10 @@ import gi
 gi.require_version('Gtk','3.0')
 from gi.repository import Gtk,Gdk,GLib
 root=Path(sys.argv[1]);root.mkdir(exist_ok=True)
-window=Gtk.Window(title='Jarvis control fixture')
+window=Gtk.Window(title='Peek control fixture')
 window.set_wmclass('jarvis-control-fixture','jarvis-control-fixture');window.set_default_size(540,430)
 box=Gtk.Box(orientation=Gtk.Orientation.VERTICAL,spacing=12);box.set_border_width(20);window.add(box)
-box.pack_start(Gtk.Label(label='Jarvis input test · disposable window'),False,False,0)
+box.pack_start(Gtk.Label(label='Peek input test · disposable window'),False,False,0)
 entry=Gtk.Entry();entry.set_placeholder_text('Typing target');box.pack_start(entry,False,False,0)
 button=Gtk.Button(label='Click target');box.pack_start(button,False,False,0)
 area=Gtk.DrawingArea();area.set_size_request(400,80);area.add_events(Gdk.EventMask.BUTTON_PRESS_MASK|Gdk.EventMask.BUTTON_RELEASE_MASK|Gdk.EventMask.POINTER_MOTION_MASK);box.pack_start(area,False,False,0)

@@ -77,12 +77,12 @@ class ActivityTests(unittest.TestCase):
     def test_microphone_and_playback_end_restore_thinking_during_a_turn(self):
         self.voice.voice_event({'type':'microphone','active':False})
         self.assertEqual(self.voice.state['stage'],'thinking')
-        self.assertEqual(self.voice.state['caption'],'Jarvis is thinking…')
+        self.assertEqual(self.voice.state['caption'],'Peek is thinking…')
         self.voice.voice_event({'type':'playback','active':True,'text':'I will check.'})
         self.assertEqual(self.voice.state['stage'],'speaking')
         self.voice.voice_event({'type':'playback','active':False})
         self.assertEqual(self.voice.state['stage'],'thinking')
-        self.assertEqual(self.voice.state['caption'],'Jarvis is thinking…')
+        self.assertEqual(self.voice.state['caption'],'Peek is thinking…')
 
     def test_completed_tool_returns_to_thinking_until_turn_finishes(self):
         tools=[{'name':'read','status':'running'}]

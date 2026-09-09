@@ -83,7 +83,7 @@ def main():
         samples={}
         for voice in VOICES['pocket']:
             start=time.monotonic()
-            send(action='speak',voice=voice,text="Hey, I'm Jarvis. How's your day going?")
+            send(action='speak',voice=voice,text="Hey, I'm Peek. How's your day going?")
             at,event=wait_event(lambda e:e.get('type')=='playback' and e.get('active') and e.get('voice')==voice,start)
             wait_event(lambda e:e.get('type')=='playback' and not e.get('active'),at+.01)
             assert any(t>=at for t in audio),voice+' produced no audio'

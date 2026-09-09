@@ -21,6 +21,7 @@ import time
 import uuid
 from urllib.parse import urlsplit
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
+from jarvis.task import control_step, control_evidence
 
 
 def run(argv, timeout=12, **kwargs):
@@ -106,7 +107,7 @@ class Control:
                         if path in known:continue
                         try:
                             device=evdev.InputDevice(path)
-                            if device.name.startswith('Side Chat Jarvis'):
+                            if device.name.startswith(('Side Chat Peek','Side Chat Jarvis')):
                                 device.close();continue
                             selector.register(device,selectors.EVENT_READ)
                         except OSError:pass
@@ -136,7 +137,7 @@ class Control:
         if not self.device:
             import evdev
             e=evdev.ecodes
-            self.device=evdev.UInput({e.EV_KEY:[e.BTN_LEFT,e.BTN_RIGHT,e.BTN_MIDDLE],e.EV_REL:[e.REL_X,e.REL_Y,e.REL_WHEEL,e.REL_HWHEEL]},name='Side Chat Jarvis pointer')
+            self.device=evdev.UInput({e.EV_KEY:[e.BTN_LEFT,e.BTN_RIGHT,e.BTN_MIDDLE],e.EV_REL:[e.REL_X,e.REL_Y,e.REL_WHEEL,e.REL_HWHEEL]},name='Side Chat Peek pointer')
             time.sleep(.15)
         return self.device
 
@@ -261,14 +262,21 @@ class Control:
             if self.scope=='browser' and op not in ('browser','windows'):
                 raise ValueError('This task is scoped to the independent browser. Select Current desktop to operate host apps.')
             identity=c.get('callId') or uuid.uuid4().hex
-            self.event('control_action',id=identity,operation=op,phase='start')
+            turn=self.turn
+            label,kind=control_step(c)
+            def progress(phase, **values):
+                self.emit(dict(type='control_action',turn=turn,id=identity,operation=op,
+                               label=label,kind=kind,phase=phase,**values))
+            progress('start')
             self.active=op in ('move','click','drag','scroll','type','key','accessible_action')
             try:
                 result=self.execute(c,epoch)
-                self.event('control_action',id=identity,operation=op,phase='complete')
+                self.check(epoch)
+                evidence=control_evidence(c,result)
+                progress('complete',verified=bool(evidence),evidence=evidence)
                 return result
             except Exception as exc:
-                self.event('control_action',id=identity,operation=op,phase='error',error=str(exc));raise
+                progress('error',error=str(exc));raise
             finally:self.active=False
 
     def execute(self,c,epoch):

@@ -7,6 +7,7 @@ import re
 import subprocess
 import threading
 import time
+import uuid
 from jarvis.store import Store
 from jarvis import quick
 from jarvis.undo import UndoJournal
@@ -60,7 +61,7 @@ class Companion:
             if done:
                 self.store.put('watch',dict(r,state='done'),r['id'])
                 self.store.activity('Watch completed',r['message'])
-                subprocess.run(['notify-send','--app-name=Jarvis','Jarvis',r['message']],capture_output=True,timeout=3)
+                subprocess.run(['notify-send','--app-name=Peek','Peek',r['message']],capture_output=True,timeout=3)
                 if self.owner.enabled and not self.owner.bridge.busy:self.owner.say([r['message']])
                 self.publish()
 
@@ -82,8 +83,8 @@ class Companion:
 
     def match(self,text):
         stripped=text.strip();clean=stripped.lower().rstrip('.!?')
-        if clean in ('stop','stop jarvis','cancel that','never mind'):return ('stop',None)
-        if clean in ('go to sleep','sleep jarvis','stand by'):return ('sleep',None)
+        if clean in ('stop','stop peek','peek stop','stop jarvis','cancel that','never mind'):return ('stop',None)
+        if clean in ('go to sleep','sleep peek','peek go to sleep','sleep jarvis','stand by'):return ('sleep',None)
         m=re.fullmatch(r'(?:remember|save) routine ([^:]+):\s*(.+)',stripped,re.I|re.S)
         if m:return ('routine_save',(m[1],m[2].split(';')))
         m=re.fullmatch(r'remember(?: that)?\s+(.+)',stripped,re.I|re.S)
@@ -135,7 +136,22 @@ class Companion:
             from jarvis.control import request
             self.owner.ensure_control();self.owner.configure_control(True)
             return request(self.owner.socket,{'op':'browser','args':['open',url]})
-        return quick.execute(command,self.owner.prefs['scope'],browser)
+        identity=uuid.uuid4().hex
+        turn=self.owner.turn
+        label={'volume':'Set the volume','brightness':'Set brightness','mute':'Set audio mute',
+               'media':'Control playback','workspace':'Switch workspace','app':'Open the app','url':'Open the page'}[command['op']]
+        def report(text,verified):
+            if self.owner.turn!=turn or self.owner.task.state!='running':return
+            self.owner.task.record(identity,label,state='verified' if verified else 'performed',
+                                   evidence=text if verified else '',source='local')
+            self.owner.publish(task=self.owner.task.snapshot(),taskCaption=text)
+        self.owner.task.record(identity,label,source='local')
+        self.owner.publish(task=self.owner.task.snapshot(),taskCaption=label)
+        try:return quick.execute(command,self.owner.prefs['scope'],browser,report=report)
+        except Exception:
+            self.owner.task.record(identity,label,state='failed',source='local')
+            self.owner.publish(task=self.owner.task.snapshot())
+            raise
 
     def dispatch(self,c):
         action=c['action']

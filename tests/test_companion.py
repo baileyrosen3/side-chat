@@ -17,6 +17,12 @@ class CompanionTests(unittest.TestCase):
         self.b.jarvis.state.update(enabled=True,ready=True);self.b.jarvis.prefs.update(muted=True,screenContext='off')
         self.c=self.b.jarvis.companion
     def tearDown(self):self.b.close();self.temp.cleanup()
+    def test_peek_stop_and_sleep_commands_stay_local(self):
+        for text in ('Stop Peek.','Peek stop!','Stop Jarvis.'):
+            self.assertEqual(self.c.match(text),('stop',None))
+        for text in ('Sleep Peek.','Peek go to sleep.','Sleep Jarvis.'):
+            self.assertEqual(self.c.match(text),('sleep',None))
+        self.assertIsNone(self.c.match('Explain how Peek works.'))
     def test_local_commands_persist_without_starting_agent(self):
         with patch.object(self.b,'ensure_rpc',side_effect=AssertionError('Local action started an agent')):
             self.b.send({'text':'remember that I prefer compact windows'});self.b.worker.join(3)

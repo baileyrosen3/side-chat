@@ -60,7 +60,7 @@ def agent_problem(with_jarvis=False):
         return ("Choose and install an agent with `omarchy default agent <name>` "
                 "(omp, pi, codex, or claude), then complete its sign-in in the terminal.")
     if with_jarvis and agent not in NATIVE_AGENTS:
-        return "Jarvis requires omp, pi, codex, or claude as the Omarchy default agent."
+        return "Peek requires omp, pi, codex, or claude as the Omarchy default agent."
     print(f"Agent: {agent} is on PATH. Account sign-in must be checked in its terminal.")
     return None
 
@@ -132,14 +132,14 @@ def runtime_problems(with_kokoro=False, with_legacy=False):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Report missing requirements; no installs or desktop changes")
-    parser.add_argument("--with-jarvis", action="store_true", help="Install local speech models, runtime and computer-control tools")
-    parser.add_argument("--with-kokoro", action="store_true", help="Include optional Kokoro speech; implies --with-jarvis")
-    parser.add_argument("--with-legacy-asr", action="store_true", help="Include optional Zipformer/Whisper; implies --with-jarvis")
-    parser.add_argument("--with-desktop-input", action="store_true", help="Grant active-seat input access for desktop control; implies --with-jarvis")
+    parser.add_argument("--with-peek", "--with-jarvis", dest="with_jarvis", action="store_true", help="Install local speech models, runtime and computer-control tools")
+    parser.add_argument("--with-kokoro", action="store_true", help="Include optional Kokoro speech; implies --with-peek")
+    parser.add_argument("--with-legacy-asr", action="store_true", help="Include optional Zipformer/Whisper; implies --with-peek")
+    parser.add_argument("--with-desktop-input", action="store_true", help="Grant active-seat input access for desktop control; implies --with-peek")
     args = parser.parse_args(argv)
     with_jarvis = args.with_jarvis or args.with_kokoro or args.with_legacy_asr or args.with_desktop_input
     if platform.system() != "Linux" or (with_jarvis and platform.machine() != "x86_64"):
-        parser.error("Requires Linux; the bundled Jarvis runtime currently supports x86_64 only.")
+        parser.error("Requires Linux; the bundled Peek runtime currently supports x86_64 only.")
     if os.geteuid() == 0:
         parser.error("Run as your normal desktop user, without sudo. Only system package/input setup elevates.")
     for binary in ("omarchy", "omarchy-shell", "quickshell", "hyprctl", "pacman"):
@@ -165,7 +165,7 @@ def main(argv=None):
                 except ValueError:
                     raise SystemExit("Could not read Side Chat status. Disable the plugin before voice setup.")
                 if state.get("busy") or state.get("jarvis", {}).get("enabled"):
-                    raise SystemExit("Finish the current reply and power Jarvis off before voice setup.")
+                    raise SystemExit("Finish the current reply and power Peek off before voice setup.")
             command = [sys.executable, "-B", str(SOURCE / "jarvis/setup.py")]
             if args.with_kokoro:
                 command.append("--with-kokoro")

@@ -27,14 +27,14 @@ PARAKEET_REV = '09e9060322d99c5f070010724786e6ee090fd51d'
 
 def preflight(models_only=False):
     if platform.system() != 'Linux' or platform.machine() != 'x86_64':
-        raise SystemExit('The pinned Jarvis binaries currently require Linux x86_64.')
+        raise SystemExit('The pinned Peek binaries currently require Linux x86_64.')
     if os.geteuid() == 0:
         raise SystemExit('Run speech setup as your desktop user, without sudo.')
     if not models_only:
         missing = [name for name in ('uv', 'cargo', 'rustc', 'cc') if not shutil.which(name)]
         if missing:
             raise SystemExit('Missing build tools: '+', '.join(missing)+
-                             '. Run python3 setup.py --with-jarvis from the plugin root.')
+                             '. Run python3 setup.py --with-peek from the plugin root.')
         if not Path(__file__).with_name('parakeet').joinpath('Cargo.lock').is_file():
             raise SystemExit('Missing jarvis/parakeet/Cargo.lock. Download the complete plugin source.')
 

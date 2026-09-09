@@ -39,9 +39,9 @@ def model_path(prefs):
 
 def validate(current, values, check_files=True):
     result=dict(current)
-    if not isinstance(values,dict):raise ValueError('Jarvis settings must be an object.')
+    if not isinstance(values,dict):raise ValueError('Peek settings must be an object.')
     for key,value in values.items():
-        if key not in DEFAULTS:raise ValueError('Unknown Jarvis setting: '+key)
+        if key not in DEFAULTS:raise ValueError('Unknown Peek setting: '+key)
         if key in ENUMS:
             if value not in ENUMS[key]:raise ValueError('Unsupported '+key+'.')
         elif key in RANGES:
@@ -80,10 +80,10 @@ def model_info(prefs):
 
 def scope_instruction(scope):
     if scope=='desktop':
-        return ('Jarvis control mode for THIS turn: DESKTOP. Browser requests mean the user’s visible default Omarchy browser. '
-                'Use the Jarvis computer tool with op="browser", args=["open", "https://www.google.com"] (substitute the requested URL); '
+        return ('Peek control mode for THIS turn: DESKTOP. Browser requests mean the user’s visible default Omarchy browser. '
+                'Use the Peek computer tool with op="browser", args=["open", "https://www.google.com"] (substitute the requested URL); '
                 'this launches the configured browser and normal profile on the desktop. Then use windows, focus, screenshot, and native mouse/keyboard operations. '
                 'Do not use your built-in browser tool, Playwright, headless Chromium, or a separate browser context in Desktop mode. '
                 'A hidden page does not fulfill a request to open a website. Verify visible results before saying it opened. ')
-    return ('Jarvis control mode for THIS turn: BROWSER. Use the Jarvis computer tool op="browser" for an isolated headless Chromium session. '
+    return ('Peek control mode for THIS turn: BROWSER. Use the Peek computer tool op="browser" for an isolated headless Chromium session. '
             'Do not launch or control host desktop apps in Browser mode. Explain that pages open in the isolated browser when relevant. ')

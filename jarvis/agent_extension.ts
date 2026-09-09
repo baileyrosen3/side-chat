@@ -8,7 +8,7 @@ const properties: any = {
   button:{type:'string',enum:['left','right','middle']}, count:{type:'integer'}, amount:{type:'integer'},
   horizontal:{type:'boolean'}, text:{type:'string'}, key:{type:'string'}, args:{type:'array',items:{type:'string'}}
 };
-const description = `Control the user's computer through Jarvis with visible, interruptible actions. Use windows to list window addresses and monitors; focus a window, then screenshot. Screenshot returns an image and frame ID. All mouse/keyboard input requires that fresh frame; x/y and toX/toY are pixels in that screenshot, never guessed global coordinates. Re-observe after actions. key accepts Ctrl+l, Return, etc.; type accepts Unicode. scroll amount positive means up. browser args is an array of agent-browser CLI arguments (open URL, snapshot -i, click @e1, fill @e2 text, press Enter, etc.) whose routing follows the selected mode. DESKTOP: only open URL, launching the visible default Omarchy browser with its normal profile; use screenshot and native input afterward. BROWSER: isolated headless Chromium with DOM commands. Never use a built-in hidden browser in Desktop mode. Prefer inspect_app for accessible app controls, then accessible_action with returned target and actionName (or text for an editable target). Targets expire; re-inspect after acting. If no accessibility tree is exposed, use screenshots and native input. For small user config edits use config_read(path) then config_write(path,text,expected=sha256 returned by read). This verifies and records an undo point; undo_list and undo_restore(id) restore only when the file has not changed since. Use browser DOM only in Browser mode; Desktop mode uses native input for websites and apps. Tool availability does not imply an action succeeded: inspect each result. Desktop control must be enabled in Jarvis.`;
+const description = `Control the user's computer through Peek with visible, interruptible actions. Use windows to list window addresses and monitors; focus a window, then screenshot. Screenshot returns an image and frame ID. All mouse/keyboard input requires that fresh frame; x/y and toX/toY are pixels in that screenshot, never guessed global coordinates. Re-observe after actions. key accepts Ctrl+l, Return, etc.; type accepts Unicode. scroll amount positive means up. browser args is an array of agent-browser CLI arguments (open URL, snapshot -i, click @e1, fill @e2 text, press Enter, etc.) whose routing follows the selected mode. DESKTOP: only open URL, launching the visible default Omarchy browser with its normal profile; use screenshot and native input afterward. BROWSER: isolated headless Chromium with DOM commands. Never use a built-in hidden browser in Desktop mode. Prefer inspect_app for accessible app controls, then accessible_action with returned target and actionName (or text for an editable target). Targets expire; re-inspect after acting. If no accessibility tree is exposed, use screenshots and native input. For small user config edits use config_read(path) then config_write(path,text,expected=sha256 returned by read). This verifies and records an undo point; undo_list and undo_restore(id) restore only when the file has not changed since. Use browser DOM only in Browser mode; Desktop mode uses native input for websites and apps. Tool availability does not imply an action succeeded: inspect each result. Desktop control must be enabled in Peek.`;
 
 export default function(pi: any) {
   // Both OMP and Pi expose this hook. Keep computer actions on the mode-aware broker,
@@ -17,7 +17,7 @@ export default function(pi: any) {
     const path = String(event.input?.path || '');
     if (['browser','computer','playwright'].includes(event.toolName) ||
         (event.toolName === 'write' && /^xd:\/\/(browser|computer|playwright)(\/|$)/.test(path)))
-      return {block:true,reason:'Jarvis owns browser/desktop control in this session. Use jarvis_computer; its browser open command follows the current Desktop or Browser mode. Do not substitute a hidden browser.'};
+      return {block:true,reason:'Peek owns browser/desktop control in this session. Use jarvis_computer; its browser open command follows the current Desktop or Browser mode. Do not substitute a hidden browser.'};
   });
   let parameters: any = {type:'object',properties,required:['op'],additionalProperties:false};
   if (pi.zod) {
@@ -29,7 +29,7 @@ export default function(pi: any) {
       const signal=rest.find((value: any)=>value && typeof value.addEventListener==='function' && typeof value.aborted==='boolean');
       const command=process.env.SIDE_CHAT_CONTROL_CLIENT;
       const socket=process.env.SIDE_CHAT_CONTROL_SOCKET;
-      if (!command || !socket) throw new Error('Jarvis desktop controller is not connected.');
+      if (!command || !socket) throw new Error('Peek desktop controller is not connected.');
       const result=await new Promise<any>((resolve,reject)=>{
         const child=spawn('python3',['-B',command,'--socket',socket,JSON.stringify({...params,callId:id})],{stdio:['ignore','pipe','pipe']});
         let stdout='',stderr='';

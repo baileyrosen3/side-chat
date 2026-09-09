@@ -27,7 +27,7 @@ class Parakeet:
         if not select.select([self.proc.stdout],[],[],timeout)[0]:
             raise RuntimeError('Parakeet recognition timed out. Try fewer CPU threads or the Fast streaming profile.')
         line=self.proc.stdout.readline()
-        if not line:raise RuntimeError('Parakeet worker stopped. Check the Jarvis voice log.')
+        if not line:raise RuntimeError('Parakeet worker stopped. Check the Peek voice log.')
         result=json.loads(line)
         if result.get('error'):raise RuntimeError(result['error'])
         return result

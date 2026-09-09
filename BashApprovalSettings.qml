@@ -6,24 +6,27 @@ import "Theme.js" as Theme
 ColumnLayout {
     id: root
     required property var chat
-    readonly property color foreground: Color.popups.text
+    ChatStyle { id: ui }
+    readonly property color foreground: ui.foreground
     readonly property bool supported: !!chat.current && ["claude", "codex"].indexOf(chat.current.agent) >= 0
     readonly property bool always: supported && chat.current.bashApproval === "always"
     visible: supported
-    spacing: Style.space(7)
+    spacing: Style.space(4)
 
     function setMode(mode) {
         chat.request({action: "bash_approval", chatId: chat.current.id, mode: mode})
     }
 
-    Text {
-        text: "Bash approvals"
-        color: root.foreground
-        font.family: Style.font.family
-        font.pixelSize: Style.font.body
-        font.weight: Font.DemiBold
-    }
     RowLayout {
+        Layout.fillWidth: true
+        spacing: Style.space(3)
+        Text {
+            Layout.fillWidth: true
+            text: "Bash approvals"
+            color: ui.muted
+            font.family: ui.family
+            font.pixelSize: ui.small
+        }
         ActionButton {
             objectName: "bash-ask"
             text: "Ask"
@@ -40,14 +43,13 @@ ColumnLayout {
             hint: "Allow all Bash commands for this conversation in Side Chat."
             onClicked: root.setMode("always")
         }
-        Item { Layout.fillWidth: true }
     }
     Text {
         Layout.fillWidth: true
-        text: "Saves for this conversation in Side Chat. Bash commands can modify files and run programs."
-        color: Theme.alpha(root.foreground, 0.57)
+        text: "This chat only. Bash can change files and run programs."
+        color: ui.muted
         font.family: Style.font.family
-        font.pixelSize: Style.font.body
+        font.pixelSize: ui.small
         wrapMode: Text.WordWrap
     }
 }

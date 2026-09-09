@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Jarvis mode coordinates one existing CLI session, local speech, and observable input."""
+"""Peek mode coordinates one existing CLI session, local speech, and observable input."""
 import hashlib
 import json
 import os
@@ -14,6 +14,7 @@ from jarvis.control import request as control_request
 from jarvis.settings import DEFAULTS, RELOAD, validate, model_info
 from jarvis.companion import Companion
 from jarvis.feedback import SpokenFeedback
+from jarvis.task import TaskProgress
 
 
 class SpeechSegments:
@@ -107,6 +108,8 @@ class JarvisController:
         self.transcribing=False;self.input_generation=0;self.input_utterance=0;self.input_pending=set()
         self.input_queue=queue.Queue(maxsize=32)
         self.feedback=SpokenFeedback()
+        self.task=TaskProgress()
+        self.task_chat=''
         self.feedback_stop=threading.Event()
         self.companion=Companion(self)
         self.feedback_thread=threading.Thread(target=self.feedback_loop,daemon=True)
@@ -170,7 +173,7 @@ class JarvisController:
                 except Exception as exc:self.publish(error=str(exc),stage='error')
         finally:
             if not self.closed and ((label=='voice' and self.voice is proc) or (label=='control' and self.control is proc)):
-                self.publish(ready=False,listening=False,speaking=False,stage='error',error=label.capitalize()+' worker stopped. Turn Jarvis off and on again to reconnect.')
+                self.publish(ready=False,listening=False,speaking=False,stage='error',error=label.capitalize()+' worker stopped. Turn Peek off and on again to reconnect.')
 
     def ensure_control(self):
         if self.control and self.control.poll() is None:return
@@ -202,8 +205,8 @@ class JarvisController:
         if enabled:
             agent=self.bridge.current['agent'] if self.bridge.current and self.bridge.current['messages'] else self.bridge.default_agent()
             from agent_session import NATIVE_AGENTS
-            if agent not in NATIVE_AGENTS:raise ValueError('Jarvis needs a native tool session. This agent adapter is not yet available: '+agent)
-            if self.bridge.terminal_state(self.bridge.current):raise ValueError('Exit the agent terminal before turning on Jarvis.')
+            if agent not in NATIVE_AGENTS:raise ValueError('Peek needs a native tool session. This agent adapter is not yet available: '+agent)
+            if self.bridge.terminal_state(self.bridge.current):raise ValueError('Exit the agent terminal before turning on Peek.')
             self.ensure_control()
             self.publish(enabled=True,ready=False,stage='warming',error='',caption='Warming local voice…')
             self.want_listen=self.prefs['handsFree'] or self.prefs['wakeEnabled']
@@ -242,25 +245,31 @@ class JarvisController:
         elif action=='jarvis_status':self.companion.publish()
         elif action=='jarvis_say':self.submit_voice(str(c.get('text','')))
         elif action=='jarvis_voice_preview':
-            if not self.enabled or not self.state['ready']:raise ValueError('Turn on Jarvis and wait for the voice to be ready before previewing.')
+            if not self.enabled or not self.state['ready']:raise ValueError('Turn on Peek and wait for the voice to be ready before previewing.')
             if self.bridge.busy or self.bridge.ui_requests:raise ValueError('Finish or stop the task before previewing a voice.')
             voice=validate(self.prefs,{'voice':c.get('voice')},check_files=False)['voice']
             self.send_worker({'action':'cancel'})
-            self.send_worker({'action':'speak','voice':voice,'text':"Hey, I'm Jarvis. What are we working on today? Take your time. I'm here when you need me."})
+            self.send_worker({'action':'speak','voice':voice,'text':"Hey, I'm Peek. What are we working on today? Take your time. I'm here when you need me."})
         elif action=='jarvis_wake':self.send_worker({'action':'wake'})
         elif action=='jarvis_standby':
             self.stop()
             if self.prefs['wakeEnabled']:
                 self.want_listen=True;self.send_worker({'action':'listen','enabled':True})
-                self.send_worker({'action':'standby'});self.publish(standby=True,caption='Say Hey Jarvis',stage='standby')
+                self.send_worker({'action':'standby'});self.publish(standby=True,caption='Say the wake phrase',stage='standby')
             else:
                 self.want_listen=False;self.send_worker({'action':'listen','enabled':False});self.publish(standby=False,caption='Microphone paused',stage='idle')
         elif action=='jarvis_stop':self.stop()
-        elif action=='jarvis_listen':
-            self.want_listen=c.get('enabled') is True
-            if not self.want_listen:self.invalidate_input();self.resume_input()
-            self.send_worker({'action':'listen','enabled':self.want_listen})
-        elif action=='jarvis_finish':self.send_worker({'action':'flush'})
+        elif action in ('jarvis_listen','jarvis_toggle_listen'):
+            # Use the requested state: worker acknowledgements can lag behind
+            # shortcuts, especially while the speech models are warming up.
+            listening=not (self.enabled and self.want_listen) if action=='jarvis_toggle_listen' else c.get('enabled') is True
+            if action=='jarvis_toggle_listen' and not self.enabled:
+                self.state['accent']=str(c.get('accent',''))
+                self.enable(True)
+            self.want_listen=listening
+            self.send_worker({'action':'listen','enabled':True} if listening else {'action':'listen','enabled':False,'finish':True})
+        elif action=='jarvis_finish':
+            self.want_listen=False;self.send_worker({'action':'flush'})
         elif action=='jarvis_settings':
             values=c.get('settings',{})
             prefs=validate(self.prefs,values)
@@ -293,11 +302,15 @@ class JarvisController:
             self.turn=uuid.uuid4().hex;self.speech=SpeechSegments();self.last_delta=0
             self.bridge.cancelled.clear()
             self.feedback.start(time.monotonic())
+            self.task.begin(self.turn)
+            self.task_chat=(self.bridge.current or {}).get('id','')
         self.send_worker({'action':'cancel','hold':bool(self.user_speaking or self.input_pending)})
         self.send_worker({'action':'engaged','enabled':True})
         self.correction_paused=False
         self.configure_control(True)
-        self.publish(stage='thinking',caption='Jarvis is thinking…',partial='',error='')
+        self.publish(stage='thinking',caption='Peek is thinking…',partial='',error='',
+                     task=self.task.snapshot(),taskCaption='Working through your request',
+                     completedAt=0,actionTarget=None)
 
     def abort_turn(self):
         with self.guard:self.feedback.finish()
@@ -305,6 +318,7 @@ class JarvisController:
         self.send_worker({'action':'engaged','enabled':False})
         try:self.configure_control(False)
         except (OSError,RuntimeError):pass
+        self.publish(task=self.task.finish('error'),actionTarget=None)
         self.refresh_activity()
 
     def feedback_loop(self):
@@ -339,7 +353,7 @@ class JarvisController:
         else:stage='listening' if self.state['listening'] else 'idle'
         if stage!=self.state['stage']:
             values={'stage':stage}
-            if stage=='thinking':values['caption']='Understanding what you said…' if self.transcribing else 'Jarvis is thinking…'
+            if stage=='thinking':values['caption']='Understanding what you said…' if self.transcribing else 'Peek is thinking…'
             self.publish(**values)
 
     def stop(self):
@@ -351,7 +365,8 @@ class JarvisController:
         if self.control and self.control.poll() is None:
             try:control_request(self.socket,{'op':'_stop'})
             except (OSError,RuntimeError):pass
-        if self.enabled:self.publish(stage='listening' if self.state['listening'] else 'idle',caption='Stopped',speaking=False,outputLevel=0)
+        if self.enabled:self.publish(stage='listening' if self.state['listening'] else 'idle',caption='Stopped',speaking=False,outputLevel=0,
+                                     task=self.task.finish('stopped'),taskCaption='Stopped',actionTarget=None,completedAt=0)
 
     def say(self,segments):
         if not self.enabled or self.prefs['muted']:return
@@ -372,6 +387,8 @@ class JarvisController:
                     # Keep the Markdown cursor current after stopping.
                     self.speech.feed(event.get('text',''))
             tools=event.get('tools',[])
+            self.task.tools(tools)
+            self.publish(task=self.task.snapshot(),taskCaption=self.task.snapshot()['label'])
             with self.guard:self.feedback.tools(tools)
             if any(t.get('status')=='running' for t in tools) and not self.state['speaking'] and not self.bridge.ui_requests:
                 tool=next(t for t in reversed(tools) if t.get('status')=='running')
@@ -386,6 +403,10 @@ class JarvisController:
             else:self.refresh_activity()
         elif kind=='state':
             busy=event.get('busy',False)
+            current_id=(event.get('current') or {}).get('id','')
+            if not busy and not self.was_busy and current_id!=self.task_chat:
+                self.task_chat=current_id;self.task.begin('')
+                self.publish(task=self.task.snapshot(),taskCaption='',completedAt=0,actionTarget=None)
             if self.was_busy and not busy:
                 with self.guard:self.feedback.finish()
                 self.send_worker({'action':'clear_status'})
@@ -396,10 +417,14 @@ class JarvisController:
                 self.companion.publish()
                 current=event.get('current') or {};messages=current.get('messages',[])
                 reply=messages[-1] if messages else {}
+                self.task.tools(reply.get('tools',[]))
+                outcome=self.task.finish('stopped' if self.bridge.cancelled.is_set() else reply.get('status','complete'))
+                self.publish(task=outcome,taskCaption=outcome['label'],actionTarget=None,
+                             completedAt=time.time() if outcome['state']=='verified' else 0)
                 if reply.get('status')=='complete':
                     with self.guard:
                         if not self.bridge.cancelled.is_set():self.say(self.speech.feed(reply.get('text',''),final=True))
-                    self.publish(completedAt=time.time(),taskCaption='Done',gazeX=0,gazeY=0)
+                    self.publish(gazeX=0,gazeY=0)
                 elif reply.get('status')=='error':
                     self.send_worker({'action':'cancel'})
                     self.publish(error=reply.get('error','The agent could not finish.'),stage='error')
@@ -509,9 +534,14 @@ class JarvisController:
             self.send_worker({'action':'listen','enabled':self.want_listen})
             self.refresh_activity()
         elif kind=='microphone':
+            finalizing=not e['active'] and e.get('finishing') is True
             if not e['active']:
-                self.user_speaking=False;self.transcribing=False;self.resume_input()
-            self.publish(listening=e['active'],inputLevel=0,**({'partial':'','hearing':False,'transcribing':False} if not e['active'] else {}))
+                self.user_speaking=False;self.transcribing=finalizing
+                if not finalizing:self.resume_input()
+            values={'hearing':False,'transcribing':finalizing} if not e['active'] else {}
+            if finalizing:values['caption']='Understanding what you said…'
+            elif not e['active']:values['partial']=''
+            self.publish(listening=e['active'],inputLevel=0,**values)
             self.refresh_activity()
         elif kind=='partial':
             self.publish(partial=e.get('text',''));self.refresh_activity()
@@ -534,7 +564,7 @@ class JarvisController:
             if not self.prefs['bargeIn'] and (self.state['speaking'] or self.bridge.busy):return
             self.user_speaking=True
             self.transcribing=False
-            self.send_worker({'action':'pause_speech'})
+            self.send_worker({'action':'pause_speech','generation':e.get('generation',self.input_generation),'utterance':e.get('utterance',self.input_utterance)})
             if self.bridge.busy and not self.bridge.ui_requests:
                 self.correction_paused=True
                 if self.control:control_request(self.socket,{'op':'_pause'})
@@ -562,20 +592,28 @@ class JarvisController:
         elif kind=='error':self.publish(error=e['text'],stage='error')
 
     def control_event(self,e):
+        if not self.enabled or (e.get('turn') and e['turn']!=self.turn):return
         kind=e.get('type')
+        if kind in ('pointer','control_action') and self.task.state!='running':return
         if kind=='pointer':
             self.bridge.emit(type='jarvis_pointer',pointer=e)
             if e.get('visible'):
-                self.publish(gazeX=max(-1,min(1,e.get('gazeX',.6))),gazeY=max(-1,min(1,e.get('gazeY',-.15))),**({'taskCaption':e['targetName']} if e.get('targetName') else {}))
+                self.publish(actionTarget={'x':e['x'],'y':e['y'],'at':time.time()} if 'x' in e and 'y' in e else None,
+                             gazeX=max(-1,min(1,e.get('gazeX',.6))),gazeY=max(-1,min(1,e.get('gazeY',-.15))),
+                             **({'taskCaption':e['targetName']} if e.get('targetName') else {}))
         elif kind=='control_action':
             if self.enabled:
+                step_state='running' if e['phase']=='start' else 'failed' if e['phase']=='error' else 'verified' if e.get('verified') else 'observed' if e.get('kind')=='observation' else 'performed'
+                self.task.record(e['id'],e.get('label',e['operation'].replace('_',' ').capitalize()),
+                                 kind=e.get('kind','action'),state=step_state,evidence=e.get('evidence',''))
+                self.publish(task=self.task.snapshot(),taskCaption=self.task.snapshot()['label'])
                 if e['phase']=='start' and not self.state['speaking'] and not self.bridge.ui_requests:
-                    self.publish(stage='acting',caption=e['operation'].replace('_',' ').capitalize()+'…',taskCaption=e['operation'].replace('_',' ').capitalize())
+                    self.publish(stage='acting',caption=e.get('label',e['operation'].replace('_',' ').capitalize())+'…')
                 else:self.refresh_activity()
         elif kind=='emergency_stop':self.stop()
         elif kind=='control_stopped':
             self.bridge.emit(type='jarvis_pointer',pointer={'visible':False})
-            if self.enabled:self.publish(caption=e.get('reason','Stopped'))
+            if self.enabled:self.publish(caption=e.get('reason','Stopped'),actionTarget=None)
 
     def close(self):
         self.feedback_stop.set();self.feedback_thread.join(timeout=1)

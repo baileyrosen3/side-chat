@@ -16,10 +16,15 @@ View3D {
     property real expressiveness: 1
     property real completedAt: 0
     property bool dragging: false
+    property bool voiceReady: false
+    property bool hearing: false
+    // A negative value uses the standalone preview's entrance animation.
+    property real revealProgress: -1
     readonly property string characterId: "peek"
     readonly property string characterName: "Peek"
     readonly property string currentAction: driver.action
     readonly property alias animation: driver
+    readonly property color expressionColor: character.faceColor
     function greet() { driver.greet(); }
     function preview(action) { driver.preview(action); }
 
@@ -29,11 +34,13 @@ View3D {
         reducedMotion: root.reducedMotion; expressiveness: root.expressiveness
         gazeX: root.gazeX; gazeY: root.gazeY; tracking: root.tracking
         engaged: root.engaged; completedAt: root.completedAt; dragging: root.dragging
+        revealProgress: root.revealProgress
+        voiceReady: root.voiceReady; hearing: root.hearing
     }
     environment: ExtendedSceneEnvironment {
         backgroundMode: SceneEnvironment.Transparent
         antialiasingMode: SceneEnvironment.MSAA
-        antialiasingQuality: SceneEnvironment.High
+        antialiasingQuality: SceneEnvironment.Medium
         lightProbe: Texture { source: "assets/companion/studio.hdr" }
         probeExposure: .32
         tonemapMode: SceneEnvironment.TonemapModeAces
@@ -52,5 +59,5 @@ View3D {
     DirectionalLight { eulerRotation: Qt.vector3d(-32,-32,0); brightness: 1.0; color: "#ffffff"; ambientColor: "#151515" }
     DirectionalLight { eulerRotation: Qt.vector3d(8,125,0); brightness: 1.1; color: "#ffffff" }
     DirectionalLight { eulerRotation: Qt.vector3d(55,20,0); brightness: .14; color: "#ffffff" }
-    PeekModel { motion: driver }
+    PeekModel { id: character; motion: driver }
 }

@@ -31,7 +31,7 @@ def wait():
  if b.busy:b.dispatch({'action':'stop'});b.worker.join(8)
 try:
  b.jarvis.ensure_control();b.jarvis.state['enabled']=True
- b.dispatch({'action':'send','text':'In this disposable test folder, use your file tools to change fixture.conf from font_size = 11 to font_size = 12, then read it back. Also call the Jarvis computer MCP tool with op windows once. Do not focus, click, type, or change any other files. Briefly report the result.'})
+ b.dispatch({'action':'send','text':'In this disposable test folder, use your file tools to change fixture.conf from font_size = 11 to font_size = 12, then read it back. Also call the Peek computer MCP tool with op windows once. Do not focus, click, type, or change any other files. Briefly report the result.'})
  wait();reply=b.current['messages'][-1]
  result={'folder':str(folder),'agent':agent,'status':reply['status'],'text':reply['text'],'error':reply.get('error'),'tools':reply.get('tools',[]),'fixture':fixture.read_text(),'native':b.current.get('native')}
  if reply['status']=='complete':

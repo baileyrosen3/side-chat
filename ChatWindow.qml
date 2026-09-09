@@ -14,12 +14,14 @@ PanelWindow {
     required property var chat
     readonly property bool opened: chat.openScreen === screen.name
     readonly property bool pointerInside: edgeMouse.containsMouse || drawerHover.hovered
-    readonly property color surface: Color.popups.background
-    readonly property color fg: Color.popups.text
-    readonly property color dim: Theme.alpha(fg, 0.57)
-    readonly property color line: Theme.alpha(fg, 0.1)
+    readonly property color surface: ui.surface
+    readonly property color fg: ui.foreground
+    readonly property color dim: ui.muted
+    readonly property color line: ui.line
     readonly property string family: Style.font.family
     readonly property int textSize: Style.font.body
+    readonly property real drawerCorner: px(16)
+    readonly property real contentInset: px(14)
     property real reveal: opened ? 1 : 0
     property bool expanded: false
     property string historySearch: ""
@@ -27,8 +29,6 @@ PanelWindow {
     property string copied: ""
     property bool followBottom: true
     property string displayedChatId: ""
-
-    WindowBorder { id: windowBorder; active: window.opened }
 
     function px(value) {
         return Style.space(value);
@@ -62,12 +62,12 @@ PanelWindow {
     onPointerInsideChanged: chat.hover(screen.name, pointerInside)
     color: "transparent"
     margins.bottom: 0
-    implicitWidth: Math.min(px(expanded ? 620 : 388), screen.width - px(12))
-    implicitHeight: Math.min(screen.height - px(48), px(expanded ? 650 : ["settings", "jarvis_settings"].indexOf(chat.page) >= 0 ? 540 : chat.page === "history" ? 440 : chat.messages.length ? 480 : 350) + (chat.agentRequests.length ? px(135) : 0))
+    implicitWidth: Math.min(px(expanded ? 620 : 368), screen.width - px(12))
+    implicitHeight: Math.min(screen.height - px(24), panelLayout.implicitHeight + 2 * (drawerCorner + contentInset) + px(8))
     onWidthChanged: {
-        if (opened) {
+        if (opened)
             chat.panelWidth = width;
-        }
+
     }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "omarchy-side-chat"
@@ -83,6 +83,16 @@ PanelWindow {
             });
 
         }
+    }
+
+    ChatStyle {
+        id: ui
+    }
+
+    WindowBorder {
+        id: windowBorder
+
+        active: window.opened
     }
 
     anchors {
@@ -165,9 +175,9 @@ PanelWindow {
         active: window.opened && chat.pinned && !chat.jarvis.enabled && !attachmentDialog.visible && !exportDialog.visible && !folderDialog.visible
         windows: [window]
         onCleared: {
-            if (!chat.jarvis.enabled) {
+            if (!chat.jarvis.enabled)
                 chat.close();
-            }
+
         }
     }
     // The only input region left when closed; it paints absolutely nothing.
@@ -202,26 +212,38 @@ PanelWindow {
         HoverHandler {
             id: drawerHover
         }
-        // One screen-connected silhouette: the chat itself is the edge drawer.
+        // Keep the desktop's screen-connected outline around the angular controls.
+
+        DrawerSurface {
+            x: window.px(3)
+            y: window.px(4)
+            width: Math.max(0, revealClip.width - window.px(4))
+            height: parent.height - window.px(8)
+            corner: window.drawerCorner
+            fill: Theme.mix(ui.surface, ui.accent, 0.22)
+            borderColors: [Theme.mix(ui.surface, ui.accent, 0.65)]
+            borderWidth: window.px(0.8)
+        }
 
         DrawerSurface {
             id: bodySurface
+
             fill: window.surface
-            corner: window.px(20)
+            corner: window.drawerCorner
             outlineEnabled: !chat.meta.appearance || chat.meta.appearance.outline !== false
             keyboardFocus: window.opened && chat.pinned
             borderColors: windowBorder.colors
             borderAngle: windowBorder.angle
             borderWidth: windowBorder.borderWidth
-            width: revealClip.width
-            height: parent.height - window.px(12)
+            width: Math.max(0, revealClip.width - window.px(4))
+            height: parent.height - window.px(8)
         }
 
         Item {
             id: card
 
-            width: window.width
-            height: parent.height - window.px(12)
+            width: window.width - window.px(4)
+            height: parent.height - window.px(8)
             x: -Math.round((1 - window.reveal) * window.px(12))
             opacity: Math.max(0, Math.min(1, (window.reveal - 0.16) / 0.84))
             Keys.onEscapePressed: (event) => {
@@ -260,9 +282,9 @@ PanelWindow {
                 sequence: "Ctrl+Shift+C"
                 enabled: window.opened
                 onActivated: {
-                    if (chat.messages.length) {
+                    if (chat.messages.length)
                         window.copyText(chat.messages[chat.messages.length - 1].text, "last");
-                    }
+
                 }
             }
 
@@ -275,35 +297,73 @@ PanelWindow {
             }
 
             ColumnLayout {
+                id: panelLayout
+
                 anchors.fill: parent
-                anchors.leftMargin: window.px(20)
-                anchors.rightMargin: window.px(20)
-                anchors.topMargin: window.px(32)
-                anchors.bottomMargin: window.px(30)
+                anchors.leftMargin: window.contentInset
+                anchors.rightMargin: window.contentInset
+                // The painted top/bottom edges sit one corner radius inward.
+                anchors.topMargin: window.drawerCorner + window.contentInset
+                anchors.bottomMargin: window.drawerCorner + window.contentInset
                 spacing: 0
 
                 RowLayout {
+                    id: headerRow
+
                     Layout.fillWidth: true
-                    spacing: window.px(7)
+                    spacing: window.px(3)
+
+                    ActionButton {
+                        visible: chat.page !== "chat"
+                        glyph: "back"
+                        hint: "Back to chat · Esc"
+                        subtle: true
+                        onClicked: chat.page = "chat"
+                    }
 
                     Rectangle {
-                        width: window.px(3)
-                        height: window.px(17)
-                        radius: width / 2
-                        color: chat.connected ? Color.accent : window.dim
+                        visible: chat.page === "chat"
+                        Layout.preferredWidth: window.px(6)
+                        Layout.preferredHeight: window.px(6)
+                        color: chat.connected ? ui.accent : ui.danger
                     }
 
                     Text {
+                        id: pageTitle
+
                         Layout.fillWidth: true
-                        text: chat.page === "jarvis_settings" ? "Jarvis settings" : chat.page === "settings" ? "Preferences" : chat.agentName
-                        color: window.fg
+                        Layout.minimumWidth: 0
+                        text: chat.page === "permissions" ? "Permissions" : chat.page === "jarvis_settings" ? "Peek settings" : chat.page === "settings" ? "Preferences" : chat.page === "history" ? "History" : chat.current && chat.messages.length ? chat.current.title || "Conversation" : "New chat"
+                        color: ui.foreground
                         font.family: window.family
                         font.pixelSize: window.textSize
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
 
+                    Text {
+                        visible: chat.page === "chat"
+                        Layout.maximumWidth: window.px(72)
+                        text: chat.connected ? chat.agentName : "Offline"
+                        color: ui.muted
+                        font.family: ui.family
+                        font.pixelSize: ui.caption
+                        elide: Text.ElideRight
+                    }
+
                     ActionButton {
+                        visible: chat.page === "chat"
+                        glyph: "history"
+                        hint: "Conversation history · Ctrl+H"
+                        subtle: true
+                        onClicked: {
+                            chat.page = "history";
+                            chat.pin();
+                        }
+                    }
+
+                    ActionButton {
+                        visible: chat.page === "chat" || chat.page === "history"
                         glyph: "new"
                         hint: "New conversation · Ctrl+N"
                         subtle: true
@@ -312,16 +372,19 @@ PanelWindow {
                     }
 
                     ActionButton {
+                        glyph: window.expanded ? "collapse" : "expand"
+                        hint: window.expanded ? "Compact view" : "Expand view"
+                        subtle: true
+                        onClicked: window.expanded = !window.expanded
+                    }
+
+                    ActionButton {
+                        visible: chat.page === "chat"
                         glyph: "settings"
                         hint: "Preferences"
-                        subtle: chat.page !== "settings"
+                        subtle: true
                         enabled: !chat.busy
-                        onClicked: {
-                            if (chat.page === "settings")
-                                chat.page = "chat";
-                            else
-                                window.showSettings();
-                        }
+                        onClicked: window.showSettings()
                     }
 
                     ActionButton {
@@ -333,66 +396,7 @@ PanelWindow {
 
                 }
 
-                Item {
-                    Layout.preferredHeight: window.px(14)
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: window.px(3)
-
-                    ActionButton {
-                        text: "Conversation"
-                        selected: chat.page === "chat"
-                        onClicked: {
-                            chat.page = "chat";
-                            chat.pin();
-                        }
-                    }
-
-                    ActionButton {
-                        text: "History"
-                        selected: chat.page === "history"
-                        onClicked: {
-                            chat.page = "history";
-                            chat.pin();
-                        }
-                    }
-
-                    Item {
-                        Layout.fillWidth: true
-                    }
-
-                    ActionButton {
-                        glyph: "orb"
-                        text: "Jarvis"
-                        visible: chat.nativeSession
-                        hint: "Floating voice companion"
-                        ink: chat.jarvis.enabled ? Color.accent : window.fg
-                        enabled: !chat.terminalOpen
-                        onClicked: {
-                            if (chat.jarvis.enabled)
-                                chat.close();
-                            else
-                                chat.setJarvis(true);
-                        }
-                    }
-
-                }
-
-                Item {
-                    Layout.preferredHeight: window.px(12)
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    height: 1
-                    color: Theme.alpha(window.fg, 0.07)
-                }
-
-                Item {
-                    Layout.preferredHeight: window.px(14)
-                }
+                Item { Layout.preferredHeight: window.px(8) }
 
                 ColumnLayout {
                     visible: chat.page === "chat"
@@ -400,51 +404,46 @@ PanelWindow {
                     Layout.fillHeight: true
                     spacing: 0
 
-                    Item {
+                    Column {
                         visible: chat.messages.length === 0
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        spacing: window.px(6)
 
-                        Column {
-                            anchors.verticalCenter: parent.verticalCenter
+                        Text {
                             width: parent.width
-                            spacing: window.px(12)
+                            text: chat.meta.available ? "What do you want to work on?" : "No agent is configured."
+                            wrapMode: Text.WordWrap
+                            color: window.fg
+                            font.family: window.family
+                            font.pixelSize: window.textSize
+                            font.weight: Font.DemiBold
+                        }
+                        Text {
+                            visible: !chat.meta.available
+                            width: parent.width
+                            text: "Set a default CLI agent in Omarchy to begin."
+                            wrapMode: Text.WordWrap
+                            color: ui.muted
+                            font.family: ui.family
+                            font.pixelSize: ui.small
+                        }
 
-                            Text {
-                                text: "Ready when you are."
-                                font.weight: Font.DemiBold
-                                color: window.fg
-                                font.family: window.family
-                                font.pixelSize: window.textSize
-                            }
+                        Flow {
+                            width: parent.width
+                            spacing: window.px(4)
 
-                            Text {
-                                width: parent.width
-                                text: chat.meta.available ? "Ask, build, or work on your desktop." : "Choose a default agent in Omarchy to get started."
-                                wrapMode: Text.WordWrap
-                                color: window.dim
-                                font.family: window.family
-                                font.pixelSize: window.textSize
-                            }
+                            Repeater {
+                                model: chat.meta.available ? ["Explain this project", "Plan a change"] : []
 
-                            Flow {
-                                width: parent.width
-                                spacing: window.px(5)
+                                ActionButton {
+                                    required property string modelData
 
-                                Repeater {
-                                    model: ["Help with Omarchy", "Plan something"]
-
-                                    ActionButton {
-                                        required property string modelData
-
-                                        text: modelData
-                                        onClicked: {
-                                            chat.draft = modelData;
-                                            composer.forceActiveFocus();
-                                            chat.pin();
-                                        }
+                                    text: modelData
+                                    onClicked: {
+                                        chat.draft = modelData;
+                                        composer.forceActiveFocus();
+                                        chat.pin();
                                     }
-
                                 }
 
                             }
@@ -455,7 +454,10 @@ PanelWindow {
 
                     Flickable {
                         id: thread
+                        objectName: "message-thread"
 
+                        Layout.preferredHeight: Math.min(contentHeight, window.px(window.expanded ? 460 : 300))
+                        Layout.minimumHeight: 0
                         visible: chat.messages.length > 0
                         Layout.fillWidth: true
                         Layout.fillHeight: true
@@ -471,7 +473,7 @@ PanelWindow {
                             id: messageColumn
 
                             width: thread.width - 5
-                            spacing: window.px(18)
+                            spacing: window.px(8)
                             onImplicitHeightChanged: window.bottom()
 
                             Repeater {
@@ -492,24 +494,30 @@ PanelWindow {
 
                         }
 
-                        ScrollBar.vertical: ScrollBar {
+                        ScrollBar.vertical: ChatScrollBar {
                             width: window.px(3)
                             policy: ScrollBar.AsNeeded
                         }
 
-                    }
-
-                    ActionButton {
-                        visible: !window.followBottom && chat.messages.length > 0
-                        Layout.alignment: Qt.AlignHCenter
-                        glyph: "down"
-                        text: "Latest"
-                        subtle: true
-                        implicitHeight: window.px(22)
-                        onClicked: {
-                            window.followBottom = true;
-                            window.bottom();
+                        ActionButton {
+                            // Parent to the viewport, outside both the scroll content and page layout.
+                            parent: thread
+                            objectName: "jump-to-latest"
+                            visible: !window.followBottom && chat.messages.length > 0
+                            anchors.right: parent.right
+                            anchors.bottom: parent.bottom
+                            anchors.margins: window.px(6)
+                            z: 2
+                            glyph: "down"
+                            text: "Latest"
+                            accent: true
+                            hint: "Jump to the latest reply"
+                            onClicked: {
+                                window.followBottom = true;
+                                window.bottom();
+                            }
                         }
+
                     }
 
                     Repeater {
@@ -533,7 +541,7 @@ PanelWindow {
                         Layout.topMargin: window.px(7)
                         text: "Session open in terminal. Exit the agent there to continue here."
                         wrapMode: Text.WordWrap
-                        color: Color.accent
+                        color: ui.emphasis
                         font.family: window.family
                         font.pixelSize: window.textSize
                     }
@@ -545,7 +553,7 @@ PanelWindow {
                         Text {
                             Layout.fillWidth: true
                             text: "Editing · replaces later replies"
-                            color: Color.accent
+                            color: ui.emphasis
                             font.family: window.family
                             font.pixelSize: window.textSize
                         }
@@ -577,7 +585,7 @@ PanelWindow {
 
                                 text: decodeURIComponent(modelData.split("/").pop()).slice(0, 24) + "  ×"
                                 hint: "Remove attachment"
-                                implicitHeight: window.px(26)
+                                implicitHeight: ui.controlHeight
                                 onClicked: chat.removeAttachment(index)
                             }
 
@@ -586,60 +594,47 @@ PanelWindow {
                     }
 
                     Item {
-                        Layout.preferredHeight: window.px(14)
+                        Layout.preferredHeight: window.px(6)
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: composeLayout.implicitHeight + window.px(20)
-                        color: "transparent"
-
-                        Rectangle {
-                            anchors.top: parent.top
-                            width: parent.width
-                            height: 1
-                            color: composer.activeFocus ? Theme.alpha(Color.accent, 0.5) : Theme.alpha(window.fg, 0.12)
-
-                            Behavior on color {
-                                ColorAnimation {
-                                    duration: 180
-                                }
-
-                            }
-
-                        }
+                        implicitHeight: composeLayout.implicitHeight + window.px(12)
+                        color: ui.field
+                        border.width: ui.stroke
+                        border.color: composer.activeFocus ? ui.accent : ui.border
 
                         ColumnLayout {
                             id: composeLayout
 
                             anchors.fill: parent
-                            anchors.topMargin: window.px(12)
-                            anchors.bottomMargin: window.px(8)
-                            spacing: window.px(8)
+                            anchors.margins: window.px(6)
+                            spacing: window.px(3)
 
                             ScrollView {
                                 Layout.fillWidth: true
-                                Layout.preferredHeight: Math.min(window.px(100), Math.max(window.px(40), composer.contentHeight))
+                                Layout.preferredHeight: Math.min(window.px(96), Math.max(window.px(22), composer.contentHeight))
                                 clip: true
 
                                 TextArea {
                                     id: composer
+                                    objectName: "chat-composer"
 
                                     text: chat.draft
                                     onTextChanged: {
-                                        if (chat.draft !== text) {
+                                        if (chat.draft !== text)
                                             chat.draft = text;
-                                        }
+
                                     }
                                     onActiveFocusChanged: {
-                                        if (activeFocus) {
+                                        if (activeFocus)
                                             chat.pin();
-                                        }
+
                                     }
                                     placeholderText: chat.terminalOpen ? "Session open in terminal…" : chat.busy ? (chat.jarvis.enabled ? "Correct or redirect…" : "Your next message…") : "Message " + chat.agentName + "…"
                                     placeholderTextColor: window.dim
                                     color: window.fg
-                                    selectionColor: Theme.alpha(Color.accent, 0.4)
+                                    selectionColor: Theme.alpha(ui.emphasis, 0.4)
                                     selectedTextColor: window.fg
                                     font.family: window.family
                                     font.pixelSize: window.textSize
@@ -668,16 +663,25 @@ PanelWindow {
 
                             }
 
+                            Text {
+                                visible: chat.agentRequests.length > 0 || chat.busy
+                                Layout.fillWidth: true
+                                text: chat.agentRequests.length ? "Needs your input" : chat.activity
+                                color: window.dim
+                                font.family: window.family
+                                font.pixelSize: ui.small
+                                elide: Text.ElideRight
+                            }
+
                             RowLayout {
                                 Layout.fillWidth: true
-                                Layout.topMargin: window.px(4)
                                 spacing: window.px(2)
 
                                 ActionButton {
                                     glyph: "attach"
-                                    hint: "Attach text, code, or images"
+                                    hint: "Attach a file · paste an image with Ctrl+Shift+V"
                                     subtle: true
-                                    implicitHeight: window.px(26)
+                                    implicitHeight: ui.controlHeight
                                     onClicked: {
                                         chat.pin();
                                         attachmentDialog.open();
@@ -685,49 +689,45 @@ PanelWindow {
                                 }
 
                                 ActionButton {
-                                    glyph: "clipboard"
-                                    hint: "Paste clipboard image · Ctrl+Shift+V"
+                                    objectName: "permission-selector"
+                                    glyph: "shield"
+                                    visible: chat.permissionModes.length > 0
+                                    Layout.maximumWidth: window.px(160)
+                                    Layout.minimumWidth: 0
+                                    text: chat.permissionLabel === "CLI default" ? "Default" : chat.permissionLabel
+                                    selected: !!chat.current && !!chat.current.permissionMode && chat.current.permissionMode !== "default"
                                     subtle: true
-                                    implicitHeight: window.px(26)
-                                    onClicked: chat.request({
-                                        "action": "paste_image"
-                                    })
+                                    trailingGlyph: "chevron-down"
+                                    hint: "Access: " + chat.permissionLabel + " · /permissions"
+                                    onClicked: {
+                                        chat.page = "permissions";
+                                        chat.pin();
+                                    }
                                 }
 
-                                Text {
+                                Item {
                                     Layout.fillWidth: true
-                                    text: chat.agentRequests.length ? "Needs your input" : chat.busy ? chat.activity : chat.nativeSession ? "Enter to send" : ""
-                                    color: window.dim
-                                    font.family: window.family
-                                    font.pixelSize: window.textSize
-                                    elide: Text.ElideRight
-                                    horizontalAlignment: Text.AlignRight
                                 }
 
                                 ActionButton {
                                     visible: !!chat.current && chat.current.bashApproval === "always"
-                                    text: "Bash: always"
+                                    text: "Bash ✓"
                                     selected: true
                                     enabled: !chat.terminalOpen
                                     hint: "Bash commands are allowed in this conversation. Click to ask again."
-                                    onClicked: chat.request({action: "bash_approval", chatId: chat.current.id, mode: "ask"})
-                                }
-
-                                ActionButton {
-                                    glyph: window.expanded ? "collapse" : "expand"
-                                    hint: window.expanded ? "Compact view" : "Expand view"
-                                    subtle: true
-                                    implicitHeight: window.px(26)
-                                    implicitWidth: window.px(26)
-                                    onClicked: window.expanded = !window.expanded
+                                    onClicked: chat.request({
+                                        "action": "bash_approval",
+                                        "chatId": chat.current.id,
+                                        "mode": "ask"
+                                    })
                                 }
 
                                 ActionButton {
                                     glyph: chat.busy && !(chat.jarvis.enabled && chat.draft.trim()) ? "stop" : "send"
                                     hint: chat.busy ? (chat.jarvis.enabled && chat.draft.trim() ? "Redirect agent · Enter" : "Stop generation") : "Send · Enter"
                                     accent: true
-                                    implicitHeight: window.px(28)
-                                    implicitWidth: window.px(30)
+                                    implicitHeight: ui.controlHeight
+                                    implicitWidth: ui.controlHeight
                                     enabled: !chat.terminalOpen && (chat.busy || (chat.connected && chat.draft.trim().length > 0))
                                     onClicked: chat.busy && !(chat.jarvis.enabled && chat.draft.trim()) ? chat.request({
                                         "action": "stop"
@@ -743,7 +743,8 @@ PanelWindow {
                     RowLayout {
                         visible: chat.nativeSession
                         Layout.fillWidth: true
-                        Layout.topMargin: window.px(7)
+                        Layout.topMargin: window.px(5)
+                        spacing: window.px(2)
 
                         Icon {
                             name: "folder"
@@ -760,7 +761,22 @@ PanelWindow {
                             elide: Text.ElideMiddle
                             color: window.dim
                             font.family: window.family
-                            font.pixelSize: window.textSize
+                            font.pixelSize: ui.small
+                        }
+
+                        ActionButton {
+                            glyph: "orb"
+                            text: "Peek"
+                            hint: "Open the floating voice companion"
+                            subtle: true
+                            implicitHeight: window.px(22)
+                            enabled: !chat.terminalOpen
+                            onClicked: {
+                                if (chat.jarvis.enabled)
+                                    chat.close();
+                                else
+                                    chat.setJarvis(true);
+                            }
                         }
 
                         ActionButton {
@@ -783,23 +799,14 @@ PanelWindow {
                     visible: chat.page === "history"
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    spacing: window.px(10)
+                    spacing: window.px(8)
 
-                    TextField {
+                    ChatField {
                         Layout.fillWidth: true
-                        placeholderText: "Search…"
-                        color: window.fg
-                        placeholderTextColor: window.dim
-                        font.family: window.family
-                        font.pixelSize: window.textSize
+                        glyph: "search"
+                        placeholderText: "Search conversations…"
+                        Accessible.name: "Search conversations"
                         onTextChanged: window.historySearch = text
-
-                        background: Rectangle {
-                            radius: window.px(3)
-                            color: Theme.alpha(window.fg, 0.04)
-                            border.color: parent.activeFocus ? Color.accent : window.line
-                        }
-
                     }
 
                     Text {
@@ -821,6 +828,8 @@ PanelWindow {
                     ListView {
                         id: historyList
 
+                        Layout.preferredHeight: Math.min(contentHeight, window.px(window.expanded ? 460 : 300))
+                        Layout.minimumHeight: 0
                         Layout.fillWidth: true
                         Layout.fillHeight: true
                         clip: true
@@ -829,7 +838,7 @@ PanelWindow {
                             return c.title.toLowerCase().indexOf(window.historySearch.toLowerCase()) >= 0;
                         })
 
-                        ScrollBar.vertical: ScrollBar {
+                        ScrollBar.vertical: ChatScrollBar {
                         }
 
                         delegate: ColumnLayout {
@@ -837,21 +846,31 @@ PanelWindow {
 
                             required property var modelData
 
-                            width: ListView.view.width
+                            width: ListView.view.width - window.px(6)
                             spacing: window.px(3)
+                            HoverHandler { id: historyHover }
 
                             RowLayout {
                                 Layout.fillWidth: true
 
                                 AbstractButton {
                                     Layout.fillWidth: true
-                                    implicitHeight: window.px(50)
+                                    implicitHeight: window.px(52)
+                                    padding: window.px(10)
+                                    hoverEnabled: true
                                     enabled: !chat.busy
                                     Accessible.name: historyRow.modelData.title
                                     onClicked: chat.selectChat(historyRow.modelData.id)
 
+                                    background: Rectangle {
+                                        radius: ui.radius
+                                        color: parent.hovered ? ui.secondary : ui.field
+                                        border.width: parent.activeFocus ? ui.stroke : 1
+                                        border.color: ui.border
+                                    }
+
                                     contentItem: Column {
-                                        spacing: window.px(6)
+                                        spacing: window.px(3)
 
                                         Text {
                                             width: parent.width
@@ -866,7 +885,9 @@ PanelWindow {
                                             text: chat.agentLabel(historyRow.modelData.agent) + " · " + Qt.formatDateTime(new Date(historyRow.modelData.updated * 1000), "MMM d")
                                             color: window.dim
                                             font.family: window.family
-                                            font.pixelSize: window.textSize
+                                            font.pixelSize: ui.small
+                                            elide: Text.ElideRight
+                                            width: parent.width
                                         }
 
                                     }
@@ -876,6 +897,7 @@ PanelWindow {
                                 ActionButton {
                                     glyph: "close"
                                     hint: "Delete conversation"
+                                    opacity: historyHover.hovered || activeFocus || window.deletingId === historyRow.modelData.id ? 1 : 0
                                     subtle: true
                                     enabled: !chat.busy
                                     onClicked: window.deletingId = historyRow.modelData.id
@@ -916,17 +938,42 @@ PanelWindow {
 
                     }
 
-                    ActionButton {
-                        glyph: "back"
-                        text: "Back to chat"
-                        subtle: true
-                        onClicked: chat.page = "chat"
+                }
+
+                Flickable {
+                    id: permissionsView
+
+                    Layout.preferredHeight: Math.min(contentHeight, window.px(window.expanded ? 500 : 360))
+                    visible: chat.page === "permissions"
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    contentWidth: width
+                    contentHeight: permissionSettings.implicitHeight
+                    clip: true
+                    boundsBehavior: Flickable.StopAtBounds
+
+                    ScrollBar.vertical: ChatScrollBar {}
+
+                    PermissionSettings {
+                        id: permissionSettings
+
+                        width: parent.width - window.px(6)
+                        chat: window.chat
+                        onRevealRequested: (item) => {
+                            var top = item.mapToItem(permissionSettings, 0, 0).y;
+                            var bottom = top + item.height;
+                            if (top < permissionsView.contentY)
+                                permissionsView.contentY = top;
+                            else if (bottom > permissionsView.contentY + permissionsView.height)
+                                permissionsView.contentY = Math.max(0, bottom - permissionsView.height);
+                        }
                     }
 
                 }
 
                 Loader {
                     active: chat.page === "jarvis_settings"
+                    Layout.preferredHeight: Math.min(item ? item.implicitHeight : 0, window.px(window.expanded ? 500 : 360))
                     visible: active
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -943,6 +990,7 @@ PanelWindow {
 
                 Flickable {
                     visible: chat.page === "settings"
+                    Layout.preferredHeight: Math.min(contentHeight, window.px(window.expanded ? 500 : 340))
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     contentWidth: width
@@ -950,15 +998,51 @@ PanelWindow {
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
 
+                    ScrollBar.vertical: ChatScrollBar {}
+
                     ColumnLayout {
                         id: settingsColumn
 
-                        width: parent.width
-                        spacing: window.px(10)
+                        width: parent.width - window.px(6)
+                        spacing: window.px(8)
+                        ChatSection { text: "Conversation" }
 
-                        LookSettings {
+                        SettingLabel { visible: chat.messages.length > 0; text: "Conversation name" }
+                        ChatField {
+                            visible: chat.messages.length > 0
                             Layout.fillWidth: true
-                            chat: window.chat
+                            text: chat.current ? chat.current.title : ""
+                            placeholderText: "Conversation name"
+                            Accessible.name: "Rename conversation"
+                            onEditingFinished: {
+                                if (chat.current && text.trim() && text !== chat.current.title)
+                                    chat.request({
+                                    "action": "rename",
+                                    "title": text
+                                });
+
+                            }
+                        }
+
+                        RowLayout {
+                            visible: chat.permissionModes.length > 0
+                            Layout.fillWidth: true
+
+                            SettingLabel {
+                                text: "Permissions"
+                                Layout.fillWidth: true
+                            }
+
+                            ActionButton {
+                                text: chat.permissionLabel
+                                Layout.maximumWidth: window.px(200)
+                                hint: "Change this conversation’s permission mode"
+                                onClicked: {
+                                    chat.page = "permissions";
+                                    chat.pin();
+                                }
+                            }
+
                         }
 
                         BashApprovalSettings {
@@ -966,24 +1050,19 @@ PanelWindow {
                             chat: window.chat
                         }
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            height: 1
-                            color: window.line
-                        }
-
+                        ChatSection { text: "Agent" }
                         RowLayout {
-                            Text {
-                                Layout.fillWidth: true
+                            Layout.fillWidth: true
+
+                            SettingLabel {
                                 text: "Default agent"
-                                color: window.dim
-                                font.family: window.family
-                                font.pixelSize: window.textSize
+                                Layout.fillWidth: true
                             }
 
                             ActionButton {
-                                text: chat.meta.agentName + " ↗"
-                                subtle: true
+                                text: chat.meta.agentName
+                                glyph: "expand"
+                                hint: "Change the default agent in Omarchy"
                                 onClicked: {
                                     chat.close();
                                     Quickshell.execDetached(["omarchy-menu", "summon", "setup.default.agent"]);
@@ -992,173 +1071,87 @@ PanelWindow {
 
                         }
 
-                        TextField {
-                            visible: chat.messages.length > 0
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            text: chat.current ? chat.current.title : ""
-                            placeholderText: "Conversation name"
-                            color: window.fg
-                            placeholderTextColor: window.dim
-                            font.family: window.family
-                            font.pixelSize: window.textSize
-                            selectByMouse: true
-                            Accessible.name: "Rename conversation"
-                            onEditingFinished: {
-                                if (chat.current && text.trim() && text !== chat.current.title) {
-                                    chat.request({
-                                    "action": "rename",
-                                    "title": text
-                                });
-                                }
+                            spacing: window.px(4)
+
+                            SettingLabel {
+                                text: "Model"
                             }
 
-                            background: Rectangle {
-                                radius: window.px(3)
-                                color: Theme.alpha(window.fg, 0.04)
-                                border.color: parent.activeFocus ? Color.accent : window.line
-                            }
+                            ChatField {
+                                id: modelField
 
-                        }
-
-                        ActionButton {
-                            text: "Jarvis · voice and control settings"
-                            glyph: "settings"
-                            subtle: true
-                            onClicked: chat.page = "jarvis_settings"
-                        }
-
-                        Text {
-                            text: "Model"
-                            color: window.dim
-                            font.family: window.family
-                            font.pixelSize: window.textSize
-                        }
-
-                        TextField {
-                            id: modelField
-
-                            Layout.fillWidth: true
-                            placeholderText: "Agent’s default model"
-                            color: window.fg
-                            placeholderTextColor: window.dim
-                            font.family: window.family
-                            font.pixelSize: window.textSize
-                            selectByMouse: true
-
-                            background: Rectangle {
-                                radius: window.px(3)
-                                color: Theme.alpha(window.fg, 0.04)
-                                border.color: parent.activeFocus ? Color.accent : window.line
+                                Layout.fillWidth: true
+                                placeholderText: "Agent’s default model"
+                                Accessible.name: "Model"
                             }
 
                         }
 
                         RowLayout {
-                            Text {
-                                Layout.fillWidth: true
+                            Layout.fillWidth: true
+
+                            SettingLabel {
                                 text: "Thinking"
-                                color: window.dim
-                                font.family: window.family
-                                font.pixelSize: window.textSize
+                                Layout.fillWidth: true
                             }
 
-                            ComboBox {
+                            ChatComboBox {
                                 id: thinking
 
                                 enabled: ["omp", "pi", "claude", "codex", "opencode"].indexOf(chat.current ? chat.current.agent : chat.meta.agent) >= 0
                                 model: ["Default", "Low", "Medium", "High"]
-                                palette.button: window.surface
-                                palette.buttonText: window.fg
-                                palette.text: window.fg
-                                palette.base: window.surface
-                                palette.highlight: Color.accent
-                                font.family: window.family
-                                font.pixelSize: window.textSize
+                                Accessible.name: "Thinking level"
                             }
 
                         }
 
-                        Text {
-                            text: "Working folder"
-                            color: window.dim
-                            font.family: window.family
-                            font.pixelSize: window.textSize
-                        }
-
-                        RowLayout {
-                            TextField {
-                                id: cwdField
-
-                                Layout.fillWidth: true
-                                color: window.fg
-                                font.family: window.family
-                                font.pixelSize: window.textSize
-                                selectByMouse: true
-
-                                background: Rectangle {
-                                    radius: window.px(3)
-                                    color: Theme.alpha(window.fg, 0.04)
-                                    border.color: parent.activeFocus ? Color.accent : window.line
-                                }
-
-                            }
-
-                            ActionButton {
-                                glyph: "folder"
-                                hint: "Choose folder"
-                                onClicked: folderDialog.open()
-                            }
-
-                        }
-
-                        RowLayout {
-                            ActionButton {
-                                text: "Save"
-                                accent: true
-                                onClicked: {
-                                    chat.request({
-                                        "action": "settings",
-                                        "settings": {
-                                            "model": modelField.text,
-                                            "thinking": thinking.currentText.toLowerCase(),
-                                            "cwd": cwdField.text
-                                        }
-                                    });
-                                    chat.page = "chat";
-                                    composer.forceActiveFocus();
-                                }
-                            }
-
-                            ActionButton {
-                                glyph: "back"
-                                text: "Back"
-                                subtle: true
-                                onClicked: chat.page = "chat"
-                            }
-
-                            Item {
-                                Layout.fillWidth: true
-                            }
-
-                            ActionButton {
-                                glyph: "export"
-                                text: "Export"
-                                subtle: true
-                                enabled: chat.messages.length > 0
-                                onClicked: exportDialog.open()
-                            }
-
-                        }
-
-                        Rectangle {
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            height: 1
-                            color: window.line
+                            spacing: window.px(4)
+
+                            SettingLabel {
+                                text: "Working folder"
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: window.px(4)
+
+                                ChatField {
+                                    id: cwdField
+
+                                    Layout.fillWidth: true
+                                    Accessible.name: "Working folder"
+                                }
+
+                                ActionButton {
+                                    glyph: "folder"
+                                    hint: "Choose folder"
+                                    onClicked: folderDialog.open()
+                                }
+
+                            }
+
+                        }
+
+                        ChatSection { text: "Desktop" }
+                        LookSettings {
+                            Layout.fillWidth: true
+                            chat: window.chat
+                        }
+
+                        ActionButton {
+                            text: "Peek settings"
+                            glyph: "orb"
+                            subtle: true
+                            onClicked: chat.page = "jarvis_settings"
                         }
 
                         ActionButton {
                             glyph: "terminal"
-                            text: chat.nativeSession ? "Continue session in terminal" : "Open agent in terminal"
+                            text: chat.nativeSession ? "Continue in terminal" : "Open agent in terminal"
                             subtle: true
                             enabled: !chat.busy && !chat.terminalOpen && (!chat.nativeSession || !!(chat.current && chat.current.native))
                             onClicked: {
@@ -1173,33 +1166,61 @@ PanelWindow {
                             }
                         }
 
-                        Text {
-                            visible: chat.nativeSession
+                        SettingLabel {
                             Layout.fillWidth: true
-                            text: "Native tools, skills, and permissions. Commands and file edits appear in each reply’s activity."
-                            color: window.dim
-                            font.family: window.family
-                            font.pixelSize: window.textSize
+                            text: "Chats saved locally. Prompts use your agent’s account."
                             wrapMode: Text.WordWrap
                         }
 
-                        Text {
+                        SettingLabel {
                             Layout.fillWidth: true
-                            text: "Uses your agent’s account and model. Chats stay on this computer; prompts go to your provider."
-                            color: window.dim
-                            font.family: window.family
-                            font.pixelSize: window.textSize
+                            text: "Enter: send · Shift+Enter: new line\nCtrl+N: new · Ctrl+H: history · Esc: close"
                             wrapMode: Text.WordWrap
                         }
 
-                        Text {
-                            text: "Enter to send · Shift Enter for a new line\nCtrl N: new · Ctrl H: history · Esc: close"
-                            color: window.dim
-                            font.family: window.family
-                            font.pixelSize: window.textSize
-                            lineHeight: 1.3
-                        }
+                    }
 
+                }
+
+                RowLayout {
+                    visible: chat.page === "settings"
+                    Layout.fillWidth: true
+                    Layout.topMargin: window.px(8)
+                    spacing: window.px(4)
+
+                    ActionButton {
+                        text: "Save"
+                        accent: true
+                        onClicked: {
+                            chat.request({
+                                "action": "settings",
+                                "settings": {
+                                    "model": modelField.text,
+                                    "thinking": thinking.currentText.toLowerCase(),
+                                    "cwd": cwdField.text
+                                }
+                            });
+                            chat.page = "chat";
+                            composer.forceActiveFocus();
+                        }
+                    }
+
+                    ActionButton {
+                        text: "Back"
+                        subtle: true
+                        onClicked: chat.page = "chat"
+                    }
+
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
+                    ActionButton {
+                        glyph: "export"
+                        text: "Export"
+                        subtle: true
+                        enabled: chat.messages.length > 0
+                        onClicked: exportDialog.open()
                     }
 
                 }
@@ -1212,7 +1233,7 @@ PanelWindow {
                     Text {
                         Layout.fillWidth: true
                         text: chat.error || chat.notice
-                        color: chat.error ? Color.urgent : Color.accent
+                        color: chat.error ? ui.danger : ui.emphasis
                         font.family: window.family
                         font.pixelSize: window.textSize
                         wrapMode: Text.WrapAnywhere
@@ -1245,6 +1266,13 @@ PanelWindow {
 
         }
 
+    }
+
+    component SettingLabel: Text {
+        color: window.dim
+        font.family: window.family
+        font.pixelSize: ui.small
+        font.weight: Font.DemiBold
     }
 
     mask: Region {

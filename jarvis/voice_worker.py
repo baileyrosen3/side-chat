@@ -43,6 +43,7 @@ class VoiceWorker:
         self.speaker=26
         self.voice=self.prefs['voice']
         self.finish=threading.Event()
+        self.restart_after_finish=False
         self.speed=1.07
         self.source=self.prefs['source']
         self.sink=self.prefs['sink']
@@ -117,9 +118,22 @@ class VoiceWorker:
                 self.speaking=True
                 self.emit('playback',active=True,paused=False,resumed=True,level=0,turn=job.turn,status=job.status,voice=job.voice)
 
+    def capture_event(self,epoch,kind,**values):
+        with self.lock:
+            if epoch!=self.record_epoch or self.shutdown.is_set():return False
+            if values.get('generation',self.input_generation)!=self.input_generation:return False
+            self.emit(kind,**values)
+            return True
+
     def listen(self, enabled):
         with self.lock:
-            if enabled==self.listening:return
+            # Finish the previous phrase before reusing its recognizer. A quick
+            # off/on may reopen capture, but must not discard that phrase.
+            if enabled and self.finish.is_set() and self.capture_thread and self.capture_thread.is_alive():
+                self.restart_after_finish=True;return
+            self.restart_after_finish=False
+            if enabled==self.listening and not self.finish.is_set():return
+            self.finish.clear()
             self.listening=enabled
             self.record_epoch+=1
             self.input_active=False
@@ -139,16 +153,27 @@ class VoiceWorker:
             if self.capture_thread and self.capture_thread is not threading.current_thread():self.capture_thread.join(timeout=2)
             self.emit('microphone',active=False,level=0,partial='')
 
+    def finish_input(self):
+        with self.lock:
+            self.restart_after_finish=False
+            if self.finish.is_set() or not self.listening:return
+            # Stop hardware capture immediately, retaining the accepted audio
+            # and generation until the recording thread finalizes it once.
+            self.finish.set();self.listening=False
+            self.emit('microphone',active=False,level=0,finishing=self.input_active)
+            proc=self.capture
+        terminate(proc)
+
     def record(self,epoch):
-        proc=None
+        proc=None;submitted=False
         try:
             while not self.ready.wait(.1):
-                if epoch!=self.record_epoch or self.shutdown.is_set():return
+                if epoch!=self.record_epoch or self.shutdown.is_set() or self.finish.is_set():return
             with self.lock:
-                if epoch!=self.record_epoch:return
+                if epoch!=self.record_epoch or self.finish.is_set():return
                 if not self.audio.module:self.audio.start(self.source,self.sink,self.prefs['echoCancellation'])
                 proc=self.audio.record();self.capture=proc
-            self.emit('microphone',active=True,aec=self.audio.aec)
+                self.emit('microphone',active=True,aec=self.audio.aec)
             stream=None if self.parakeet else self.asr.create_stream()
             if self.parakeet:self.parakeet.reset()
             self.detector.reset()
@@ -157,64 +182,77 @@ class VoiceWorker:
             generation=self.input_generation;clock=0;endpoint_at=None;total_samples=0
             floor=NoiseFloor();discarding=False;quiet_for=0
             while epoch==self.record_epoch and not self.shutdown.is_set():
-                chunk=proc.stdout.read(2048)
-                if not chunk:raise RuntimeError('Microphone disconnected. Select a device and turn the microphone on again.')
-                pending+=chunk
-                if len(pending)<2048:continue
-                samples=np.frombuffer(pending[:2048],dtype='<f4').copy();pending=pending[2048:]
-                clock+=len(samples)/16000
-                rms=float(np.sqrt(np.mean(samples*samples)))
-                now=time.monotonic()
-                if now-last_level>.085:
-                    self.emit('level',input=min(1,rms*9));last_level=now
-                if self.prefs['wakeEnabled']:
-                    if self.engaged or self.speaking or self.speech_paused.is_set():self.gate.wake()
-                    standby=not self.gate.active()
-                    if standby!=self.standby:
-                        self.standby=standby;self.emit('standby',active=standby)
-                    protected=(self.engaged or self.speaking) and not voiced and not self.gate.accepts_interrupt()
-                    if standby or protected:
-                        if self.wake_detector.accept(samples):
-                            self.gate.address();self.wake_detector.reset();self.emit('wake')
-                            self.queue.put(SpeechJob('__jarvis_chime__',voice=self.voice,status=True))
-                            self.detector.reset();self.continuation_detector.reset();preroll.clear()
-                        continue
-                if self.speaking and not self.prefs['bargeIn']:
-                    self.detector.reset();preroll.clear();continue
-                self.detector.accept_waveform(samples)
-                self.continuation_detector.accept_waveform(samples)
-                speech_detected=self.detector.is_speech_detected()
-                continuing=self.continuation_detector.is_speech_detected()
-                ended=not (self.continuation_detector if voiced else self.detector).empty()
-                while not self.detector.empty():self.detector.pop()
-                while not self.continuation_detector.empty():self.continuation_detector.pop()
-                if discarding:
-                    quiet_for=0 if continuing else quiet_for+len(samples)/16000
-                    if quiet_for>=max(.6,self.prefs['endSilence']):discarding=False;self.detector.reset()
-                    if not self.finish.is_set():continue
-                if not speech_detected and not voiced:floor.observe(rms)
-                new_speech=speech_detected and not voiced
-                if new_speech:
-                    recent=max([rms]+[float(np.sqrt(np.mean(a*a))) for a in preroll])
-                    if not floor.accepts(recent,self.prefs['noiseRejection']=='strong'):
+                chunk=b'' if self.finish.is_set() else proc.stdout.read(2048)
+                # Terminating capture can release one last buffered frame from
+                # this read. It belongs to the old microphone session.
+                with self.lock:
+                    if epoch!=self.record_epoch or self.shutdown.is_set():break
+                finishing=self.finish.is_set()
+                if not chunk and not finishing:raise RuntimeError('Microphone disconnected. Select a device and turn the microphone on again.')
+                continuing=False;ended=False
+                if not finishing:
+                    pending+=chunk
+                    if len(pending)<2048:continue
+                    samples=np.frombuffer(pending[:2048],dtype='<f4').copy();pending=pending[2048:]
+                    clock+=len(samples)/16000
+                    rms=float(np.sqrt(np.mean(samples*samples)))
+                    now=time.monotonic()
+                    if now-last_level>.085:
+                        self.capture_event(epoch,'level',input=min(1,rms*9));last_level=now
+                    if self.prefs['wakeEnabled']:
+                        if self.engaged or self.speaking or self.speech_paused.is_set():self.gate.wake()
+                        standby=not self.gate.active()
+                        if standby!=self.standby:
+                            self.standby=standby;self.capture_event(epoch,'standby',active=standby)
+                        protected=(self.engaged or self.speaking) and not voiced and not self.gate.accepts_interrupt()
+                        if standby or protected:
+                            if self.wake_detector.accept(samples):
+                                with self.lock:
+                                    if epoch!=self.record_epoch or self.shutdown.is_set():break
+                                    self.gate.address();self.wake_detector.reset();self.emit('wake')
+                                    self.queue.put(SpeechJob('__jarvis_chime__',voice=self.voice,status=True))
+                                self.detector.reset();self.continuation_detector.reset();preroll.clear()
+                            continue
+                    if self.speaking and not self.prefs['bargeIn']:
                         self.detector.reset();preroll.clear();continue
-                    voiced=True
-                    generation=self.input_generation
-                    self.gate.wake()
-                    if self.prefs['bargeIn']:self.pause_speech(user=True)
-                    self.emit('speech_start',generation=generation,utterance=self.input_utterance)
-                if voiced:
-                    self.gate.wake()
-                    audio=np.concatenate([*preroll,samples]) if new_speech and preroll else samples
-                    recording.append(audio)
-                    total_samples+=len(audio)
-                    if self.parakeet:text=self.parakeet.accept(audio)
-                    else:
-                        stream.accept_waveform(16000,audio)
-                        while self.asr.is_ready(stream):self.asr.decode_stream(stream)
-                        text=self.asr.get_result(stream).strip()
-                    if text!=last_text:self.emit('partial',text=text,generation=generation);last_text=text
-                else:preroll.append(samples)
+                    self.detector.accept_waveform(samples)
+                    self.continuation_detector.accept_waveform(samples)
+                    speech_detected=self.detector.is_speech_detected()
+                    continuing=self.continuation_detector.is_speech_detected()
+                    ended=not (self.continuation_detector if voiced else self.detector).empty()
+                    while not self.detector.empty():self.detector.pop()
+                    while not self.continuation_detector.empty():self.continuation_detector.pop()
+                    if discarding:
+                        quiet_for=0 if continuing else quiet_for+len(samples)/16000
+                        if quiet_for>=max(.6,self.prefs['endSilence']):discarding=False;self.detector.reset()
+                        if not self.finish.is_set():continue
+                    if not speech_detected and not voiced:floor.observe(rms)
+                    new_speech=speech_detected and not voiced
+                    if new_speech:
+                        recent=max([rms]+[float(np.sqrt(np.mean(a*a))) for a in preroll])
+                        if not floor.accepts(recent,self.prefs['noiseRejection']=='strong'):
+                            self.detector.reset();preroll.clear();continue
+                        with self.lock:
+                            if epoch!=self.record_epoch or self.shutdown.is_set():break
+                            if self.finish.is_set():continue
+                            voiced=True;submitted=False
+                            generation=self.input_generation
+                            self.gate.wake()
+                            self.input_utterance+=1;self.input_active=True
+                            if self.prefs['bargeIn']:self.pause_speech()
+                            self.emit('speech_start',generation=generation,utterance=self.input_utterance)
+                    if voiced:
+                        self.gate.wake()
+                        audio=np.concatenate([*preroll,samples]) if new_speech and preroll else samples
+                        recording.append(audio)
+                        total_samples+=len(audio)
+                        if self.parakeet:text=self.parakeet.accept(audio)
+                        else:
+                            stream.accept_waveform(16000,audio)
+                            while self.asr.is_ready(stream):self.asr.decode_stream(stream)
+                            text=self.asr.get_result(stream).strip()
+                        if text!=last_text:self.capture_event(epoch,'partial',text=text,generation=generation);last_text=text
+                    else:preroll.append(samples)
                 duration=total_samples/16000
                 if continuing:endpoint_at=None
                 if ended and voiced:
@@ -226,10 +264,10 @@ class VoiceWorker:
                     valid=generation==self.input_generation and epoch==self.record_epoch
                     if limited:
                         discarding=True;quiet_for=0
-                        if valid:self.emit('input_notice',text='That was too long to send as one request. Please try a shorter version.',generation=generation)
+                        if valid:self.capture_event(epoch,'input_notice',text='That was too long to send as one request. Please try a shorter version.',generation=generation)
                     elif voiced and recording and valid:
                         endpoint=time.monotonic()
-                        self.emit('transcribing',generation=generation,partial=last_text,
+                        self.capture_event(epoch,'transcribing',generation=generation,partial=last_text,
                                   utterance=self.input_utterance,
                                   pauseSeconds=pause_seconds(last_text,self.prefs['endSilence'],self.prefs['adaptivePause']))
                         if self.parakeet:final=self.parakeet.finish()
@@ -240,28 +278,40 @@ class VoiceWorker:
                         if final and epoch==self.record_epoch and generation==self.input_generation:
                             self.gate.wake()
                             self.gate.consume_address()
-                            self.emit('transcript',text=final,generation=generation,utterance=self.input_utterance,utteranceSeconds=round(duration,2),finalizeSeconds=round(time.monotonic()-endpoint,3),model=self.prefs['asrModel'])
+                            submitted=self.capture_event(epoch,'transcript',text=final,generation=generation,utterance=self.input_utterance,utteranceSeconds=round(duration,2),finalizeSeconds=round(time.monotonic()-endpoint,3),model=self.prefs['asrModel'])
+                    if epoch!=self.record_epoch or self.shutdown.is_set():break
                     if self.parakeet:self.parakeet.reset()
                     else:self.asr.reset(stream)
                     had_speech=voiced
                     self.detector.reset();preroll.clear();last_text='';recording=[];voiced=False;total_samples=0;endpoint_at=None
                     self.continuation_detector.reset()
-                    with self.lock:self.input_active=False
-                    self.emit('utterance_end',recognized=bool(final),hadSpeech=had_speech,limited=limited,generation=generation,utterance=self.input_utterance)
-                    self.emit('partial',text='',generation=generation)
-                    if self.finish.is_set():
-                        self.listening=False;self.record_epoch+=1
-                        with self.lock:
+                    with self.lock:
+                        if epoch!=self.record_epoch or self.shutdown.is_set():break
+                        self.input_active=False
+                        self.capture_event(epoch,'utterance_end',recognized=bool(final),hadSpeech=had_speech,limited=limited,generation=generation,utterance=self.input_utterance)
+                        self.capture_event(epoch,'partial',text='',generation=generation)
+                        if self.finish.is_set():
+                            self.listening=False
                             if not self.player:self.audio.close()
-                        self.emit('microphone',active=False,level=0);break
+                            break
         except Exception as exc:
-            if epoch==self.record_epoch:
-                self.listening=False;self.input_active=False
-                self.emit('microphone',active=False,level=0)
-                self.emit('error',text=str(exc))
+            with self.lock:
+                if epoch==self.record_epoch:
+                    self.listening=False;self.input_active=False
+                    self.resume_speech()
+                    self.emit('microphone',active=False,level=0)
+                    self.emit('error',text=str(exc))
         finally:
             terminate(proc)
             if proc and proc.stdout:proc.stdout.close()
+            with self.lock:
+                if epoch==self.record_epoch and self.finish.is_set():
+                    self.finish.clear();self.capture=None;self.input_active=False
+                    if not submitted:self.resume_speech()
+                    restart=self.restart_after_finish and not self.shutdown.is_set()
+                    self.restart_after_finish=False
+                    # Keep the requested restart atomic with a newer off/stop.
+                    if restart:self.listen(True)
 
     def speech(self):
         while not self.shutdown.is_set():
@@ -332,11 +382,20 @@ class VoiceWorker:
 
     def command(self,c):
         action=c.get('action')
-        if action=='listen':self.listen(c.get('enabled') is True)
+        if action=='listen':
+            if c.get('enabled') is not True and c.get('finish') is True:self.finish_input()
+            else:self.listen(c.get('enabled') is True)
         elif action=='cancel':self.cancel(hold=c.get('hold') is True)
-        elif action=='pause_speech':self.pause_speech()
+        elif action=='pause_speech':
+            with self.lock:
+                # A controller acknowledgement can arrive after a microphone
+                # toggle or a newer utterance. Only the owning input may pause.
+                if 'generation' in c and (not self.listening or not self.input_active
+                        or c['generation']!=self.input_generation or c.get('utterance')!=self.input_utterance):return
+                self.pause_speech()
         elif action=='resume_speech':self.resume_speech(c.get('utterance'))
-        elif action=='invalidate_input':self.input_generation=int(c.get('generation',self.input_generation+1))
+        elif action=='invalidate_input':
+            with self.lock:self.input_generation=int(c.get('generation',self.input_generation+1))
         elif action=='clear_status':self.cancel(status_only=True)
         elif action=='engaged':
             self.engaged=c.get('enabled') is True
@@ -363,7 +422,7 @@ class VoiceWorker:
             if restart_audio:self.listen(True)
             self.voice=self.prefs['voice']
         elif action=='flush':
-            self.finish.set()
+            self.finish_input()
         elif action=='close':self.close()
 
     def close(self):

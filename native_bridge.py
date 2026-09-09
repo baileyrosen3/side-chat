@@ -10,6 +10,7 @@ import threading
 import time
 
 from agent_session import NATIVE_AGENTS, NativeTurn, RpcSession, resume_command, text_content
+from permission_modes import permission_args, session_options, validate_mode
 
 
 class NativeBridge:
@@ -102,6 +103,33 @@ class NativeBridge:
                 if self.is_bash_approval(event):
                     self.answer_ui({"id": event["id"], "confirmed": True})
 
+    def set_permission_mode(self, command):
+        self.require_idle()
+        creating = self.current is None
+        if self.current is None:
+            if command.get("chatId"):
+                raise ValueError("This conversation is no longer active.")
+            validate_mode(self.default_agent(), command.get("mode"))
+            self.new()
+        chat = self.current
+        if not creating and command.get("chatId") != chat["id"]:
+            raise ValueError("This conversation is no longer active.")
+        if self.terminal_state(chat) or chat.get("terminalOpen"):
+            raise ValueError("Exit the agent terminal before changing permissions.")
+        mode = validate_mode(chat["agent"], command.get("mode"))
+        if self.ui_requests:
+            raise ValueError("Answer or cancel the pending request before changing permissions.")
+        # Save atomically before replacing the in-memory choice or closing the CLI.
+        # The next launch/resume must accept the override before it receives a prompt.
+        updated = dict(chat, permissionMode=mode)
+        updated.pop("bashApproval", None)
+        self.save(updated)
+        self.close_rpc()
+        self.process = None
+        self.current = updated
+        self.snapshot()
+        self.emit(type="notice", text="Permissions saved for the next message")
+
     def answer_ui(self, command):
         event = next((r for r in self.ui_requests if r["id"] == command.get("id")), None)
         if not event or not self.rpc:
@@ -135,7 +163,7 @@ class NativeBridge:
             self.close_rpc()
         if not self.rpc:
             native = chat.setdefault("native", {"prefixCount": max(0, len(chat["messages"]) - 2)})
-            self.rpc = RpcSession(chat["agent"], self.session_folder(chat), dict(chat["options"], **jarvis_options),
+            self.rpc = RpcSession(chat["agent"], self.session_folder(chat), dict(session_options(chat), **jarvis_options),
                                   native.get("sessionFile"), self.native_ui)
             self.rpc_chat = chat["id"]
         self.process = self.rpc.proc
@@ -156,14 +184,15 @@ class NativeBridge:
             persona={'concise':'Brief, direct spoken replies. Usually one sentence.',
                      'balanced':'Warm, clear, concise spoken replies. Explain only what helps.',
                      'witty':'Concise, capable, lightly witty. Never let jokes obscure results or failures.'}[self.jarvis.prefs['personality']]
-            text = ('[Current Jarvis interface context]\n' + scope_instruction(self.jarvis.prefs['scope'])
+            text = ('[Current Peek interface context]\nYour companion name is Peek. Use Peek when referring to yourself.\n' + scope_instruction(self.jarvis.prefs['scope'])
                     + '\n'+persona+' Your public replies are spoken aloud as they stream. Use natural contractions, short sentences, and conversational language. '
                     + 'Lead with the useful answer; avoid ceremonial introductions, markdown-heavy lists, and reading paths or code aloud. '
                     + ('For work requiring tools, give one short public sentence about the next useful step before starting; add a brief update only at meaningful milestones or delays. '
                        'The interface supplies a quick acknowledgment, so skip filler like "Got it". ' if self.jarvis.prefs['spokenProgress'] else '')
                     + 'Report verified results; do not narrate every tool call or disclose private reasoning.'
+                    + ' A finished tool call alone does not establish that the request succeeded. Check the requested outcome before claiming success. If a result cannot be checked, say so briefly. The companion displays observed actions separately from verified readbacks.'
                     + '\nFor app controls prefer inspect_app and accessible_action using returned target IDs; use screenshots and native input when accessibility is unavailable.'
-                    + '\nFor small UTF-8 user config edits prefer config_read then config_write with its expected SHA-256 so the user can undo them. Ordinary CLI file tools remain available, but their edits are not tracked by Jarvis undo.'
+                    + '\nFor small UTF-8 user config edits prefer config_read then config_write with its expected SHA-256 so the user can undo them. Ordinary CLI file tools remain available, but their edits are not tracked by Peek undo.'
                     + '\n'+self.jarvis.companion.context()+'\n\n[User request]\n'+text)
         images = []
         for attachment in user_message.get("attachments", []):
@@ -315,11 +344,15 @@ class NativeBridge:
             raise ValueError("Send a message first to create a native agent session.")
         if self.terminal_state(chat):
             raise ValueError("This session is already open in a terminal.")
+        defaults = None
+        if chat["agent"] == "codex" and chat.get("permissionMode", "default") == "default":
+            defaults = self.ensure_rpc(chat).default_approvals
         self.close_rpc()
         self.process = None
         folder = self.session_folder(chat)
         record = {"status": "launching", "time": time.time(), "cwd": chat["options"]["cwd"],
                   "argv": resume_command(chat["agent"], chat["native"]["sessionFile"])}
+        record["argv"] += permission_args(chat["agent"], chat.get("permissionMode", "default"), defaults)
         if chat["agent"] in ("omp", "pi"):
             record["argv"] += ["--session-dir", str(folder)]
         marker = folder / "terminal.json"

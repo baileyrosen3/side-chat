@@ -102,6 +102,20 @@ def main():
         assert 'blue' in event['text'].lower(),event
         wait(lambda e:e.get('type')=='microphone' and not e.get('active'),start);idle()
         print('Hold-to-talk: pause preserved, sent only on release',flush=True)
+        settings(handsFree=True);send('listen',enabled=True)
+        wait(lambda e:e.get('type')=='microphone' and e.get('active'),start)
+        start=time.monotonic();play('clean')
+        assert not any(t>=start and e.get('type')=='transcript' for t,e in events),'Fixture ended after automatic submission'
+        muted=time.monotonic();send('listen',enabled=False,finish=True)
+        off,_=wait(lambda e:e.get('type')=='microphone' and not e.get('active'),muted)
+        at,event=wait(lambda e:e.get('type')=='transcript',muted)
+        assert 'blue' in event['text'].lower(),event
+        assert off<at,'Microphone was not disabled before recognition finished'
+        time.sleep(.8)
+        assert sum(t>=start and e.get('type')=='transcript' for t,e in events)==1,'Mic-off submitted twice'
+        results['micOff']={'text':event['text'],'finalizeSeconds':event['finalizeSeconds'],
+                           'afterMicOffMs':round((at-muted)*1000),'micDisabledMs':round((off-muted)*1000)}
+        print('Microphone off sends accepted phrase: '+json.dumps(results['micOff']),flush=True);idle()
         # Pausing speech must preserve both the current sentence and queued answer.
         start=time.monotonic();send('speak',text='The settings are ready. You can choose a voice and continue whenever you like.')
         wait(lambda e:e.get('type')=='playback' and e.get('active'),start)
@@ -113,12 +127,18 @@ def main():
         print('Interrupted reply: paused and resumed without cancelling',flush=True)
         settings(handsFree=True);send('listen',enabled=True)
         wait(lambda e:e.get('type')=='microphone' and e.get('active'),resumed)
-        start=time.monotonic();send('speak',text='You can turn off the microphone while I finish speaking this sentence.')
+        start=time.monotonic();send('speak',text='You can turn off the microphone while I finish speaking this sentence. You can also turn it back on, and I will keep speaking without starting over or losing the rest of my answer.')
         active,_=wait(lambda e:e.get('type')=='playback' and e.get('active'),start)
-        send('listen',enabled=False);off,_=wait(lambda e:e.get('type')=='microphone' and not e.get('active'),active)
+        send('listen',enabled=False,finish=True);off,_=wait(lambda e:e.get('type')=='microphone' and not e.get('active'),active)
         wait(lambda e:e.get('type')=='output_level' and e.get('level',0)>0,off+.1)
-        wait(lambda e:e.get('type')=='playback' and not e.get('active'),off+.1)
-        print('Microphone mute: spoken reply continued',flush=True)
+        # Re-enable capture while the same sentence still owns the output route.
+        send('listen',enabled=True);on,_=wait(lambda e:e.get('type')=='microphone' and e.get('active'),off)
+        wait(lambda e:e.get('type')=='output_level' and e.get('level',0)>0,on+.1)
+        send('listen',enabled=False,finish=True);off,_=wait(lambda e:e.get('type')=='microphone' and not e.get('active'),on)
+        wait(lambda e:e.get('type')=='output_level' and e.get('level',0)>0,off+.1)
+        ended,_=wait(lambda e:e.get('type')=='playback' and not e.get('active'),off+.1)
+        assert not any(active<t<ended and e.get('type')=='playback' for t,e in events),'Microphone toggle interrupted or restarted playback'
+        print('Microphone off/on/off: same spoken reply continued to completion',flush=True)
         send('listen',enabled=True)
         wait(lambda e:e.get('type')=='microphone' and e.get('active'),off)
         start=time.monotonic()
@@ -151,7 +171,7 @@ def main():
         assert not any(t>=start and e.get('type')=='transcript' for t,e in events),'Truncated request escaped'
         result={'noiseRejected':True,'samples':results,'holdToTalkPreserved':True,'pausedReplyResumed':True,
                 'staleResumeRejected':True,'previousReplyNotReplayed':True,
-                'micMutePreservedOutput':True,'longRequestNotExecuted':True,
+                'micMutePreservedOutput':True,'micTogglePreservedOutput':True,'micOffSendsUtterance':True,'longRequestNotExecuted':True,
                 'defaultDevicesUnchanged':all(run('pactl','get-default-'+k)==v for k,v in defaults.items()),'folder':str(folder)}
         assert result['defaultDevicesUnchanged']
         (folder/'result.json').write_text(json.dumps(result,indent=2));print(json.dumps(result,indent=2),flush=True)

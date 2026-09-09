@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Layouts
 import "Theme.js" as Theme
 import qs.Commons
 
@@ -7,19 +8,32 @@ AbstractButton {
     id: root
 
     property string glyph: ""
+    property string trailingGlyph: ""
     property bool accent: false
     property bool subtle: false
     property bool selected: false
+    property bool tab: false
+    property bool uppercase: tab || accent
+    property int textAlignment: Text.AlignHCenter
     property string hint: ""
-    property color ink: accent ? Color.background : hovered || selected ? Color.accent : Color.foreground
+    property color ink: accent || selected ? ui.accentInk : subtle && !hovered && !activeFocus ? ui.muted : ui.foreground
+    readonly property real lift: accent || tab && selected ? ui.shadow : 0
 
-    implicitWidth: Math.max(Style.space(26), content.implicitWidth + Style.space(text ? 14 : 10))
-    implicitHeight: Style.space(26)
+    implicitWidth: Math.max(ui.controlHeight, content.implicitWidth + leftPadding + rightPadding)
+    implicitHeight: ui.controlHeight
+    leftPadding: Style.space(text ? 9 : 5)
+    rightPadding: leftPadding
     hoverEnabled: true
     focusPolicy: Qt.StrongFocus
-    opacity: enabled ? 1 : 0.3
-    scale: down ? 0.98 : 1
+    opacity: enabled ? 1 : 0.4
     Accessible.name: hint || text
+    Accessible.role: tab ? Accessible.PageTab : Accessible.Button
+    Accessible.checkable: tab || checkable
+    Accessible.checked: tab ? selected : checked
+
+    ChatStyle {
+        id: ui
+    }
 
     HoverHandler {
         cursorShape: root.enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -30,27 +44,21 @@ AbstractButton {
         text: root.hint
         delay: 450
         timeout: 4500
+        width: Math.min(implicitWidth, Style.space(280))
 
         contentItem: Text {
             text: root.hint
-            color: Color.foreground
+            color: ui.foreground
             font.family: Style.font.family
-            font.pixelSize: Style.font.body
+            font.pixelSize: ui.small
+            wrapMode: Text.WordWrap
         }
 
         background: Rectangle {
-            color: Color.popups.background
-            radius: Style.space(3)
-            border.width: 1
-            border.color: Theme.alpha(Color.foreground, 0.14)
-        }
-
-    }
-
-    Behavior on scale {
-        NumberAnimation {
-            duration: 100
-            easing.type: Easing.OutCubic
+            color: ui.surface
+            radius: ui.radius
+            border.width: ui.stroke
+            border.color: ui.line
         }
 
     }
@@ -62,58 +70,63 @@ AbstractButton {
 
     }
 
-    contentItem: Item {
-        implicitWidth: content.implicitWidth
+    contentItem: RowLayout {
+        id: content
 
-        Row {
-            id: content
+        spacing: Style.space(4)
+        transform: Translate { x: root.down ? root.lift : 0; y: x }
 
-            anchors.centerIn: parent
-            spacing: Style.space(5)
+        Icon {
+            visible: root.glyph !== ""
+            name: root.glyph
+            ink: root.ink
+            Layout.preferredWidth: Style.space(13)
+            Layout.preferredHeight: Style.space(13)
+            Layout.alignment: Qt.AlignVCenter
+        }
 
-            Icon {
-                visible: root.glyph !== ""
-                name: root.glyph
-                ink: root.ink
-                width: Style.space(14)
-                height: width
-                anchors.verticalCenter: parent.verticalCenter
-            }
+        Text {
+            visible: root.text !== ""
+            Layout.fillWidth: true
+            text: root.uppercase ? root.text.toUpperCase() : root.text
+            color: root.ink
+            font.family: Style.font.family
+            font.pixelSize: ui.small
+            font.weight: root.accent || root.selected || root.tab ? Font.DemiBold : Font.Medium
+            font.letterSpacing: root.tab ? 0.35 : 0
+            elide: Text.ElideRight
+            horizontalAlignment: root.textAlignment
+            verticalAlignment: Text.AlignVCenter
+        }
 
-            Text {
-                visible: root.text !== ""
-                text: root.text
-                color: root.ink
-                font.family: Style.font.family
-                font.pixelSize: Style.font.body
-                font.weight: root.accent || root.selected ? Font.DemiBold : Font.Normal
-                anchors.verticalCenter: parent.verticalCenter
-            }
-
+        Icon {
+            visible: root.trailingGlyph !== ""
+            name: root.trailingGlyph
+            ink: root.ink
+            Layout.preferredWidth: Style.space(10)
+            Layout.preferredHeight: Style.space(10)
         }
 
     }
 
-    background: Rectangle {
-        radius: Style.space(3)
-        color: root.accent ? Color.accent : Theme.alpha(Color.foreground, root.down ? 0.1 : root.hovered ? 0.055 : 0)
-        border.width: root.activeFocus ? 1 : 0
-        border.color: Color.accent
-
+    background: Item {
         Rectangle {
-            visible: root.selected && !root.accent
-            anchors.bottom: parent.bottom
-            anchors.horizontalCenter: parent.horizontalCenter
-            width: parent.width - Style.space(14)
-            height: 1
-            color: Color.accent
+            x: root.lift
+            y: root.lift
+            width: parent.width - root.lift
+            height: parent.height - root.lift
+            color: ui.foreground
+            visible: root.lift > 0 && root.enabled
         }
 
-        Behavior on color {
-            ColorAnimation {
-                duration: 130
-            }
-
+        Rectangle {
+            x: root.down ? root.lift : 0
+            y: x
+            width: parent.width - root.lift
+            height: parent.height - root.lift
+            color: root.accent || root.selected ? ui.accent : root.hovered || root.activeFocus ? ui.secondary : root.subtle || root.tab ? "transparent" : ui.field
+            border.width: root.activeFocus || root.accent ? ui.stroke : root.selected || !root.subtle && !root.tab ? 1 : 0
+            border.color: root.activeFocus || root.accent ? ui.foreground : ui.border
         }
 
     }

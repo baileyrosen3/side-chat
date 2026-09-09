@@ -24,6 +24,7 @@ import uuid
 
 from agent_session import NATIVE_AGENTS
 from native_bridge import NativeBridge
+from permission_modes import MODES, permission_args, session_options
 
 AGENTS = {"omp": "Oh My Pi", "pi": "Pi", "claude": "Claude", "codex": "Codex",
           "opencode": "OpenCode", "gemini": "Gemini", "copilot": "Copilot",
@@ -57,6 +58,7 @@ class StreamParser:
         self.usage = {}
         self.error = ""
         self.status = "Thinking…"
+        self.tools = []
 
     def feed(self, line):
         try:
@@ -115,6 +117,15 @@ class StreamParser:
             self.usage = event.get("usage") or self.usage
         elif kind == "text" and self.agent == "opencode":
             self.text += event.get("part", {}).get("text", "")
+        elif kind == "tool_use" and self.agent == "opencode":
+            part = event.get("part") or {}
+            state = part.get("state") or {}
+            identity = part.get("callID") or part.get("id")
+            if identity:
+                tool = {"id": identity, "name": part.get("tool", "tool"), "args": state.get("input") or {},
+                        "output": str(state.get("error") or state.get("output") or "")[-16000:],
+                        "status": {"completed": "complete", "error": "error"}.get(state.get("status"), "running")}
+                self.tools = [t for t in self.tools if t["id"] != identity] + [tool]
         elif kind == "message" and self.agent == "gemini" and event.get("role") == "assistant":
             if event.get("delta"):
                 self.text += event.get("content", "")
@@ -180,7 +191,10 @@ def build_command(agent, prompt, images, options, prompt_file):
         stdin = SYSTEM + "\n\n" + prompt
     elif agent == "opencode":
         argv = [agent, "run", "--format", "json"]
-        env["OPENCODE_PERMISSION"] = json.dumps({"*": "deny"})
+        mode = options.get("_permission_mode", "default")
+        argv += permission_args(agent, mode)
+        if mode == "default":
+            env["OPENCODE_PERMISSION"] = json.dumps({"*": "deny"})
         if model:
             argv += ["--model", model]
         if thinking != "default":
@@ -292,7 +306,25 @@ class Bridge(NativeBridge):
         return {"agent": agent, "agentName": AGENTS.get(agent, "Choose an agent"),
                 "available": agent in AGENTS and shutil.which(agent) is not None,
                 "settings": self.settings, "appearance": self.appearance,
-                "statePath": str(self.state), "nativeAgents": sorted(NATIVE_AGENTS)}
+                "statePath": str(self.state), "nativeAgents": sorted(NATIVE_AGENTS), "permissionModes": MODES}
+
+    def sync_default_agent(self):
+        """An unused conversation follows the default before its first send."""
+        chat=self.current
+        if self.busy or not chat or chat['messages'] or chat.get('native') or chat.get('terminalOpen'):
+            return False
+        agent=self.default_agent()
+        if chat['agent']==agent:return False
+        self.close_rpc()
+        updated=dict(chat,agent=agent)
+        updated.pop('permissionMode',None)
+        updated.pop('bashApproval',None)
+        # Keep its draft, working directory, and identity; drop permissions
+        # belonging to the previous provider. Do not create an empty history row.
+        if self.db.execute('SELECT 1 FROM chats WHERE id=?',(chat['id'],)).fetchone():
+            self.save(updated)
+        self.current=updated
+        return True
 
     def save(self, chat):
         with self.lock:
@@ -374,6 +406,7 @@ class Bridge(NativeBridge):
             if (self.current["agent"] != self.default_agent()
                     or self.current["options"].get("cwd") != self.settings["cwd"]):
                 self.current.pop("bashApproval", None)
+                self.current.pop("permissionMode", None)
             self.current["agent"] = self.default_agent()
             self.current["options"] = dict(self.settings)
         agent = self.current["agent"]
@@ -444,7 +477,7 @@ class Bridge(NativeBridge):
         proc = None
         try:
             with tempfile.TemporaryDirectory(prefix="request-", dir=self.state) as temp:
-                argv, stdin, extra_env, structured = build_command(chat["agent"], prompt, images, chat["options"], Path(temp) / "prompt.md")
+                argv, stdin, extra_env, structured = build_command(chat["agent"], prompt, images, session_options(chat), Path(temp) / "prompt.md")
                 cwd = local_path(chat["options"].get("cwd") or self.settings["cwd"])
                 if not cwd.is_dir():
                     raise ValueError("The working folder no longer exists. Choose another folder in Settings.")
@@ -493,9 +526,9 @@ class Bridge(NativeBridge):
                             parser.text += ANSI.sub("", data)
                     now = time.monotonic()
                     with self.lock:
-                        reply.update(text=parser.text, model=parser.model, usage=parser.usage)
+                        reply.update(text=parser.text, model=parser.model, usage=parser.usage, tools=parser.tools)
                         if now - last_emit > 0.05:
-                            self.emit(type="delta", id=chat["id"], text=parser.text, status=parser.status, model=parser.model)
+                            self.emit(type="delta", id=chat["id"], text=parser.text, status=parser.status, model=parser.model, tools=parser.tools)
                             last_emit = now
                         if now - last_save > 1:
                             self.save(chat)
@@ -504,7 +537,7 @@ class Bridge(NativeBridge):
                     parser.feed(pending)
                 selector.close()
                 result = proc.wait(timeout=5)
-                reply.update(text=parser.text, model=parser.model, usage=parser.usage)
+                reply.update(text=parser.text, model=parser.model, usage=parser.usage, tools=parser.tools)
                 if not self.cancelled.is_set():
                     if parser.error:
                         raise ValueError(parser.error)
@@ -554,6 +587,7 @@ class Bridge(NativeBridge):
             if isinstance(action, str) and action.startswith("jarvis"):
                 self.jarvis.dispatch(command)
             elif action in ("hello", "refresh"):
+                self.sync_default_agent()
                 self.snapshot()
                 self.jarvis.publish()
             elif action == "new":
@@ -570,6 +604,8 @@ class Bridge(NativeBridge):
                 self.answer_ui(command)
             elif action == "bash_approval":
                 self.set_bash_approval(command)
+            elif action == "permission_mode":
+                self.set_permission_mode(command)
             elif action == "terminal":
                 self.jarvis.enable(False)
                 self.open_terminal()
@@ -641,6 +677,7 @@ class Bridge(NativeBridge):
                 if self.current:
                     if self.current["options"].get("cwd") != self.settings["cwd"]:
                         self.current.pop("bashApproval", None)
+                        self.current.pop("permissionMode", None)
                     self.current["options"] = dict(self.settings)
                     self.save(self.current)
                 self.snapshot()
@@ -668,7 +705,8 @@ class Bridge(NativeBridge):
                 self.emit(type="attachment", path=str(path))
             elif action == "ping":
                 self.check_terminal()
-                self.emit(type="meta", meta=self.metadata())
+                if self.sync_default_agent():self.snapshot()
+                else:self.emit(type="meta", meta=self.metadata())
             else:
                 raise ValueError("Unknown chat action.")
 
@@ -693,6 +731,7 @@ def main():
         raise SystemExit(0)
     signal.signal(signal.SIGTERM, shutdown)
     try:
+        bridge.sync_default_agent()
         bridge.snapshot()
         for line in sys.stdin:
             try:

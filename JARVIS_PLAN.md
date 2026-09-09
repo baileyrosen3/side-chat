@@ -1,4 +1,4 @@
-# Jarvis mode — implementation plan
+# Peek mode — implementation plan
 
 Status: implemented in source and packaged as Side Chat 1.3.0 on 2026-09-05. The local runtime, speech models, Qt Quick 3D, and browser CLI are installed. See README.md for current behavior and THIRD_PARTY.md for licenses. The original design and research below are retained as rationale; this status supersedes their pre-implementation wording.
 
@@ -10,13 +10,13 @@ Remaining extensions and validation: a separate full Linux desktop (the independ
 
 ## Product contract
 
-Jarvis is another interface to the user's selected Omarchy CLI agent. A Chat/Jarvis toggle replaces the conversation body with an animated 3D companion, live captions, and compact voice controls. The same conversation, tools, working folder, permissions, history, and terminal handoff remain available.
+Peek is another interface to the user's selected Omarchy CLI agent. A Chat/Peek toggle replaces the conversation body with an animated 3D companion, live captions, and compact voice controls. The same conversation, tools, working folder, permissions, history, and terminal handoff remain available.
 
 It must support natural speech, spoken replies, interruption, real desktop mouse/keyboard actions, and a visible indication of those actions. It must retain the current screen-connected silhouette, Omarchy palette, font, and scaling.
 
-All new Jarvis software must be free and open source. Speech has no paid/cloud fallback. Assets and model weights need separately verified redistribution licenses; source code being open does not automatically license bundled voices or models.
+All new Peek software must be free and open source. Speech has no paid/cloud fallback. Assets and model weights need separately verified redistribution licenses; source code being open does not automatically license bundled voices or models.
 
-Agent selection remains independent. OMP, Pi, Codex, Claude, and other defaults can be supported through capability-tested adapters. Claude is proprietary; a hosted model may use a paid account. Those are optional user-selected integrations, not dependencies of the free stack. A zero-API-fee configuration uses an open-source CLI with a locally served model. Jarvis must never silently change the Omarchy default, provider, or model. Whether to replace the user's current hosted model is still a user decision.
+Agent selection remains independent. OMP, Pi, Codex, Claude, and other defaults can be supported through capability-tested adapters. Claude is proprietary; a hosted model may use a paid account. Those are optional user-selected integrations, not dependencies of the free stack. A zero-API-fee configuration uses an open-source CLI with a locally served model. Peek must never silently change the Omarchy default, provider, or model. Whether to replace the user's current hosted model is still a user decision.
 
 ## Findings on this computer
 
@@ -35,7 +35,7 @@ Agent selection remains independent. OMP, Pi, Codex, Claude, and other defaults 
 flowchart LR
     Mic[Microphone] --> Audio[Local audio service\nEcho cancellation + speech detection]
     Audio --> STT[Streaming transcription]
-    STT --> Controller[Jarvis controller\nTurn IDs + interruption + captions]
+    STT --> Controller[Peek controller\nTurn IDs + interruption + captions]
     Controller <--> Agent[Selected Omarchy CLI\nNative session adapter]
     Agent --> Existing[Existing file, shell, skill, and agent tools]
     Agent <--> Control[Desktop and browser control service]
@@ -64,7 +64,7 @@ Use Docker Engine with an optional Compose setup for services that benefit from 
 | STT/TTS inference | Optional containers | Private local endpoint, persistent model cache, warm workers while armed |
 | Local agent model server | Existing host Ollama initially; optional container | Reuse an available server instead of starting a duplicate; benchmark AMD acceleration separately |
 | Host desktop input/accessibility broker | Host | Narrow action interface to the session that owns the desktop |
-| Independent browser/native desktop | Optional container environment | Own browser or compositor, capture stream, and input backend; visible preview in Jarvis |
+| Independent browser/native desktop | Optional container environment | Own browser or compositor, capture stream, and input backend; visible preview in Peek |
 
 Provide optional Compose profiles for speech, model serving, and independent tasks, with pinned tested image/model revisions, named cache volumes, readiness checks, and resource limits chosen from measurements. Verify Compose availability during implementation. Show model download size and warmup status; a service still starting must not appear ready to listen. Reuse the same worker protocol for host and container deployments.
 
@@ -81,7 +81,7 @@ Packaging must support clean service shutdown, cache retention/removal choices, 
 | Part | Initial choice | Reason / alternative |
 | --- | --- | --- |
 | Capture and playback | PipeWire with a persistent local audio worker | Device selection, low-latency streams, existing desktop integration |
-| Echo cancellation | PipeWire's WebRTC echo-cancellation module | Prevent Jarvis's own speech from becoming a new user turn |
+| Echo cancellation | PipeWire's WebRTC echo-cancellation module | Prevent Peek's own speech from becoming a new user turn |
 | Speech detection | Silero VAD through sherpa-onnx | Detect speech boundaries and interruptions locally |
 | Transcription | sherpa-onnx streaming English recognizer | Real partial transcripts; compare against whisper.cpp small/base English for technical vocabulary |
 | Speech output | Pocket TTS, benchmarked against Kokoro | Pocket is CPU-oriented with streaming audio; Kokoro is a useful alternative for voice preference and runtime efficiency |
@@ -92,13 +92,13 @@ Packaging must support clean service shutdown, cache retention/removal choices, 
 
 Voice behavior:
 
-1. Turning Jarvis on shows the companion and an unmistakable microphone state. The microphone is closed by default outside Jarvis mode.
+1. Turning Peek on shows the companion and an unmistakable microphone state. The microphone is closed by default outside Peek mode.
 2. While armed, partial transcription appears immediately. Submit only a completed utterance; partial words must never trigger tool execution. Keep push-to-talk available for noisy rooms and technical dictation.
 3. The existing CLI receives the final transcript as the next user message. Unclear file names or low-confidence actions can be corrected before submission.
 4. Stream the agent's public reply into speech at stable sentence/clause boundaries. Do not wait for the whole response. Keep full Markdown in the transcript, but omit code blocks, raw URLs, tool JSON, and private reasoning from speech.
-5. Speaking while Jarvis talks immediately pauses playback. The completed interruption steers the active agent where supported, or aborts and starts a follow-up. A local Stop control cancels queued speech and actions without waiting for the model.
+5. Speaking while Peek talks immediately pauses playback. The completed interruption steers the active agent where supported, or aborts and starts a follow-up. A local Stop control cancels queued speech and actions without waiting for the model.
 6. Permission questions appear visibly and may be answered by speech only while that exact request is active. Ambiguous speech never becomes an approval.
-7. Returning to Chat closes the microphone and stops speech while preserving the session. Closing Jarvis fully also removes the buddy. Terminal handoff releases the voice frontend's ownership of the agent.
+7. Returning to Chat closes the microphone and stops speech while preserving the session. Closing Peek fully also removes the buddy. Terminal handoff releases the voice frontend's ownership of the agent.
 
 Audio worker details include bounded recording buffers, device hotplug, mute state, playback-reference routing for echo cancellation, cancellation IDs, and model warmup. Do not retain raw recordings by default. Captions remain available when muted or when an audio device fails.
 
@@ -120,13 +120,13 @@ Introduce an adapter interface for start/resume, send, interrupt, tool events, u
 
 | Agent | Planned integration | Work required |
 | --- | --- | --- |
-| OMP | Existing native RPC, with Jarvis tool registration or extension | Add stable speech/action events and interruption handling |
+| OMP | Existing native RPC, with Peek tool registration or extension | Add stable speech/action events and interruption handling |
 | Pi | Existing native RPC plus a small extension for desktop tools | Match OMP behavior through its own supported commands |
 | Codex | Local app-server protocol | Native threads, streamed items, approvals, interruption, MCP/dynamic tool bridge, terminal resume |
 | Claude | Installed CLI's streaming session/control protocol | Verify permission callbacks, interrupt, session persistence, local tool exposure, and terminal resume against the installed version |
-| Other defaults | Their documented persistent API/ACP/RPC, where available | Enable full Jarvis only after the same capability tests pass |
+| Other defaults | Their documented persistent API/ACP/RPC, where available | Enable full Peek only after the same capability tests pass |
 
-[Codex app-server](https://developers.openai.com/codex/app-server/) exposes native session events and client-handled approvals. Claude's [permission interface](https://code.claude.com/docs/en/agent-sdk/permissions) documents tool decisions; its installed CLI also advertises streaming input/output, resume, and permission-prompt controls. Do not assume that an Agent SDK can reuse subscription authentication: [the SDK documentation](https://code.claude.com/docs/en/agent-sdk/overview) distinguishes its permitted authentication paths. Prefer the user's installed CLI where supported; no paid SDK account becomes a Jarvis requirement.
+[Codex app-server](https://developers.openai.com/codex/app-server/) exposes native session events and client-handled approvals. Claude's [permission interface](https://code.claude.com/docs/en/agent-sdk/permissions) documents tool decisions; its installed CLI also advertises streaming input/output, resume, and permission-prompt controls. Do not assume that an Agent SDK can reuse subscription authentication: [the SDK documentation](https://code.claude.com/docs/en/agent-sdk/overview) distinguishes its permitted authentication paths. Prefer the user's installed CLI where supported; no paid SDK account becomes a Peek requirement.
 
 New conversations follow a changed Omarchy default. Existing conversations keep their original agent and native history. Unsupported adapters display their actual capabilities rather than silently substituting OMP or pretending to have tools.
 
@@ -147,7 +147,7 @@ Use the most dependable route for each action:
 
 Recommend [agent-browser](https://github.com/vercel-labs/agent-browser), pinned to a tested version, with the system's open-source Chromium executable. It is designed for CLI agents and provides element references, screenshots, sessions, and a live browser preview. Explicitly select Chromium rather than making its default Chrome-for-Testing download a dependency of the free stack.
 
-[Playwright CLI](https://github.com/microsoft/playwright-cli) is a credible alternative and also open source. Select between them on a small task benchmark, not a blanket claim that one is universally better. Keep one primary browser controller to avoid competing sessions. OMP's existing browser tool can remain available, but traced Jarvis browser actions need to pass through the common controller.
+[Playwright CLI](https://github.com/microsoft/playwright-cli) is a credible alternative and also open source. Select between them on a small task benchmark, not a blanket claim that one is universally better. Keep one primary browser controller to avoid competing sessions. OMP's existing browser tool can remain available, but traced Peek browser actions need to pass through the common controller.
 
 [CLI-Anything](https://github.com/HKUDS/CLI-Anything) is useful for selected application-specific command interfaces. It is not a universal mouse controller and does not provide a second desktop cursor.
 
@@ -161,7 +161,7 @@ The controller takes explicit targets and returns structured results: window/out
 
 ### Visible AI pointer
 
-Draw a separate, click-through Quickshell overlay in the theme accent. Add a small Jarvis label, a short movement trail, target outline, and click ripple. The overlay must not intercept input or contaminate its own screenshot observations.
+Draw a separate, click-through Quickshell overlay in the theme accent. Add a small Peek label, a short movement trail, target outline, and click ripple. The overlay must not intercept input or contaminate its own screenshot observations.
 
 Emit intended target, execution start, and actual completion/failure from the controller. Animate to the real target; show failure if the click did not occur. DOM/AT-SPI actions may not physically move a mouse, so their pointer is a visual action indicator. Raw shell tasks get command activity, not an invented mouse path. Unrestricted CLI code can bypass the supplied controller; do not claim to trace arbitrary external input tools automatically.
 
@@ -215,7 +215,7 @@ Proposed modules; names can change during implementation:
 
 Extend events with session ID, turn ID, message ID, sequence, timestamp, and action ID. Keep text, reasoning, tool status, approvals, microphone level, audio playback, and pointer events distinct. This prevents duplicate spoken paragraphs, stale clicks, and replies from cancelled turns being played later.
 
-Store model revisions/checksums, voice choices, device IDs, and Jarvis preferences locally. Keep sensitive audio/screenshot buffers bounded and ephemeral by default. A local worker crash must release pressed keys/buttons, stop queued input, and leave normal Chat usable.
+Store model revisions/checksums, voice choices, device IDs, and Peek preferences locally. Keep sensitive audio/screenshot buffers bounded and ephemeral by default. A local worker crash must release pressed keys/buttons, stop queued input, and leave normal Chat usable.
 
 ## Build order and acceptance gates
 
@@ -226,6 +226,6 @@ Store model revisions/checksums, voice choices, device IDs, and Jarvis preferenc
 5. **Desktop control and visible actions.** Add the common controller, browser/AT-SPI/pixel routing, accurate pointer overlay, stale-target handling, and user takeover. Test 1.6/2.25 scaling, window movement, fullscreen, monitor unplug, and failed actions.
 6. **3D companion.** Implement the original asset, state blending, audio-reactive animation, theme/scale changes, caption layout, reduced motion, and hidden-state resource release.
 7. **Independent environments.** Ship dedicated browser preview first, then validate a separate native desktop. Prove the user can keep typing/moving their mouse while the agent acts there.
-8. **Package and verify.** Reversible installer, worker supervision, optional Compose profiles, version/license inventory, no paid service dependencies, and a complete offline test for the local-model profile. Test host-only and container speech deployments, container restart/readiness, cache persistence, shell reloads, microphone unplug, model crash, Stop during a drag, and terminal handoff while Jarvis is armed. Confirm private endpoints and independent input routing.
+8. **Package and verify.** Reversible installer, worker supervision, optional Compose profiles, version/license inventory, no paid service dependencies, and a complete offline test for the local-model profile. Test host-only and container speech deployments, container restart/readiness, cache persistence, shell reloads, microphone unplug, model crash, Stop during a drag, and terminal handoff while Peek is armed. Confirm private endpoints and independent input routing.
 
-Success means a spoken request can produce a real verified action and a timely spoken result, the user can see and interrupt it, and switching Chat/Jarvis/terminal preserves the session. The default CLI remains the agent throughout.
+Success means a spoken request can produce a real verified action and a timely spoken result, the user can see and interrupt it, and switching Chat/Peek/terminal preserves the session. The default CLI remains the agent throughout.
