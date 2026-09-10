@@ -126,7 +126,7 @@ ColumnLayout {
                 visible: root.section === "Speech"; Layout.fillWidth: true; spacing: Style.space(6)
                 ChatSection { text: "Recognition" }
                 Choice { label: "Model"; key: "asrModel"; options: [{id:"voxtype",name:"Voxtype · shared daemon"},{id:"parakeet-unified",name:"Parakeet Unified"},{id:"zipformer-whisper",name:"Zipformer + Whisper"}] }
-                Note { text: root.draft.asrModel === "voxtype" ? (chat.peek.voxtypeAvailable ? "Uses your existing Voxtype daemon; Peek does not load a second ASR model." : "Install voxtype-bin and start its user daemon before applying this choice.") : "English only. Parakeet is the bundled default; Zipformer + Whisper is the legacy path." }
+                Note { text: root.draft.asrModel === "voxtype" ? (chat.peek.voxtypeAvailable ? "Uses your existing Voxtype daemon; Peek does not load a second ASR model." : "Install voxtype-bin and start its user daemon before applying this choice.") : "English only. Voxtype is the default; Parakeet and Zipformer + Whisper are optional local downloads." }
                 Note { visible: root.draft.asrModel === "parakeet-unified"; text: chat.peek.parakeetAvailable ? "Installed · reuses your local model" : "Choose an installed Parakeet Unified ONNX folder below" }
                 ColumnLayout {
                     visible: root.draft.asrModel === "parakeet-unified"; Layout.fillWidth: true; spacing: Style.space(3)

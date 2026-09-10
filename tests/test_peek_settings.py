@@ -9,10 +9,16 @@ from peek.settings import DEFAULTS,validate,scope_instruction
 
 
 class SettingsTests(unittest.TestCase):
+    def test_fresh_peek_defaults_to_voxtype_manual_toggle(self):
+        self.assertEqual(DEFAULTS['asrModel'],'voxtype')
+        self.assertFalse(DEFAULTS['handsFree'])
+        self.assertFalse(DEFAULTS['wakeEnabled'])
+
     def test_validation_is_atomic_and_rejects_bad_ranges_types_paths(self):
         for values in ({'asrThreads':0},{'volume':float('nan')},{'handsFree':'false'},
                        {'scope':'hidden'},{'asrThreads':2.5},{'ttsModel':'cloud'},
-                       {'modelPath':'/missing/peek-model'},{'speechRate':1.3}):
+                       {'asrModel':'parakeet-unified','modelPath':'/missing/peek-model'},
+                       {'speechRate':1.3}):
             original=dict(DEFAULTS)
             with self.assertRaises(ValueError):validate(original,values)
             self.assertEqual(original,DEFAULTS)
@@ -39,7 +45,8 @@ class SettingsTests(unittest.TestCase):
     def test_voxtype_mode_requires_manual_activation(self):
         prefs=validate(DEFAULTS,{'asrModel':'voxtype','handsFree':False,'wakeEnabled':False},check_files=False)
         self.assertEqual(prefs['asrModel'],'voxtype')
-        for values in ({'asrModel':'voxtype'}, {'asrModel':'voxtype','handsFree':True},
+        self.assertEqual(validate(DEFAULTS,{'asrModel':'voxtype'},check_files=False)['asrModel'],'voxtype')
+        for values in ({'asrModel':'voxtype','handsFree':True},
                        {'asrModel':'voxtype','wakeEnabled':True,'handsFree':False}):
             with self.subTest(values=values), self.assertRaisesRegex(ValueError,'manual push-to-talk'):
                 validate(DEFAULTS,values,check_files=False)

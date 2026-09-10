@@ -31,11 +31,12 @@ second hard-coded QML version; bump `manifest.json` once per release instead.
 
 Test the README's Git install on a fresh Omarchy Quattro user/session, then
 enable, disable, update, and remove the plugin. Test chat without the speech
-runtime first. Test Peek setup without an existing Voxtype model or
-Hugging Face cache as well as model reuse. Finish the manual desktop/audio
-checks in [TEST_PLAN.md](../TEST_PLAN.md). Dependency diagnostics do not
-establish microphone quality, provider authentication, or end-to-end speech
-readiness.
+runtime first. Test the default Voxtype setup without an existing local model
+or Hugging Face cache, then test the opt-in `--with-parakeet` and
+`--with-legacy-asr` downloads as well as model reuse. Finish the manual
+desktop/audio checks in [TEST_PLAN.md](../TEST_PLAN.md). Dependency diagnostics
+do not establish microphone quality, provider authentication, or end-to-end
+speech readiness.
 
 Use `omarchy plugin update blr.side-chat --yes` for the documented trusted
 Git update path. Omitting `--yes` intentionally prints the incoming diff and

@@ -7,10 +7,10 @@ import shutil
 
 DATA_HOME = Path(os.environ.get('XDG_DATA_HOME', Path.home()/'.local/share'))
 DATA = Path(os.environ.get('SIDE_CHAT_DATA', DATA_HOME/'side-chat'))
-DEFAULTS = dict(scope='desktop', source='', sink='', voice='alba', handsFree=True,
+DEFAULTS = dict(scope='desktop', source='', sink='', voice='alba', handsFree=False,
                 muted=False, reducedMotion=False, bargeIn=True, echoCancellation=True, spokenProgress=True,
                 adaptivePause=True, noiseRejection='balanced',
-                asrModel='parakeet-unified', modelPath='', asrThreads=4,
+                asrModel='voxtype', modelPath='', asrThreads=4,
                 streamingProfile='fast', endSilence=.45, minSpeech=.18,
                 vadThreshold=.55, maxUtterance=25, ttsModel='pocket', ttsThreads=4,
                 volume=1.0, speechRate=1.0, wakeEnabled=False, wakeThreshold=.97,

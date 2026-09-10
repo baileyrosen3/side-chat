@@ -25,19 +25,20 @@ PARAKEET_REPO = 'bobNight/parakeet-unified-en-0.6b-onnx'
 PARAKEET_REV = '09e9060322d99c5f070010724786e6ee090fd51d'
 
 
-def preflight(models_only=False, voxtype_only=False):
+def preflight(models_only=False, voxtype_only=False, with_parakeet=True):
+    local_asr = with_parakeet and not voxtype_only
     if platform.system() != 'Linux' or platform.machine() != 'x86_64':
         raise SystemExit('The pinned Peek binaries currently require Linux x86_64.')
     if os.geteuid() == 0:
         raise SystemExit('Run speech setup as your desktop user, without sudo.')
     if not models_only:
         required = ['uv', 'cc']
-        if not voxtype_only:required += ['cargo', 'rustc']
+        if local_asr:required += ['cargo', 'rustc']
         missing = [name for name in required if not shutil.which(name)]
         if missing:
             raise SystemExit('Missing build tools: '+', '.join(missing)+
                              '. Run python3 setup.py --with-peek from the plugin root.')
-        if not voxtype_only and not Path(__file__).with_name('parakeet').joinpath('Cargo.lock').is_file():
+        if local_asr and not Path(__file__).with_name('parakeet').joinpath('Cargo.lock').is_file():
             raise SystemExit('Missing peek/parakeet/Cargo.lock. Download the complete plugin source.')
 
 
@@ -120,10 +121,14 @@ if __name__ == '__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--models-only',action='store_true',help='Only fetch streaming ASR and VAD artifacts')
     parser.add_argument('--voxtype-only',action='store_true',help='Skip Peek Parakeet and VAD artifacts; use the system Voxtype daemon for recognition')
+    parser.add_argument('--with-parakeet',action='store_true',help='Download and build the optional local Parakeet recognition engine')
     parser.add_argument('--with-kokoro',action='store_true',help='Also fetch the optional Kokoro benchmark model')
     parser.add_argument('--with-legacy-asr',action='store_true',help='Also install Zipformer + Whisper as an optional recognition engine')
     args=parser.parse_args()
-    preflight(args.models_only,args.voxtype_only)
+    # Keep the historical --models-only command useful while regular Peek
+    # setup defaults to Voxtype and skips the large local ASR download.
+    with_parakeet=(args.with_parakeet or args.models_only) and not args.voxtype_only
+    preflight(args.models_only,args.voxtype_only,with_parakeet)
     if not args.models_only:
         if not (ROOT/'runtime/bin/python').exists():
             subprocess.run(['uv','venv','--python','3.12',str(ROOT/'runtime')],check=True)
@@ -131,9 +136,9 @@ if __name__ == '__main__':
         if args.with_legacy_asr:
             subprocess.run(['uv','pip','install','--python',str(ROOT/'runtime/bin/python'),
                             '-r',str(Path(__file__).with_name('requirements-legacy.txt'))],check=True)
-    models(args.with_kokoro,args.with_legacy_asr,not args.voxtype_only)
+    models(args.with_kokoro,args.with_legacy_asr,with_parakeet)
     if not args.models_only:
-        if not args.voxtype_only:
+        if with_parakeet:
             if not shutil.which('cargo'):raise SystemExit('Building the Parakeet adapter requires cargo (Rust). Install Rust, then rerun setup.')
             subprocess.run(['cargo','build','--release','--locked','--manifest-path',str(Path(__file__).with_name('parakeet')/'Cargo.toml')],
                            env=dict(os.environ,CARGO_TARGET_DIR=str(ROOT/'build/parakeet')),check=True)

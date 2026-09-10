@@ -52,7 +52,7 @@ class SetupTests(unittest.TestCase):
              patch("setup.subprocess.run", return_value=subprocess.CompletedProcess([], 1)), \
              patch("setup.run") as mutate, patch("setup.install_input_access") as permissions:
             self.assertEqual(setup.main(["--with-kokoro", "--with-legacy-asr"]), 0)
-            packages.assert_called_once_with(True, False)
+            packages.assert_called_once_with(True, True, False)
             command = mutate.call_args.args[0]
             self.assertEqual(command[-2:], ["--with-kokoro", "--with-legacy-asr"])
             self.assertEqual(Path(command[2]), setup.SOURCE / "peek/setup.py")
@@ -92,7 +92,7 @@ class SetupTests(unittest.TestCase):
             return subprocess.CompletedProcess(command, int(command[-1] == "chromium"))
         with patch("setup.shutil.which", return_value="/mise/tool"), \
              patch("setup.subprocess.run", side_effect=query) as queried:
-            self.assertEqual(setup.missing_packages(True), ["chromium"])
+            self.assertEqual(setup.missing_packages(True, True), ["chromium"])
             packages = [call.args[0][-1] for call in queried.call_args_list]
             self.assertNotIn("rust", packages)
             self.assertNotIn("uv", packages)
@@ -100,10 +100,11 @@ class SetupTests(unittest.TestCase):
     def test_missing_tools_are_included_for_clean_voice_install(self):
         with patch("setup.shutil.which", return_value=None), \
              patch("setup.subprocess.run", return_value=subprocess.CompletedProcess([], 1)):
-            missing = setup.missing_packages(True)
+            missing = setup.missing_packages(True, True, True)
             self.assertIn("rust", missing)
             self.assertIn("uv", missing)
             self.assertIn("python-gobject", missing)
+            self.assertIn("voxtype-bin", missing)
 
     def test_voxtype_setup_installs_daemon_without_bundled_parakeet_build(self):
         with patch("setup.shutil.which", return_value="/bin/tool"), \
@@ -113,8 +114,30 @@ class SetupTests(unittest.TestCase):
              patch("setup.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "{}", "")), \
              patch("setup.run") as mutate:
             self.assertEqual(setup.main(["--with-voxtype"]), 0)
-            packages.assert_called_once_with(True, True)
+            packages.assert_called_once_with(True, True, False)
             self.assertIn("--voxtype-only", mutate.call_args.args[0])
+
+    def test_default_peek_setup_uses_voxtype_without_bundled_parakeet(self):
+        with patch("setup.shutil.which", return_value="/bin/tool"), \
+             patch("setup.missing_packages", return_value=[]) as packages, \
+             patch("setup.agent_problem", return_value=None), \
+             patch("setup.runtime_problems", return_value=[]), \
+             patch("setup.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "{}", "")), \
+             patch("setup.run") as mutate:
+            self.assertEqual(setup.main(["--with-peek"]), 0)
+            packages.assert_called_once_with(True, True, False)
+            self.assertIn("--voxtype-only", mutate.call_args.args[0])
+
+    def test_parakeet_is_an_explicit_optional_download(self):
+        with patch("setup.shutil.which", return_value="/bin/tool"), \
+             patch("setup.missing_packages", return_value=[]) as packages, \
+             patch("setup.agent_problem", return_value=None), \
+             patch("setup.runtime_problems", return_value=[]), \
+             patch("setup.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "{}", "")), \
+             patch("setup.run") as mutate:
+            self.assertEqual(setup.main(["--with-parakeet"]), 0)
+            packages.assert_called_once_with(True, True, True)
+            self.assertIn("--with-parakeet", mutate.call_args.args[0])
 
     def test_voxtype_only_preflight_does_not_require_rust(self):
         with patch("peek.setup.shutil.which", side_effect=lambda name: None if name in ("cargo", "rustc") else "/bin/tool"):

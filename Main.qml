@@ -31,7 +31,7 @@ Scope {
     property string streamingModel: ""
     property var streamingTools: []
     property var agentRequests: []
-    property var peek: ({enabled:false,ready:false,listening:false,speaking:false,stage:"off",caption:"",partial:"",inputLevel:0,outputLevel:0,scope:"desktop",handsFree:true,muted:false,reducedMotion:false,voice:"alba",devices:[]})
+    property var peek: ({enabled:false,ready:false,listening:false,speaking:false,stage:"off",caption:"",partial:"",inputLevel:0,outputLevel:0,scope:"desktop",handsFree:false,muted:false,reducedMotion:false,voice:"alba",asrModel:"voxtype",voxtypeAvailable:false,devices:[]})
     property var aiPointer: ({visible:false})
     readonly property bool nativeSession: (meta.nativeAgents || []).indexOf(current ? current.agent : meta.agent) >= 0
     readonly property bool terminalOpen: !!(current && current.terminalOpen)

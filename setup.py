@@ -32,7 +32,12 @@ def run(command, **kwargs):
     return subprocess.run(command, check=True, **kwargs)
 
 
-def missing_packages(with_peek=False, with_voxtype=False):
+def missing_packages(with_peek=False, with_voxtype=False, with_parakeet=None):
+    # Preserve the old helper behavior for callers that do not specify an
+    # engine; the top-level setup path passes an explicit False for its new
+    # Voxtype-first default.
+    if with_parakeet is None:
+        with_parakeet = with_peek and not with_voxtype
     packages = list(BASE_PACKAGES)
     if with_peek:
         packages.extend(PEEK_PACKAGES)
@@ -40,7 +45,7 @@ def missing_packages(with_peek=False, with_voxtype=False):
         # conflicting Rust package or a second uv installation.
         if not shutil.which("uv"):
             packages.append("uv")
-        if not with_voxtype and not (shutil.which("cargo") and shutil.which("rustc")):
+        if with_parakeet and not (shutil.which("cargo") and shutil.which("rustc")):
             packages.append("rust")
     if with_voxtype:
         packages.extend(VOXTYPE_PACKAGES)
@@ -122,7 +127,9 @@ def install_input_access():
     run(["udevadm", "settle"])
 
 
-def runtime_problems(with_kokoro=False, with_legacy=False, with_voxtype=False):
+def runtime_problems(with_kokoro=False, with_legacy=False, with_voxtype=False, with_parakeet=None):
+    if with_parakeet is None:
+        with_parakeet = not with_voxtype
     from peek.settings import DATA, DEFAULTS, model_path
 
     parakeet = DATA / "bin/peek-parakeet"
@@ -132,7 +139,7 @@ def runtime_problems(with_kokoro=False, with_legacy=False, with_voxtype=False):
         # binary in the meantime.
         parakeet = DATA / "bin/jarvis-parakeet"
     required = [DATA / "runtime/bin/python", DATA / "bin/agent-browser"]
-    if not with_voxtype:
+    if with_parakeet:
         required.append(parakeet)
         required.append(DATA / "models/silero_vad.onnx")
         required.extend(model_path(DEFAULTS) / name for name in
@@ -166,13 +173,14 @@ def runtime_problems(with_kokoro=False, with_legacy=False, with_voxtype=False):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Report missing requirements; no installs or desktop changes")
-    parser.add_argument("--with-peek", dest="with_peek", action="store_true", help="Install local speech models, runtime and computer-control tools")
-    parser.add_argument("--with-voxtype", action="store_true", help="Use the system Voxtype daemon for recognition; implies --with-peek")
+    parser.add_argument("--with-peek", dest="with_peek", action="store_true", help="Install Peek runtime, Voxtype recognition and computer-control tools")
+    parser.add_argument("--with-voxtype", action="store_true", help="Explicitly select the default Voxtype recognition setup; implies --with-peek")
+    parser.add_argument("--with-parakeet", action="store_true", help="Also download/build the optional local Parakeet recognition engine")
     parser.add_argument("--with-kokoro", action="store_true", help="Include optional Kokoro speech; implies --with-peek")
     parser.add_argument("--with-legacy-asr", action="store_true", help="Include optional Zipformer/Whisper; implies --with-peek")
     parser.add_argument("--with-desktop-input", action="store_true", help="Grant active-seat input access for desktop control; implies --with-peek")
     args = parser.parse_args(argv)
-    with_peek = args.with_peek or args.with_voxtype or args.with_kokoro or args.with_legacy_asr or args.with_desktop_input
+    with_peek = args.with_peek or args.with_voxtype or args.with_parakeet or args.with_kokoro or args.with_legacy_asr or args.with_desktop_input
     if platform.system() != "Linux" or (with_peek and platform.machine() != "x86_64"):
         parser.error("Requires Linux; the bundled Peek runtime currently supports x86_64 only.")
     if os.geteuid() == 0:
@@ -180,7 +188,11 @@ def main(argv=None):
     for binary in ("omarchy", "omarchy-shell", "quickshell", "hyprctl", "pacman"):
         if not shutil.which(binary):
             parser.error(f"Missing {binary}. Use Omarchy with Quickshell plugin support (Quattro).")
-    missing = missing_packages(with_peek, args.with_voxtype)
+    # Voxtype is the default recognition backend. Local Parakeet is an opt-in
+    # download, but the daemon package remains installed so fresh settings are
+    # always usable before a user chooses another model.
+    with_voxtype = with_peek
+    missing = missing_packages(with_peek, with_voxtype, args.with_parakeet)
     print("Missing Arch packages: " + (", ".join(missing) or "none"), flush=True)
     problems = []
     if args.check:
@@ -196,12 +208,14 @@ def main(argv=None):
             # Model/build changes are separate from plugin updates, which never
             # execute this script. Do not replace a running voice runtime.
             command = [sys.executable, "-B", str(SOURCE / "peek/setup.py")]
+            if args.with_parakeet:
+                command.append("--with-parakeet")
+            else:
+                command.append("--voxtype-only")
             if args.with_kokoro:
                 command.append("--with-kokoro")
             if args.with_legacy_asr:
                 command.append("--with-legacy-asr")
-            if args.with_voxtype:
-                command.append("--voxtype-only")
             run(command)
         if args.with_desktop_input:
             install_input_access()
@@ -209,7 +223,7 @@ def main(argv=None):
     if problem:
         problems.append(problem)
     if with_peek:
-        problems.extend(runtime_problems(args.with_kokoro, args.with_legacy_asr, args.with_voxtype))
+        problems.extend(runtime_problems(args.with_kokoro, args.with_legacy_asr, with_voxtype, args.with_parakeet))
         if args.with_desktop_input:
             problems.extend(input_problems())
         else:
