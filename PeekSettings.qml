@@ -62,6 +62,11 @@ ColumnLayout {
             onActivated: {
                 root.set(choice.key,choice.options[currentIndex].id)
                 if (choice.key === "ttsModel") { root.set("voice",root.draft.ttsModel === "pocket" ? "alba" : "af_heart"); root.set("speechRate",1) }
+                if (choice.key === "asrModel" && choice.options[currentIndex].id === "voxtype") {
+                    // Voxtype owns endpointing and activation; keep Peek's
+                    // wake/open modes from leaving its daemon recording forever.
+                    root.set("wakeEnabled",false); root.set("handsFree",false)
+                }
             }
 
         }
@@ -120,7 +125,8 @@ ColumnLayout {
             ColumnLayout {
                 visible: root.section === "Speech"; Layout.fillWidth: true; spacing: Style.space(6)
                 ChatSection { text: "Recognition" }
-                Choice { label: "Model"; key: "asrModel"; options: [{id:"parakeet-unified",name:"Parakeet Unified · English"},{id:"zipformer-whisper",name:"Zipformer + Whisper · English"}] }
+                Choice { label: "Model"; key: "asrModel"; options: [{id:"voxtype",name:"Voxtype · shared daemon"},{id:"parakeet-unified",name:"Parakeet Unified"},{id:"zipformer-whisper",name:"Zipformer + Whisper"}] }
+                Note { text: root.draft.asrModel === "voxtype" ? (chat.peek.voxtypeAvailable ? "Uses your existing Voxtype daemon; Peek does not load a second ASR model." : "Install voxtype-bin and start its user daemon before applying this choice.") : "English only. Parakeet is the bundled default; Zipformer + Whisper is the legacy path." }
                 Note { visible: root.draft.asrModel === "parakeet-unified"; text: chat.peek.parakeetAvailable ? "Installed · reuses your local model" : "Choose an installed Parakeet Unified ONNX folder below" }
                 ColumnLayout {
                     visible: root.draft.asrModel === "parakeet-unified"; Layout.fillWidth: true; spacing: Style.space(3)
@@ -132,10 +138,11 @@ ColumnLayout {
                         onTextEdited: root.set("modelPath",text)
                     }
                 }
-                Choice { visible: root.draft.asrModel === "parakeet-unified"; label: "Streaming profile"; key: "streamingProfile"; options: [{id:"fast",name:"Fast · 320 ms chunks"},{id:"balanced",name:"Balanced · 560 ms chunks"},{id:"accurate",name:"More context · 1,120 ms chunks"}] }
-                NumberSetting { label: "Recognition threads"; key: "asrThreads"; low: 1; high: 12 }
+                Choice { visible: root.draft.asrModel === "parakeet-unified"; label: "Streaming profile"; key: "streamingProfile"; options: [{id:"fast",name:"Fast · 320 ms"},{id:"balanced",name:"Balanced · 560 ms"},{id:"accurate",name:"More context · 1,120 ms"}] }
+                NumberSetting { visible: root.draft.asrModel !== "voxtype"; label: "Recognition threads"; key: "asrThreads"; low: 1; high: 12 }
                 ChatSection { text: "Spoken replies" }
-                Choice { label: "Model"; key: "ttsModel"; options: [{id:"pocket",name:"Pocket TTS · streaming"},{id:"kokoro",name:"Kokoro · complete sentences"}] }
+                Choice { label: "Model"; key: "ttsModel"; options: [{id:"pocket",name:"Pocket TTS"},{id:"kokoro",name:"Kokoro"}] }
+                Note { text: root.draft.ttsModel === "pocket" ? "Streams speech as it is generated." : "Waits for complete sentences before speaking." }
                 Choice { label: "Voice"; key: "voice"; options: root.draft.ttsModel === "pocket" ? [{id:"alba",name:"Alba"},{id:"marius",name:"Marius"},{id:"javert",name:"Javert"},{id:"fantine",name:"Fantine"},{id:"eponine",name:"Éponine"},{id:"azelma",name:"Azelma"},{id:"charles",name:"Charles"},{id:"mary",name:"Mary"},{id:"peter_yearsley",name:"Peter"}] : [{id:"af_heart",name:"Heart"},{id:"af_bella",name:"Bella"},{id:"am_michael",name:"Michael"}] }
                 ActionButton {
                     objectName: "voicePreview"
@@ -154,33 +161,33 @@ ColumnLayout {
             ColumnLayout {
                 visible: root.section === "Listening"; Layout.fillWidth: true; spacing: Style.space(6)
                 ChatSection { text: "Activation" }
-                Choice { label: "Listening"; key: "listeningMode"; options: [{id:"wake",name:"Wake phrase · wake, then follow up"},{id:"open",name:"Open microphone · every voice can trigger"},{id:"hold",name:"Hold to talk · press while speaking"}] }
-                Note { text: root.listeningMode === "wake" ? "Wake phrase: Hey Jarvis. The bundled upstream detector recognizes this phrase. Wait for the chime, then speak to Peek. Follow up after an answer, or say the phrase again to interrupt." : root.listeningMode === "hold" ? "Hold the microphone while speaking. Release to send." : "Nearby speech can trigger requests. Use wake word or hold-to-talk in shared rooms." }
+                Choice { label: "Listening"; key: "listeningMode"; options: root.draft.asrModel === "voxtype" ? [{id:"hold",name:"Manual toggle"}] : [{id:"wake",name:"Wake phrase"},{id:"open",name:"Open microphone"},{id:"hold",name:"Hold to talk"}] }
+                Note { text: root.draft.asrModel === "voxtype" ? "Voxtype mode uses the microphone toggle as push-to-talk. Peek submits the saved transcript when you toggle it off; wake phrase and automatic silence endpointing are unavailable." : root.listeningMode === "wake" ? "Wake phrase: Hey Jarvis. The bundled upstream detector recognizes this phrase. Wait for the chime, then speak to Peek. Follow up after an answer, or say the phrase again to interrupt." : root.listeningMode === "hold" ? "Hold the microphone while speaking. Release to send." : "Nearby speech can trigger requests. Use wake word or hold-to-talk in shared rooms." }
                 ChatSection { text: "Detection" }
-                Choice { label: "Noise rejection"; key: "noiseRejection"; options: [{id:"balanced",name:"Balanced · includes softer speech"},{id:"strong",name:"Strong · reject more faint sounds"}] }
-                Note { text: "Strong rejection may miss quiet speech." }
-                NumberSetting { visible: root.draft.wakeEnabled; label: "Wake confidence"; key: "wakeThreshold"; low: 50; high: 99; multiplier: 100; step: 1 }
-                NumberSetting { visible: root.draft.wakeEnabled; label: "Follow-up window"; key: "followupSeconds"; low: 5; high: 60; unit: " s" }
-                Toggle { label: "Wait for unfinished phrases"; key: "adaptivePause" }
-                NumberSetting { label: "Pause before sending"; key: "endSilence"; low: 30; high: 200; multiplier: 100; step: 5; unit: " s" }
-                NumberSetting { label: "Minimum speech"; key: "minSpeech"; low: 10; high: 70; multiplier: 100; step: 2; unit: " s" }
-                NumberSetting { label: "Speech detection threshold"; key: "vadThreshold"; low: 20; high: 90; multiplier: 100; step: 5 }
-                Note { text: "Strong rejection requires at least 280 ms of speech." }
-                NumberSetting { label: "Maximum utterance"; key: "maxUtterance"; low: 5; high: 60; step: 5; unit: " s" }
+                Choice { visible: root.draft.asrModel !== "voxtype"; label: "Noise rejection"; key: "noiseRejection"; options: [{id:"balanced",name:"Balanced"},{id:"strong",name:"Strong"}] }
+                Note { visible: root.draft.asrModel !== "voxtype"; text: root.draft.noiseRejection === "strong" ? "Rejects faint sounds and needs at least 280 ms of speech, so quiet speech may be missed." : "Includes softer speech." }
+                NumberSetting { visible: root.draft.asrModel !== "voxtype" && root.draft.wakeEnabled; label: "Wake confidence"; key: "wakeThreshold"; low: 50; high: 99; multiplier: 100; step: 1 }
+                NumberSetting { visible: root.draft.asrModel !== "voxtype" && root.draft.wakeEnabled; label: "Follow-up window"; key: "followupSeconds"; low: 5; high: 60; unit: " s" }
+                Toggle { visible: root.draft.asrModel !== "voxtype"; label: "Wait for unfinished phrases"; key: "adaptivePause" }
+                NumberSetting { visible: root.draft.asrModel !== "voxtype"; label: "Pause before sending"; key: "endSilence"; low: 30; high: 200; multiplier: 100; step: 5; unit: " s" }
+                NumberSetting { visible: root.draft.asrModel !== "voxtype"; label: "Minimum speech"; key: "minSpeech"; low: 10; high: 70; multiplier: 100; step: 2; unit: " s" }
+                NumberSetting { visible: root.draft.asrModel !== "voxtype"; label: "Speech detection threshold"; key: "vadThreshold"; low: 20; high: 90; multiplier: 100; step: 5 }
+                NumberSetting { visible: root.draft.asrModel !== "voxtype"; label: "Maximum utterance"; key: "maxUtterance"; low: 5; high: 60; step: 5; unit: " s" }
                 Toggle { label: "Interrupt Peek by speaking"; key: "bargeIn" }
-                Toggle { label: "Echo cancellation"; key: "echoCancellation" }
-                Note { text: "Recommended with speakers; includes noise suppression." }
+                Toggle { visible: root.draft.asrModel !== "voxtype"; label: "Echo cancellation"; key: "echoCancellation" }
+                Note { text: root.draft.asrModel === "voxtype" ? "Voxtype owns microphone routing and endpointing. Its device and output settings remain in ~/.config/voxtype/config.toml." : "Recommended with speakers; includes noise suppression." }
                 ChatSection { text: "Audio devices" }
-                Choice { label: "Microphone"; key: "source"; options: [{id:"",name:"System default"}].concat((root.chat.peek.devices || []).filter(d => d.kind === "Audio/Source")) }
-                Choice { label: "Speaker"; key: "sink"; options: [{id:"",name:"System default"}].concat((root.chat.peek.devices || []).filter(d => d.kind === "Audio/Sink")) }
-                ActionButton { text: "Refresh devices"; subtle: true; onClicked: root.chat.request({action:"peek_devices"}) }
+                Choice { visible: root.draft.asrModel !== "voxtype"; label: "Microphone"; key: "source"; options: [{id:"",name:"System default"}].concat((root.chat.peek.devices || []).filter(d => d.kind === "Audio/Source")) }
+                Choice { visible: root.draft.asrModel !== "voxtype"; label: "Speaker"; key: "sink"; options: [{id:"",name:"System default"}].concat((root.chat.peek.devices || []).filter(d => d.kind === "Audio/Sink")) }
+                ActionButton { visible: root.draft.asrModel !== "voxtype"; text: "Refresh devices"; subtle: true; onClicked: root.chat.request({action:"peek_devices"}) }
             }
             ColumnLayout {
                 visible: root.section === "Control"; Layout.fillWidth: true; spacing: Style.space(6)
                 ChatSection { text: "Access & context" }
-                Choice { label: "Computer control"; key: "scope"; options: [{id:"desktop",name:"Desktop · your apps and default browser"},{id:"browser",name:"Browser · isolated headless Chromium"}] }
-                Note { text: root.draft.scope === "desktop" ? "Uses your apps and normal browser profile, with screenshots, mouse and keyboard." : "Uses a separate headless browser without desktop input." }
-                Choice { label: "Screen context"; key: "screenContext"; options: [{id:"off",name:"Off"},{id:"on-request",name:"When I mention this / that / my screen"},{id:"always",name:"With every Desktop request"}] }
+                Choice { label: "Computer control"; key: "scope"; options: [{id:"desktop",name:"Desktop"},{id:"browser",name:"Isolated browser"}] }
+                Note { text: root.draft.scope === "desktop" ? "Uses your apps and normal browser profile, with screenshots, mouse and keyboard." : "Uses a separate headless Chromium without desktop input." }
+                Choice { label: "Screen context"; key: "screenContext"; options: [{id:"off",name:"Off"},{id:"on-request",name:"When I mention my screen"},{id:"always",name:"Every Desktop request"}] }
+                Note { visible: root.draft.screenContext === "on-request"; text: "Triggers on “this”, “that”, or “my screen”." }
                 Toggle { label: "Include screen image"; key: "screenImages" }
                 Toggle { label: "Include selected text"; key: "selectionContext" }
                 Note { text: "Screen context goes to your agent’s provider. Selected text comes from the focused app." }

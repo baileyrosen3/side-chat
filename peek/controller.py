@@ -216,7 +216,7 @@ class PeekController:
             self.want_listen=self.prefs['handsFree'] or self.prefs['wakeEnabled']
             if not self.voice or self.voice.poll() is not None:
                 log=open(self.bridge.state/'peek-voice.log','a')
-                self.voice=subprocess.Popen([str(self.python),'-B',str(Path(__file__).with_name('voice_worker.py'))],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=log,text=True,start_new_session=True,env=dict(os.environ,HF_HUB_OFFLINE='1',PYTHONDONTWRITEBYTECODE='1',SIDE_CHAT_VOICE_SETTINGS=json.dumps(self.prefs)))
+                self.voice=subprocess.Popen([str(self.python),'-B',str(Path(__file__).with_name('voice_worker.py'))],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=log,text=True,start_new_session=True,env=dict(os.environ,HF_HUB_OFFLINE='1',PYTHONDONTWRITEBYTECODE='1',SIDE_CHAT_VOICE_SETTINGS=json.dumps(self.prefs),SIDE_CHAT_VOXTYPE_DIR=str(self.folder/'voxtype')))
                 log.close()
                 threading.Thread(target=self.read_process,args=(self.voice,self.voice_event,'voice'),daemon=True).start()
             self.configure_control(False)

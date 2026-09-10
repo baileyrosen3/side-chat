@@ -52,7 +52,7 @@ class SetupTests(unittest.TestCase):
              patch("setup.subprocess.run", return_value=subprocess.CompletedProcess([], 1)), \
              patch("setup.run") as mutate, patch("setup.install_input_access") as permissions:
             self.assertEqual(setup.main(["--with-kokoro", "--with-legacy-asr"]), 0)
-            packages.assert_called_once_with(True)
+            packages.assert_called_once_with(True, False)
             command = mutate.call_args.args[0]
             self.assertEqual(command[-2:], ["--with-kokoro", "--with-legacy-asr"])
             self.assertEqual(Path(command[2]), setup.SOURCE / "peek/setup.py")
@@ -104,6 +104,21 @@ class SetupTests(unittest.TestCase):
             self.assertIn("rust", missing)
             self.assertIn("uv", missing)
             self.assertIn("python-gobject", missing)
+
+    def test_voxtype_setup_installs_daemon_without_bundled_parakeet_build(self):
+        with patch("setup.shutil.which", return_value="/bin/tool"), \
+             patch("setup.missing_packages", return_value=[]) as packages, \
+             patch("setup.agent_problem", return_value=None), \
+             patch("setup.runtime_problems", return_value=[]), \
+             patch("setup.subprocess.run", return_value=subprocess.CompletedProcess([], 0, "{}", "")), \
+             patch("setup.run") as mutate:
+            self.assertEqual(setup.main(["--with-voxtype"]), 0)
+            packages.assert_called_once_with(True, True)
+            self.assertIn("--voxtype-only", mutate.call_args.args[0])
+
+    def test_voxtype_only_preflight_does_not_require_rust(self):
+        with patch("peek.setup.shutil.which", side_effect=lambda name: None if name in ("cargo", "rustc") else "/bin/tool"):
+            speech_setup.preflight(voxtype_only=True)
 
     def test_unsupported_architecture_stops_before_installs(self):
         with patch("setup.platform.machine", return_value="aarch64"), patch("setup.run") as mutate:

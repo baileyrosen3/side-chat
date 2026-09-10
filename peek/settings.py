@@ -3,6 +3,7 @@
 import math
 import os
 from pathlib import Path
+import shutil
 
 DATA_HOME = Path(os.environ.get('XDG_DATA_HOME', Path.home()/'.local/share'))
 DATA = Path(os.environ.get('SIDE_CHAT_DATA', DATA_HOME/'side-chat'))
@@ -16,7 +17,7 @@ DEFAULTS = dict(scope='desktop', source='', sink='', voice='alba', handsFree=Tru
                 followupSeconds=12, screenContext='on-request', selectionContext=False,
                 screenImages=True, memoryEnabled=True, quickCommands=True,
                 personality='balanced', expressiveness=1.0, companionPosition=.16)
-ENUMS = dict(scope=('desktop','browser'), asrModel=('parakeet-unified','zipformer-whisper'),
+ENUMS = dict(scope=('desktop','browser'), asrModel=('parakeet-unified','voxtype','zipformer-whisper'),
              streamingProfile=('fast','balanced','accurate'), ttsModel=('pocket','kokoro'),
              voice=('alba','marius','javert','fantine','eponine','azelma','charles','mary','peter_yearsley','af_heart','af_bella','am_michael'),
              screenContext=('off','on-request','always'),personality=('concise','balanced','witty'),noiseRejection=('balanced','strong'))
@@ -65,8 +66,10 @@ def validate(current, values, check_files=True):
         if result['asrModel']=='parakeet-unified':
             missing=[name for name in ('encoder.onnx','encoder.onnx.data','decoder_joint.onnx','tokenizer.model') if not (model_path(result)/name).is_file()]
             if missing:raise ValueError('Parakeet model is incomplete: '+', '.join(missing))
-        elif not (DATA/'models/whisper-base.en/model.bin').is_file():
+        elif result['asrModel']=='zipformer-whisper' and not (DATA/'models/whisper-base.en/model.bin').is_file():
             raise ValueError('The legacy Whisper model is not installed.')
+    if result['asrModel']=='voxtype' and (result['wakeEnabled'] or result['handsFree']):
+        raise ValueError('Voxtype uses manual push-to-talk. Disable wake listening and open microphone first.')
     if check_files and values.get('ttsModel')=='kokoro' and not (DATA/'models/kokoro-int8-multi-lang-v1_0/model.int8.onnx').is_file():
         raise ValueError('Install optional Kokoro with python3 peek/setup.py --with-kokoro.')
     return result
@@ -75,6 +78,7 @@ def validate(current, values, check_files=True):
 def model_info(prefs):
     path=model_path(prefs)
     return {'modelResolvedPath':str(path), 'parakeetAvailable':all((path/n).is_file() for n in ('encoder.onnx','encoder.onnx.data','decoder_joint.onnx','tokenizer.model')),
+            'voxtypeAvailable':shutil.which('voxtype') is not None,
             'kokoroAvailable':(DATA/'models/kokoro-int8-multi-lang-v1_0/model.int8.onnx').is_file()}
 
 

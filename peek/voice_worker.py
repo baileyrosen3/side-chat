@@ -18,6 +18,7 @@ from peek.feedback import ACKNOWLEDGMENT
 from peek.speech_queue import SpeechJob,SpeechQueue
 from peek.listening import NoiseFloor,pause_seconds
 from peek.parakeet import Parakeet
+from peek.voxtype import VoxtypeBridge
 from peek.wake import WakeDetector,ConversationGate
 
 
@@ -48,6 +49,7 @@ class VoiceWorker:
         self.source=self.prefs['source']
         self.sink=self.prefs['sink']
         self.parakeet=None
+        self.voxtype=None
         self.wake_detector=None;self.gate=ConversationGate(self.prefs['followupSeconds'])
         self.engaged=False;self.standby=False
         self.capture_thread=None
@@ -66,20 +68,25 @@ class VoiceWorker:
     def load(self):
         try:
             start=time.monotonic()
-            self.detector=vad(self.prefs)
-            # Starting a turn needs sustained speech; continuing an accepted turn
-            # must react sooner so a resumed word does not lose to the endpoint.
-            self.continuation_detector=vad(dict(self.prefs,minSpeech=.1,noiseRejection='balanced'))
-            if self.prefs['wakeEnabled']:self.wake_detector=WakeDetector(self.prefs['wakeThreshold'])
-            if self.prefs['asrModel']=='parakeet-unified':self.parakeet=Parakeet(self.prefs)
-            else:self.asr=recognizer(self.prefs);self.final_asr=final_recognizer(self.prefs)
+            if self.prefs['asrModel']=='voxtype':
+                directory=os.environ.get('SIDE_CHAT_VOXTYPE_DIR',
+                                         str(Path(os.environ.get('XDG_RUNTIME_DIR','/tmp'))/'side-chat-voxtype'))
+                self.voxtype=VoxtypeBridge(directory)
+            else:
+                self.detector=vad(self.prefs)
+                # Starting a turn needs sustained speech; continuing an accepted turn
+                # must react sooner so a resumed word does not lose to the endpoint.
+                self.continuation_detector=vad(dict(self.prefs,minSpeech=.1,noiseRejection='balanced'))
+                if self.prefs['wakeEnabled']:self.wake_detector=WakeDetector(self.prefs['wakeThreshold'])
+                if self.prefs['asrModel']=='parakeet-unified':self.parakeet=Parakeet(self.prefs)
+                else:self.asr=recognizer(self.prefs);self.final_asr=final_recognizer(self.prefs)
             if self.prefs['ttsModel']=='pocket':self.tts,self.voices=pocket(self.prefs)
             else:self.tts=synthesizer(self.prefs)
             # Warm both graphs without recording or playing audio.
             self.speech_cache[(self.voice,ACKNOWLEDGMENT)]=list(self.speech_chunks(ACKNOWLEDGMENT,self.voice))
             if self.parakeet:
                 self.parakeet.accept(np.zeros(16000,dtype=np.float32));self.parakeet.finish();self.parakeet.reset()
-            else:
+            elif not self.voxtype:
                 stream=self.asr.create_stream();stream.accept_waveform(16000,np.zeros(16000,dtype=np.float32))
                 while self.asr.is_ready(stream):self.asr.decode_stream(stream)
             self.ready.set()
@@ -90,6 +97,14 @@ class VoiceWorker:
         with self.lock:
             active=self.queue.cancel(status_only)
             if not status_only:
+                voxtype=getattr(self,'voxtype',None)
+                if voxtype and voxtype.active:
+                    # Stop/interrupt must release Voxtype's daemon too; it is
+                    # an external recorder rather than a child process Peek
+                    # can terminate directly.
+                    voxtype.cancel()
+                    self.finish.clear();self.listening=False;self.input_active=False;self.record_epoch+=1
+                    self.emit('microphone',active=False,level=0,partial='')
                 if hold or self.input_active:self.speech_paused.set()
                 else:self.speech_paused.clear()
             if active or not status_only:
@@ -147,6 +162,7 @@ class VoiceWorker:
         else:
             with self.lock:
                 self.resume_speech()
+                if (voxtype:=getattr(self,'voxtype',None)):voxtype.cancel()
                 # Capture and playback have independent mute controls. Keep the
                 # current output route alive until its sentence has drained.
                 if not self.player:self.audio.close()
@@ -164,7 +180,58 @@ class VoiceWorker:
             proc=self.capture
         terminate(proc)
 
+    def record_voxtype(self,epoch):
+        """Record one manually bounded utterance through the Voxtype daemon."""
+        submitted=False;started=None;generation=self.input_generation
+        try:
+            while not self.ready.wait(.1):
+                if epoch!=self.record_epoch or self.shutdown.is_set() or self.finish.is_set():return
+            with self.lock:
+                if epoch!=self.record_epoch or self.finish.is_set():return
+                self.voxtype.start();started=time.monotonic()
+                generation=self.input_generation
+                self.input_utterance+=1;self.input_active=True
+                self.gate.wake()
+                if self.prefs['bargeIn']:self.pause_speech()
+                self.emit('microphone',active=True,aec=False)
+            while epoch==self.record_epoch and not self.shutdown.is_set() and not self.finish.wait(.1):
+                pass
+            with self.lock:
+                if epoch!=self.record_epoch or self.shutdown.is_set() or not self.finish.is_set():
+                    self.voxtype.cancel();return
+                endpoint=time.monotonic()
+                self.capture_event(epoch,'transcribing',generation=generation,partial='',utterance=self.input_utterance)
+            final=self.voxtype.stop()
+            valid=epoch==self.record_epoch and generation==self.input_generation and not self.shutdown.is_set()
+            if final and valid:
+                self.gate.wake();self.gate.consume_address()
+                submitted=self.capture_event(epoch,'transcript',text=final,generation=generation,
+                    utterance=self.input_utterance,utteranceSeconds=round(time.monotonic()-started,2),
+                    finalizeSeconds=round(time.monotonic()-endpoint,3),model='voxtype')
+            with self.lock:
+                if epoch!=self.record_epoch or self.shutdown.is_set():return
+                self.input_active=False
+                self.capture_event(epoch,'utterance_end',recognized=bool(final),hadSpeech=bool(final),limited=False,
+                                   generation=generation,utterance=self.input_utterance)
+                self.capture_event(epoch,'partial',text='',generation=generation)
+        except Exception as exc:
+            self.voxtype.cancel()
+            with self.lock:
+                if epoch==self.record_epoch:
+                    self.listening=False;self.input_active=False
+                    self.resume_speech();self.emit('microphone',active=False,level=0)
+                    self.emit('error',text=str(exc))
+        finally:
+            with self.lock:
+                if epoch==self.record_epoch and self.finish.is_set():
+                    self.finish.clear();self.input_active=False
+                    if not submitted:self.resume_speech()
+                    restart=self.restart_after_finish and not self.shutdown.is_set()
+                    self.restart_after_finish=False
+                    if restart:self.listen(True)
+
     def record(self,epoch):
+        if getattr(self,'voxtype',None):return self.record_voxtype(epoch)
         proc=None;submitted=False
         try:
             while not self.ready.wait(.1):

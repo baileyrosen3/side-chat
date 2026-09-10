@@ -14,7 +14,8 @@ Rectangle {
         property var peek: ({stage:"idle",ready:false,preview:true,expressiveness:1,listening:false,speaking:false,muted:false})
         property bool busy: false
         property string error: ""
-        function request(command) { }
+        property var commands: []
+        function request(command) { commands=commands.concat([command]) }
         function openConversation() { }
         function openPeekSettings() { }
         function setPeek(enabled,reopen) { }
@@ -119,6 +120,15 @@ Rectangle {
             tryCompare(buddy.animation,"energy",0,400)
             buddy.reducedMotion=true;buddy.inputLevel=.5
             compare(buddy.animation.energy,0)
+        }
+        function test_voxtype_mic_uses_one_toggle_request() {
+            chat.peek={stage:"idle",ready:true,preview:false,expressiveness:1,listening:false,speaking:false,muted:false,asrModel:"voxtype",handsFree:false,wakeEnabled:false}
+            chat.commands=[];surface.visible=true;surface.controlsVisible=true;wait(80)
+            var mic=findChild(surface,"companion-mic");verify(mic);mic.clicked()
+            compare(chat.commands.length,1);compare(chat.commands[0].action,"peek_listen");compare(chat.commands[0].enabled,true)
+            chat.peek=Object.assign({},chat.peek,{listening:true});chat.commands=[];mic.clicked()
+            compare(chat.commands.length,1);compare(chat.commands[0].enabled,false)
+            surface.visible=false
         }
         function test_reduced_motion_stops_all_animation() {
             buddy.preview("success"); wait(100);

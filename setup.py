@@ -20,6 +20,7 @@ PEEK_PACKAGES = (
     "libpulse", "libsndfile", "chromium", "grim", "wtype", "python-gobject",
     "at-spi2-core", "brightnessctl", "playerctl",
 )
+VOXTYPE_PACKAGES = ("voxtype-bin",)
 INPUT_FILES = {
     "deploy/70-side-chat-input.rules": "/etc/udev/rules.d/70-side-chat-input.rules",
     "deploy/side-chat-input.conf": "/etc/modules-load.d/side-chat-input.conf",
@@ -31,7 +32,7 @@ def run(command, **kwargs):
     return subprocess.run(command, check=True, **kwargs)
 
 
-def missing_packages(with_peek=False):
+def missing_packages(with_peek=False, with_voxtype=False):
     packages = list(BASE_PACKAGES)
     if with_peek:
         packages.extend(PEEK_PACKAGES)
@@ -39,8 +40,10 @@ def missing_packages(with_peek=False):
         # conflicting Rust package or a second uv installation.
         if not shutil.which("uv"):
             packages.append("uv")
-        if not (shutil.which("cargo") and shutil.which("rustc")):
+        if not with_voxtype and not (shutil.which("cargo") and shutil.which("rustc")):
             packages.append("rust")
+    if with_voxtype:
+        packages.extend(VOXTYPE_PACKAGES)
     return [package for package in packages if subprocess.run(
         ["pacman", "-Q", package], stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL, check=False).returncode != 0]
@@ -119,7 +122,7 @@ def install_input_access():
     run(["udevadm", "settle"])
 
 
-def runtime_problems(with_kokoro=False, with_legacy=False):
+def runtime_problems(with_kokoro=False, with_legacy=False, with_voxtype=False):
     from peek.settings import DATA, DEFAULTS, model_path
 
     parakeet = DATA / "bin/peek-parakeet"
@@ -128,10 +131,14 @@ def runtime_problems(with_kokoro=False, with_legacy=False):
         # full setup run builds the new filename; the adapter can reuse this
         # binary in the meantime.
         parakeet = DATA / "bin/jarvis-parakeet"
-    required = [DATA / "runtime/bin/python", parakeet,
-                DATA / "bin/agent-browser", DATA / "models/silero_vad.onnx"]
-    required.extend(model_path(DEFAULTS) / name for name in
-                    ("encoder.onnx", "encoder.onnx.data", "decoder_joint.onnx", "tokenizer.model"))
+    required = [DATA / "runtime/bin/python", DATA / "bin/agent-browser"]
+    if not with_voxtype:
+        required.append(parakeet)
+        required.append(DATA / "models/silero_vad.onnx")
+        required.extend(model_path(DEFAULTS) / name for name in
+                         ("encoder.onnx", "encoder.onnx.data", "decoder_joint.onnx", "tokenizer.model"))
+    if with_legacy:
+        required.append(DATA / "models/silero_vad.onnx")
     if with_kokoro:
         required.append(DATA / "models/kokoro-int8-multi-lang-v1_0/model.int8.onnx")
     if with_legacy:
@@ -140,9 +147,13 @@ def runtime_problems(with_kokoro=False, with_legacy=False):
                             for part in ("encoder", "decoder", "joiner"))))
         required.append(DATA / "models/whisper-base.en/model.bin")
     problems = [f"Missing runtime file: {path}" for path in required if not path.is_file()]
+    if with_voxtype and not shutil.which("voxtype"):
+        problems.append("Voxtype executable is not on PATH. Install voxtype-bin and enable its user daemon.")
     python = DATA / "runtime/bin/python"
     if python.is_file():
-        imports = "import sherpa_onnx, numpy, soundfile, evdev, websockets, pocket_tts, torch, onnxruntime, pymicro_wakeword, pymicro_features"
+        imports = "import sherpa_onnx, numpy, soundfile, evdev, websockets, pocket_tts, torch, onnxruntime"
+        if not with_voxtype:
+            imports += ", pymicro_wakeword, pymicro_features"
         if with_legacy:
             imports += ", faster_whisper"
         result = subprocess.run([str(python), "-B", "-c", imports], capture_output=True, text=True,
@@ -156,11 +167,12 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--check", action="store_true", help="Report missing requirements; no installs or desktop changes")
     parser.add_argument("--with-peek", dest="with_peek", action="store_true", help="Install local speech models, runtime and computer-control tools")
+    parser.add_argument("--with-voxtype", action="store_true", help="Use the system Voxtype daemon for recognition; implies --with-peek")
     parser.add_argument("--with-kokoro", action="store_true", help="Include optional Kokoro speech; implies --with-peek")
     parser.add_argument("--with-legacy-asr", action="store_true", help="Include optional Zipformer/Whisper; implies --with-peek")
     parser.add_argument("--with-desktop-input", action="store_true", help="Grant active-seat input access for desktop control; implies --with-peek")
     args = parser.parse_args(argv)
-    with_peek = args.with_peek or args.with_kokoro or args.with_legacy_asr or args.with_desktop_input
+    with_peek = args.with_peek or args.with_voxtype or args.with_kokoro or args.with_legacy_asr or args.with_desktop_input
     if platform.system() != "Linux" or (with_peek and platform.machine() != "x86_64"):
         parser.error("Requires Linux; the bundled Peek runtime currently supports x86_64 only.")
     if os.geteuid() == 0:
@@ -168,7 +180,7 @@ def main(argv=None):
     for binary in ("omarchy", "omarchy-shell", "quickshell", "hyprctl", "pacman"):
         if not shutil.which(binary):
             parser.error(f"Missing {binary}. Use Omarchy with Quickshell plugin support (Quattro).")
-    missing = missing_packages(with_peek)
+    missing = missing_packages(with_peek, args.with_voxtype)
     print("Missing Arch packages: " + (", ".join(missing) or "none"), flush=True)
     problems = []
     if args.check:
@@ -188,6 +200,8 @@ def main(argv=None):
                 command.append("--with-kokoro")
             if args.with_legacy_asr:
                 command.append("--with-legacy-asr")
+            if args.with_voxtype:
+                command.append("--voxtype-only")
             run(command)
         if args.with_desktop_input:
             install_input_access()
@@ -195,7 +209,7 @@ def main(argv=None):
     if problem:
         problems.append(problem)
     if with_peek:
-        problems.extend(runtime_problems(args.with_kokoro, args.with_legacy_asr))
+        problems.extend(runtime_problems(args.with_kokoro, args.with_legacy_asr, args.with_voxtype))
         if args.with_desktop_input:
             problems.extend(input_problems())
         else:

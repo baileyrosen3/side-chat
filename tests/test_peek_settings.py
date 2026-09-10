@@ -36,6 +36,14 @@ class SettingsTests(unittest.TestCase):
         self.assertEqual(prefs['voice'],'af_heart')
         self.assertEqual(validate(prefs,{'ttsModel':'pocket'},check_files=False)['voice'],'alba')
 
+    def test_voxtype_mode_requires_manual_activation(self):
+        prefs=validate(DEFAULTS,{'asrModel':'voxtype','handsFree':False,'wakeEnabled':False},check_files=False)
+        self.assertEqual(prefs['asrModel'],'voxtype')
+        for values in ({'asrModel':'voxtype'}, {'asrModel':'voxtype','handsFree':True},
+                       {'asrModel':'voxtype','wakeEnabled':True,'handsFree':False}):
+            with self.subTest(values=values), self.assertRaisesRegex(ValueError,'manual push-to-talk'):
+                validate(DEFAULTS,values,check_files=False)
+
     def test_busy_model_or_mode_change_does_not_cancel_task_or_save(self):
         with tempfile.TemporaryDirectory() as folder:
             b=Bridge(folder,lambda _:None)

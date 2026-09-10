@@ -76,8 +76,8 @@ This is not a second AI account or a web wrapper. Side Chat uses your installed 
 
 ### Voice and computer control
 
-- Uses local Parakeet speech recognition and Pocket TTS by default; optional Kokoro and legacy ASR are available.
-- Offers wake phrase, hands-free follow-ups, barge-in, mute, stop, and device selection.
+- Uses local Parakeet speech recognition and Pocket TTS by default; optional Voxtype-backed recognition, Kokoro, and legacy ASR are available.
+- Offers wake phrase, hands-free follow-ups, barge-in, mute, stop, and device selection. Voxtype mode uses its existing daemon as Peek's single ASR process, avoiding a second multi-gigabyte Parakeet load.
 - Handles common volume, brightness, media, app, workspace, timer, and web commands locally.
 - Can operate accessible desktop controls or an isolated Chromium session while showing action state, verification, and a stop control.
 - Stores opt-in memories, routines, watches, and tracked config restore points in local SQLite.
@@ -153,6 +153,27 @@ python3 setup.py --with-peek --with-desktop-input
 This installs named udev/module configuration and grants your active seat access to input and virtual-input devices. It does not run the agent as root or add your user to the `input` group. Log out and back in if the final device check asks you to.
 
 Optional engines include `python3 setup.py --with-kokoro` and `python3 setup.py --with-legacy-asr`; both imply Peek setup.
+
+### 3. Use Voxtype for recognition (optional)
+
+If Voxtype is already installed, this keeps Peek's spoken replies and assistant controls but removes Peek's duplicate ASR model. For a fresh setup, use:
+
+```bash
+cd ~/.config/omarchy/plugins/blr.side-chat
+python3 setup.py --with-voxtype
+python3 setup.py --check --with-voxtype
+```
+
+Open **Peek settings → Speech → Recognition → Model**, choose **Voxtype · shared daemon**, and apply. Peek starts Voxtype in private file mode and sends the finished transcript through the normal assistant queue; it never types into the focused application or overwrites your clipboard. Turn the Peek microphone on and off with the usual Peek keybinding.
+
+Voxtype mode is manual push-to-talk: wake phrase, automatic silence endpointing, and Peek's local microphone/device controls are unavailable because Voxtype owns those responsibilities. Configure Voxtype itself in `~/.config/voxtype/config.toml`. To keep the large model unloaded while idle, enable its on-demand mode and restart the daemon:
+
+```bash
+voxtype config set parakeet.on_demand_loading true
+systemctl --user restart voxtype
+```
+
+The normal `--with-peek` path remains available when you want Peek's bundled wake phrase, hands-free listening, streaming partials, or local device routing.
 
 ## Keybindings
 
@@ -272,6 +293,13 @@ That is Omarchy's review screen. Confirm it at the prompt, or rerun `omarchy plu
 <summary><strong>An agent, microphone, model, or control dependency is unavailable</strong></summary>
 
 Run `python3 setup.py --check` with the same Peek, engine, and desktop-input flags you installed. Checks do not download models, start the microphone, or send an agent request. Agent authentication must be completed in that CLI's terminal. Audio devices remain managed by PipeWire/Omarchy. Browser mode can work without native desktop-input access.
+
+</details>
+
+<details>
+<summary><strong>Voxtype mode cannot start or stays recording</strong></summary>
+
+Confirm the daemon is running with `systemctl --user status voxtype` and that `voxtype status` responds. Peek's Voxtype mode records until you toggle its microphone off; it does not use the bundled wake phrase or silence endpointing. If you want those behaviors, switch Recognition back to **Parakeet Unified** and run setup with `--with-peek`.
 
 </details>
 

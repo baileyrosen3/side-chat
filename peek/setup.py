@@ -25,17 +25,19 @@ PARAKEET_REPO = 'bobNight/parakeet-unified-en-0.6b-onnx'
 PARAKEET_REV = '09e9060322d99c5f070010724786e6ee090fd51d'
 
 
-def preflight(models_only=False):
+def preflight(models_only=False, voxtype_only=False):
     if platform.system() != 'Linux' or platform.machine() != 'x86_64':
         raise SystemExit('The pinned Peek binaries currently require Linux x86_64.')
     if os.geteuid() == 0:
         raise SystemExit('Run speech setup as your desktop user, without sudo.')
     if not models_only:
-        missing = [name for name in ('uv', 'cargo', 'rustc', 'cc') if not shutil.which(name)]
+        required = ['uv', 'cc']
+        if not voxtype_only:required += ['cargo', 'rustc']
+        missing = [name for name in required if not shutil.which(name)]
         if missing:
             raise SystemExit('Missing build tools: '+', '.join(missing)+
                              '. Run python3 setup.py --with-peek from the plugin root.')
-        if not Path(__file__).with_name('parakeet').joinpath('Cargo.lock').is_file():
+        if not voxtype_only and not Path(__file__).with_name('parakeet').joinpath('Cargo.lock').is_file():
             raise SystemExit('Missing peek/parakeet/Cargo.lock. Download the complete plugin source.')
 
 
@@ -59,18 +61,19 @@ def fetch(url, path, expected=None):
     temp.replace(path)
 
 
-def models(with_kokoro=False, with_legacy=False):
+def models(with_kokoro=False, with_legacy=False, with_parakeet=True):
     target = ROOT/'models'
     target.mkdir(parents=True, exist_ok=True)
-    existing=model_path(DEFAULTS)
     names=('encoder.onnx','encoder.onnx.data','decoder_joint.onnx','tokenizer.model')
-    if all((existing/name).is_file() for name in names):
-        print('Reusing Parakeet: '+str(existing),flush=True)
-    else:
-        tree=json.load(urllib.request.urlopen(f'https://huggingface.co/api/models/{PARAKEET_REPO}/tree/{PARAKEET_REV}'))
-        files={f['path']:f for f in tree}
-        for name in names:
-            fetch(f'https://huggingface.co/{PARAKEET_REPO}/resolve/{PARAKEET_REV}/{name}',target/'parakeet-unified-en-0.6b'/name,files[name].get('lfs',{}).get('oid'))
+    if with_parakeet:
+        existing=model_path(DEFAULTS)
+        if all((existing/name).is_file() for name in names):
+            print('Reusing Parakeet: '+str(existing),flush=True)
+        else:
+            tree=json.load(urllib.request.urlopen(f'https://huggingface.co/api/models/{PARAKEET_REPO}/tree/{PARAKEET_REV}'))
+            files={f['path']:f for f in tree}
+            for name in names:
+                fetch(f'https://huggingface.co/{PARAKEET_REPO}/resolve/{PARAKEET_REV}/{name}',target/'parakeet-unified-en-0.6b'/name,files[name].get('lfs',{}).get('oid'))
     if with_legacy:
         tree = json.load(urllib.request.urlopen(f'https://huggingface.co/api/models/{ASR_REPO}/tree/{ASR_REV}'))
         files = {f['path']: f for f in tree}
@@ -84,7 +87,8 @@ def models(with_kokoro=False, with_legacy=False):
         with tarfile.open(archive) as package:
             package.extractall(target, filter='data')
         archive.unlink()
-    fetch('https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx', target/'silero_vad.onnx', '9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6')
+    if with_parakeet or with_legacy:
+        fetch('https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models/silero_vad.onnx', target/'silero_vad.onnx', '9e2449e1087496d8d4caba907f23e0bd3f78d91fa552479bb9c23ac09cbb1fd6')
     print('Models ready: '+str(target), flush=True)
 
 
@@ -115,10 +119,11 @@ def inventory():
 if __name__ == '__main__':
     parser=argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--models-only',action='store_true',help='Only fetch streaming ASR and VAD artifacts')
+    parser.add_argument('--voxtype-only',action='store_true',help='Skip Peek Parakeet and VAD artifacts; use the system Voxtype daemon for recognition')
     parser.add_argument('--with-kokoro',action='store_true',help='Also fetch the optional Kokoro benchmark model')
     parser.add_argument('--with-legacy-asr',action='store_true',help='Also install Zipformer + Whisper as an optional recognition engine')
     args=parser.parse_args()
-    preflight(args.models_only)
+    preflight(args.models_only,args.voxtype_only)
     if not args.models_only:
         if not (ROOT/'runtime/bin/python').exists():
             subprocess.run(['uv','venv','--python','3.12',str(ROOT/'runtime')],check=True)
@@ -126,14 +131,15 @@ if __name__ == '__main__':
         if args.with_legacy_asr:
             subprocess.run(['uv','pip','install','--python',str(ROOT/'runtime/bin/python'),
                             '-r',str(Path(__file__).with_name('requirements-legacy.txt'))],check=True)
-    models(args.with_kokoro,args.with_legacy_asr)
+    models(args.with_kokoro,args.with_legacy_asr,not args.voxtype_only)
     if not args.models_only:
-        if not shutil.which('cargo'):raise SystemExit('Building the Parakeet adapter requires cargo (Rust). Install Rust, then rerun setup.')
-        subprocess.run(['cargo','build','--release','--locked','--manifest-path',str(Path(__file__).with_name('parakeet')/'Cargo.toml')],
-                       env=dict(os.environ,CARGO_TARGET_DIR=str(ROOT/'build/parakeet')),check=True)
-        (ROOT/'bin').mkdir(parents=True,exist_ok=True)
-        shutil.copy2(ROOT/'build/parakeet/release/peek-parakeet',ROOT/'bin/peek-parakeet.new')
-        (ROOT/'bin/peek-parakeet.new').replace(ROOT/'bin/peek-parakeet')
+        if not args.voxtype_only:
+            if not shutil.which('cargo'):raise SystemExit('Building the Parakeet adapter requires cargo (Rust). Install Rust, then rerun setup.')
+            subprocess.run(['cargo','build','--release','--locked','--manifest-path',str(Path(__file__).with_name('parakeet')/'Cargo.toml')],
+                           env=dict(os.environ,CARGO_TARGET_DIR=str(ROOT/'build/parakeet')),check=True)
+            (ROOT/'bin').mkdir(parents=True,exist_ok=True)
+            shutil.copy2(ROOT/'build/parakeet/release/peek-parakeet',ROOT/'bin/peek-parakeet.new')
+            (ROOT/'bin/peek-parakeet.new').replace(ROOT/'bin/peek-parakeet')
         if args.with_legacy_asr:subprocess.run([str(ROOT/'runtime/bin/python'), '-c',
             "from huggingface_hub import snapshot_download; snapshot_download('Systran/faster-whisper-base.en',revision='3d3d5dee26484f91867d81cb899cfcf72b96be6c',local_dir="+repr(str(ROOT/'models/whisper-base.en'))+",allow_patterns=['config.json','model.bin','tokenizer.json','vocabulary.*','README.md'])"], check=True)
         subprocess.run([str(ROOT/'runtime/bin/python'), '-c', 'from peek.engines import pocket; pocket()'],

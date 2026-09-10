@@ -195,11 +195,11 @@ Item {
                     id:mic;objectName:"companion-mic"
                     glyph:root.voice.listening ? "mic" : "mic-off";accent:!!root.voice.listening
                     enabled:!!root.voice.ready && !root.voice.preview
-                    hint:root.voice.preview ? "Preview · microphone disabled" : root.voice.standby ? "Wake Peek" : !root.voice.handsFree && !root.voice.wakeEnabled ? "Hold to talk" : root.voice.listening ? "Mute microphone" : "Listen"
-                    onClicked: if(root.voice.standby) chat.request({action:"peek_wake"}); else if(root.voice.handsFree || root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:!root.voice.listening})
-                    onPressed: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:true})
-                    onReleased: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_finish"})
-                    onCanceled: if(!root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:false})
+                    hint:root.voice.preview ? "Preview · microphone disabled" : root.voice.standby ? "Wake Peek" : root.voice.asrModel === "voxtype" ? (root.voice.listening ? "Stop Voxtype recording" : "Start Voxtype recording") : !root.voice.handsFree && !root.voice.wakeEnabled ? "Hold to talk" : root.voice.listening ? "Mute microphone" : "Listen"
+                    onClicked: if(root.voice.standby) chat.request({action:"peek_wake"}); else if(root.voice.asrModel === "voxtype" || root.voice.handsFree || root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:!root.voice.listening})
+                    onPressed: if(root.voice.asrModel !== "voxtype" && !root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:true})
+                    onReleased: if(root.voice.asrModel !== "voxtype" && !root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_finish"})
+                    onCanceled: if(root.voice.asrModel !== "voxtype" && !root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:false})
                 }
                 ActionButton { objectName:"companion-stop";glyph:"stop";hint:"Stop speech and actions · Ctrl+Alt+Esc";enabled:chat.busy || root.voice.speaking || root.voice.stage === "acting";onClicked:chat.request({action:"peek_stop"}) }
                 ActionButton { glyph:"chat";hint:"Open conversation";onClicked:chat.openConversation() }
