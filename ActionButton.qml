@@ -13,11 +13,12 @@ AbstractButton {
     property bool subtle: false
     property bool selected: false
     property bool tab: false
-    property bool uppercase: tab || accent
+    property bool danger: false
+    property bool uppercase: tab
     property int textAlignment: Text.AlignHCenter
     property string hint: ""
-    property color ink: accent || selected ? ui.accentInk : subtle && !hovered && !activeFocus ? ui.muted : ui.foreground
-    readonly property real lift: accent || tab && selected ? ui.shadow : 0
+    property color ink: danger ? Theme.readable(ui.danger, ui.foreground, ui.surface) : accent || selected ? ui.accentInk : subtle && !hovered && !activeFocus ? ui.muted : ui.foreground
+    readonly property real lift: accent || danger || tab && selected ? ui.shadow : 0
 
     implicitWidth: Math.max(ui.controlHeight, content.implicitWidth + leftPadding + rightPadding)
     implicitHeight: ui.controlHeight
@@ -124,9 +125,9 @@ AbstractButton {
             y: x
             width: parent.width - root.lift
             height: parent.height - root.lift
-            color: root.accent || root.selected ? ui.accent : root.hovered || root.activeFocus ? ui.secondary : root.subtle || root.tab ? "transparent" : ui.field
-            border.width: root.activeFocus || root.accent ? ui.stroke : root.selected || !root.subtle && !root.tab ? 1 : 0
-            border.color: root.activeFocus || root.accent ? ui.foreground : ui.border
+            color: root.danger ? ui.danger : root.accent || root.selected ? ui.accent : root.hovered || root.activeFocus ? ui.secondary : root.subtle || root.tab ? "transparent" : ui.field
+            border.width: root.activeFocus || root.accent || root.danger ? ui.stroke : root.selected || !root.subtle && !root.tab ? 1 : 0
+            border.color: root.activeFocus || root.accent || root.danger ? ui.foreground : ui.border
         }
 
     }

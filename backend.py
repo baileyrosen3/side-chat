@@ -262,12 +262,14 @@ class Bridge(NativeBridge):
         row = self.db.execute("SELECT value FROM settings WHERE key='preferences'").fetchone()
         if row:
             self.settings.update(json.loads(row[0]))
-        self.appearance = {"outline": True}
+        self.appearance = {"outline": True, "expanded": False}
         row = self.db.execute("SELECT value FROM settings WHERE key='appearance'").fetchone()
         if row:
             saved = json.loads(row[0])
-            if isinstance(saved, dict) and isinstance(saved.get("outline"), bool):
-                self.appearance["outline"] = saved["outline"]
+            if isinstance(saved, dict):
+                for key in ("outline", "expanded"):
+                    if isinstance(saved.get(key), bool):
+                        self.appearance[key] = saved[key]
         for row in self.db.execute("SELECT id,data FROM chats").fetchall():
             chat = json.loads(row[1])
             dirty = False
@@ -651,9 +653,10 @@ class Bridge(NativeBridge):
                     self.save(self.current)
             elif action == "appearance":
                 options = command.get("settings")
-                if not isinstance(options, dict) or set(options) != {"outline"} or not isinstance(options["outline"], bool):
-                    raise ValueError("Outline must be on or off.")
-                self.appearance = {"outline": options["outline"]}
+                if (not isinstance(options, dict) or not options or not set(options) <= {"outline", "expanded"}
+                        or not all(isinstance(value, bool) for value in options.values())):
+                    raise ValueError("Outline and expanded view must be on or off.")
+                self.appearance = dict(self.appearance, **options)
                 self.db.execute("INSERT OR REPLACE INTO settings VALUES ('appearance',?)", (json.dumps(self.appearance),))
                 self.db.commit()
                 self.emit(type="meta", meta=self.metadata())
@@ -681,6 +684,7 @@ class Bridge(NativeBridge):
                     self.current["options"] = dict(self.settings)
                     self.save(self.current)
                 self.snapshot()
+                self.emit(type="settings_saved")
             elif action == "export":
                 if not self.current:
                     raise ValueError("Start a conversation to export it.")

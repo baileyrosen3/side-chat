@@ -12,7 +12,7 @@ import time
 
 FILES = ["manifest.json", "Main.qml", "ChatWindow.qml", "MessageCard.qml", "ActionButton.qml",
          "Icon.qml", "Theme.js", "Markdown.js", "backend.py", "agent_session.py", "native_bridge.py",
-         "terminal_session.py", "ToolActivity.qml", "AgentPrompt.qml", "PeekView.qml", "PeekBuddy.qml",
+         "terminal_session.py", "ToolActivity.qml", "AgentPrompt.qml", "PeekBuddy.qml",
          "AgentPointer.qml", "PeekSettings.qml", "CompanionSettings.qml", "CompanionWindow.qml", "CompanionSurface.qml", "RoundedGeometry.qml", "VoiceStatus.js", "COPYING.PEEK", "THIRD_PARTY.md", "README.md", "LICENSE"]
 FILES += ["RobotExpressions.js", "CompanionMotion.qml", "RobotAppearance.qml", "PeekModel.qml",
           "RobotFace.qml", "SculptGeometry.qml", "assets/companion/studio.hdr",

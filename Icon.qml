@@ -54,6 +54,8 @@ Canvas {
         case "folder": c.moveTo(3,7); c.lineTo(3,19); c.lineTo(21,19); c.lineTo(21,7); c.lineTo(12,7); c.lineTo(10,4); c.lineTo(3,4); c.closePath(); break
         case "shield": c.moveTo(12,3); c.lineTo(20,6); c.lineTo(19,14); c.quadraticCurveTo(17,19,12,22); c.quadraticCurveTo(7,19,5,14); c.lineTo(4,6); c.closePath(); line(8,12,11,15); line(11,15,16,9); break
         case "search": c.arc(10.5,10.5,6.5,0,Math.PI*2); line(15.5,15.5,21,21); break
+        case "trash": line(4,7,20,7); line(9,7,9,4); line(9,4,15,4); line(15,4,15,7); c.moveTo(6,7); c.lineTo(7,20); c.lineTo(17,20); c.lineTo(18,7); line(10,11,10,17); line(14,11,14,17); break
+        case "external": c.moveTo(10,5); c.lineTo(4,5); c.lineTo(4,20); c.lineTo(19,20); c.lineTo(19,14); line(20,4,11,13); line(14,4,20,4); line(20,4,20,10); break
         }
         c.stroke()
     }

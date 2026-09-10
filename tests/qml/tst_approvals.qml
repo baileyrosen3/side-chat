@@ -83,10 +83,27 @@ Rectangle {
             wait(30)
             var deny = findChild(prompt, "deny-action")
             verify(deny.mapToItem(prompt, 0, deny.height).y <= prompt.height)
-            verify(prompt.height < 230)
+            verify(prompt.height < 260)
+            // A truncated command must be readable in full before deciding.
+            var expand = findChild(prompt, "prompt-expand")
+            verify(expand.visible)
+            var collapsed = prompt.height
+            mouseClick(expand)
+            wait(30)
+            verify(prompt.expanded)
+            verify(prompt.height > collapsed + 100)
+            verify(deny.mapToItem(prompt, 0, deny.height).y <= prompt.height)
+            mouseClick(expand)
+            wait(30)
+            verify(!prompt.expanded)
+            compare(prompt.height, collapsed)
             mouseClick(deny)
             compare(chat.commands.length, 1)
             compare(chat.commands[0].cancelled, true)
+        }
+        function test_short_request_has_no_expand_toggle() {
+            wait(30)
+            verify(!findChild(prompt, "prompt-expand").visible)
         }
         function test_buttons_fit_narrow_panel() {
             wait(30)

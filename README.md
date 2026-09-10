@@ -53,7 +53,7 @@ All screenshots use fixture content. No microphone, provider session, or private
 
 ## Your agent, without another terminal in the way
 
-Move to the lower-left edge of either display and Side Chat peels into view. Leave it and the preview disappears; click or type and it stays open. Replies keep running when the panel closes, short conversations stay compact, and long ones scroll naturally.
+Move to the lower-left edge of either display and Side Chat peels into view. Leave it and the preview disappears; click it and it stays open. Replies keep running when the panel closes and a desktop notification tells you when one is ready. Short conversations stay compact, and long ones scroll naturally.
 
 This is not a second AI account or a web wrapper. Side Chat uses your installed CLI, its authentication, its provider, and its native conversation format. Start in the drawer, continue the same session in a full terminal, then return without losing the thread.
 
@@ -212,7 +212,7 @@ The second command should report no errors.
 
 ## Use
 
-Move the pointer into the bottom 160 scaled pixels of the left screen edge. Click or type to pin the panel open; use Escape, Close, or click outside to dismiss it.
+Move the pointer into the bottom 160 scaled pixels of the left screen edge. Click to pin the panel open; use Escape, Close, or click outside to dismiss it. While Peek is on, edge hover is off so it cannot fight with dragging him; open chat from Peek's controls or your keybinding instead.
 
 | Shortcut | Action |
 | --- | --- |

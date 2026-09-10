@@ -23,7 +23,9 @@ PanelWindow {
     readonly property real drawerCorner: px(16)
     readonly property real contentInset: px(14)
     property real reveal: opened ? 1 : 0
-    property bool expanded: false
+    readonly property bool expanded: !!(chat.meta.appearance && chat.meta.appearance.expanded)
+    property bool settingsPending: false
+    readonly property bool nativeFolderLocked: !!(chat.current && chat.current.native)
     property string historySearch: ""
     property string deletingId: ""
     property string copied: ""
@@ -52,11 +54,50 @@ PanelWindow {
     }
 
     function showSettings() {
-        modelField.text = chat.meta.settings.model || "";
-        cwdField.text = chat.meta.settings.cwd || "";
-        thinking.currentIndex = Math.max(0, ["default", "low", "medium", "high"].indexOf(chat.meta.settings.thinking));
+        // Show what this conversation actually runs with, not the global defaults.
+        var source = chat.current && chat.current.options ? chat.current.options : chat.meta.settings;
+        modelField.text = source.model || "";
+        cwdField.text = source.cwd || "";
+        thinking.currentIndex = Math.max(0, ["default", "low", "medium", "high"].indexOf(source.thinking));
+        settingsPending = false;
         chat.page = "settings";
         chat.pin();
+    }
+
+    function setExpanded(value) {
+        chat.request({
+            "action": "appearance",
+            "settings": {
+                "expanded": !!value
+            }
+        });
+    }
+
+    // Leave the current page toward where the user came from.
+    function leavePage() {
+        if (chat.page === "peek_settings" && chat.returnPage === "settings")
+            showSettings();
+        else
+            chat.page = "chat";
+    }
+
+    // One Escape ladder for every focus target: leave a page, cancel an edit, then hide.
+    function pressEscape() {
+        if (chat.page !== "chat") {
+            leavePage();
+        } else if (chat.editIndex >= 0) {
+            chat.editIndex = -1;
+            chat.draft = "";
+        } else {
+            chat.close();
+        }
+    }
+
+    function when(seconds) {
+        var date = new Date(seconds * 1000), now = new Date();
+        if (date.toDateString() === now.toDateString())
+            return Qt.formatDateTime(date, "h:mm ap");
+        return Qt.formatDateTime(date, date.getFullYear() === now.getFullYear() ? "MMM d" : "MMM d, yyyy");
     }
 
     onPointerInsideChanged: chat.hover(screen.name, pointerInside)
@@ -76,7 +117,7 @@ PanelWindow {
     onOpenedChanged: {
         if (opened) {
             chat.panelWidth = width;
-            chat.notice = "";
+            chat.settleNotice();
             if (chat.pinned && !chat.peek.enabled)
                 Qt.callLater(() => {
                 return composer.forceActiveFocus();
@@ -104,6 +145,21 @@ PanelWindow {
         function onFocusComposer() {
             if (window.opened)
                 composer.forceActiveFocus();
+
+        }
+
+        function onSettingsSaved() {
+            if (!window.settingsPending)
+                return;
+
+            window.settingsPending = false;
+            chat.page = "chat";
+            composer.forceActiveFocus();
+        }
+
+        function onErrorChanged() {
+            if (chat.error)
+                window.settingsPending = false;
 
         }
 
@@ -247,14 +303,7 @@ PanelWindow {
             x: -Math.round((1 - window.reveal) * window.px(12))
             opacity: Math.max(0, Math.min(1, (window.reveal - 0.16) / 0.84))
             Keys.onEscapePressed: (event) => {
-                if (chat.page !== "chat") {
-                    chat.page = "chat";
-                } else if (chat.editIndex >= 0) {
-                    chat.editIndex = -1;
-                    chat.draft = "";
-                } else {
-                    chat.close();
-                }
+                window.pressEscape();
                 event.accepted = true;
             }
 
@@ -316,9 +365,9 @@ PanelWindow {
                     ActionButton {
                         visible: chat.page !== "chat"
                         glyph: "back"
-                        hint: "Back to chat · Esc"
+                        hint: (chat.page === "peek_settings" && chat.returnPage === "settings" ? "Back to preferences" : "Back to chat") + " · Esc"
                         subtle: true
-                        onClicked: chat.page = "chat"
+                        onClicked: window.leavePage()
                     }
 
                     Rectangle {
@@ -375,7 +424,8 @@ PanelWindow {
                         glyph: window.expanded ? "collapse" : "expand"
                         hint: window.expanded ? "Compact view" : "Expand view"
                         subtle: true
-                        onClicked: window.expanded = !window.expanded
+                        enabled: chat.connected
+                        onClicked: window.setExpanded(!window.expanded)
                     }
 
                     ActionButton {
@@ -426,6 +476,18 @@ PanelWindow {
                             color: ui.muted
                             font.family: ui.family
                             font.pixelSize: ui.small
+                        }
+
+                        ActionButton {
+                            visible: !chat.meta.available
+                            glyph: "external"
+                            text: "Choose default agent"
+                            accent: true
+                            hint: "Opens the Omarchy agent setup menu"
+                            onClicked: {
+                                chat.close();
+                                Quickshell.execDetached(["omarchy-menu", "summon", "setup.default.agent"]);
+                            }
                         }
 
                         Flow {
@@ -503,7 +565,7 @@ PanelWindow {
                             // Parent to the viewport, outside both the scroll content and page layout.
                             parent: thread
                             objectName: "jump-to-latest"
-                            visible: !window.followBottom && chat.messages.length > 0
+                            visible: !window.followBottom && chat.messages.length > 0 && thread.contentHeight > thread.height + 1
                             anchors.right: parent.right
                             anchors.bottom: parent.bottom
                             anchors.margins: window.px(6)
@@ -583,8 +645,12 @@ PanelWindow {
                                 required property string modelData
                                 required property int index
 
-                                text: decodeURIComponent(modelData.split("/").pop()).slice(0, 24) + "  ×"
-                                hint: "Remove attachment"
+                                readonly property string fileName: decodeURIComponent(modelData.split("/").pop())
+
+                                text: fileName
+                                trailingGlyph: "close"
+                                Layout.maximumWidth: window.px(170)
+                                hint: "Remove " + fileName
                                 implicitHeight: ui.controlHeight
                                 onClicked: chat.removeAttachment(index)
                             }
@@ -631,7 +697,7 @@ PanelWindow {
                                             chat.pin();
 
                                     }
-                                    placeholderText: chat.terminalOpen ? "Session open in terminal…" : chat.busy ? (chat.peek.enabled ? "Correct or redirect…" : "Your next message…") : "Message " + chat.agentName + "…"
+                                    placeholderText: chat.terminalOpen ? "Session open in terminal…" : chat.busy ? (chat.peek.enabled ? "Correct or redirect…" : "Draft your next message…") : "Message " + chat.agentName + "…"
                                     placeholderTextColor: window.dim
                                     color: window.fg
                                     selectionColor: Theme.alpha(ui.emphasis, 0.4)
@@ -658,7 +724,7 @@ PanelWindow {
                                             event.accepted = false;
                                         }
                                     }
-                                    Keys.onEscapePressed: chat.close()
+                                    Keys.onEscapePressed: window.pressEscape()
                                 }
 
                             }
@@ -711,7 +777,8 @@ PanelWindow {
 
                                 ActionButton {
                                     visible: !!chat.current && chat.current.bashApproval === "always"
-                                    text: "Bash ✓"
+                                    glyph: "check"
+                                    text: "Bash"
                                     selected: true
                                     enabled: !chat.terminalOpen
                                     hint: "Bash commands are allowed in this conversation. Click to ask again."
@@ -882,7 +949,7 @@ PanelWindow {
                                         }
 
                                         Text {
-                                            text: chat.agentLabel(historyRow.modelData.agent) + " · " + Qt.formatDateTime(new Date(historyRow.modelData.updated * 1000), "MMM d")
+                                            text: chat.agentLabel(historyRow.modelData.agent) + " · " + window.when(historyRow.modelData.updated)
                                             color: window.dim
                                             font.family: window.family
                                             font.pixelSize: ui.small
@@ -895,7 +962,7 @@ PanelWindow {
                                 }
 
                                 ActionButton {
-                                    glyph: "close"
+                                    glyph: "trash"
                                     hint: "Delete conversation"
                                     opacity: historyHover.hovered || activeFocus || window.deletingId === historyRow.modelData.id ? 1 : 0
                                     subtle: true
@@ -923,6 +990,8 @@ PanelWindow {
 
                                 ActionButton {
                                     text: "Delete"
+                                    danger: true
+                                    hint: "Deletes this conversation permanently"
                                     onClicked: {
                                         chat.request({
                                             "action": "delete",
@@ -981,7 +1050,7 @@ PanelWindow {
                     sourceComponent: Component {
                         PeekSettings {
                             chat: window.chat
-                            onDone: window.showSettings()
+                            onDone: window.leavePage()
                         }
 
                     }
@@ -1006,6 +1075,13 @@ PanelWindow {
                         width: parent.width - window.px(6)
                         spacing: window.px(8)
                         ChatSection { text: "Conversation" }
+
+                        SettingLabel {
+                            Layout.fillWidth: true
+                            text: "Changes in this section apply immediately."
+                            font.weight: Font.Normal
+                            wrapMode: Text.WordWrap
+                        }
 
                         SettingLabel { visible: chat.messages.length > 0; text: "Conversation name" }
                         ChatField {
@@ -1051,6 +1127,14 @@ PanelWindow {
                         }
 
                         ChatSection { text: "Agent" }
+
+                        SettingLabel {
+                            Layout.fillWidth: true
+                            text: window.nativeFolderLocked ? "Saved with the Save button. Saving restarts this native session before the next message." : "Saved with the Save button. Changing the folder resets this conversation’s permission choices."
+                            font.weight: Font.Normal
+                            wrapMode: Text.WordWrap
+                        }
+
                         RowLayout {
                             Layout.fillWidth: true
 
@@ -1061,8 +1145,8 @@ PanelWindow {
 
                             ActionButton {
                                 text: chat.meta.agentName
-                                glyph: "expand"
-                                hint: "Change the default agent in Omarchy"
+                                glyph: "external"
+                                hint: "Opens the Omarchy agent setup menu"
                                 onClicked: {
                                     chat.close();
                                     Quickshell.execDetached(["omarchy-menu", "summon", "setup.default.agent"]);
@@ -1107,6 +1191,14 @@ PanelWindow {
 
                         }
 
+                        SettingLabel {
+                            visible: !thinking.enabled
+                            Layout.fillWidth: true
+                            text: chat.agentName + " does not expose a thinking level here."
+                            font.weight: Font.Normal
+                            wrapMode: Text.WordWrap
+                        }
+
                         ColumnLayout {
                             Layout.fillWidth: true
                             spacing: window.px(4)
@@ -1123,15 +1215,25 @@ PanelWindow {
                                     id: cwdField
 
                                     Layout.fillWidth: true
+                                    enabled: !window.nativeFolderLocked
                                     Accessible.name: "Working folder"
                                 }
 
                                 ActionButton {
                                     glyph: "folder"
-                                    hint: "Choose folder"
+                                    hint: window.nativeFolderLocked ? "This native session keeps its folder" : "Choose folder"
+                                    enabled: !window.nativeFolderLocked
                                     onClicked: folderDialog.open()
                                 }
 
+                            }
+
+                            SettingLabel {
+                                visible: window.nativeFolderLocked
+                                Layout.fillWidth: true
+                                text: "A native session keeps its folder. Start a new conversation to work elsewhere."
+                                font.weight: Font.Normal
+                                wrapMode: Text.WordWrap
                             }
 
                         }
@@ -1146,23 +1248,19 @@ PanelWindow {
                             text: "Peek settings"
                             glyph: "orb"
                             subtle: true
-                            onClicked: chat.page = "peek_settings"
+                            onClicked: chat.openPeekSettings("settings")
                         }
 
                         ActionButton {
+                            // Native sessions already have Terminal in the chat footer.
+                            visible: !chat.nativeSession
                             glyph: "terminal"
-                            text: chat.nativeSession ? "Continue in terminal" : "Open agent in terminal"
+                            text: "Open agent in terminal"
                             subtle: true
-                            enabled: !chat.busy && !chat.terminalOpen && (!chat.nativeSession || !!(chat.current && chat.current.native))
+                            enabled: !chat.busy && !chat.terminalOpen
                             onClicked: {
-                                if (chat.nativeSession) {
-                                    chat.request({
-                                    "action": "terminal"
-                                });
-                                } else {
-                                    chat.close();
-                                    Quickshell.execDetached(["omarchy", "agent"]);
-                                }
+                                chat.close();
+                                Quickshell.execDetached(["omarchy", "agent"]);
                             }
                         }
 
@@ -1174,7 +1272,7 @@ PanelWindow {
 
                         SettingLabel {
                             Layout.fillWidth: true
-                            text: "Enter: send · Shift+Enter: new line\nCtrl+N: new · Ctrl+H: history · Esc: close"
+                            text: "Enter: send · Shift+Enter: new line\nCtrl+N: new · Ctrl+H: history · Esc: back or close\nWhile Peek is on, open chat from Peek or your keybinding; edge hover is off."
                             wrapMode: Text.WordWrap
                         }
 
@@ -1195,9 +1293,15 @@ PanelWindow {
                     spacing: window.px(4)
 
                     ActionButton {
-                        text: "Save"
+                        objectName: "save-settings"
+                        text: window.settingsPending ? "Saving…" : "Save"
                         accent: true
+                        enabled: chat.connected && !chat.busy && !window.settingsPending
+                        hint: chat.busy ? "Wait for the reply to finish" : "Save agent settings"
                         onClicked: {
+                            // Stay on the page until the backend confirms; errors land in the notice row below.
+                            window.settingsPending = true;
+                            chat.error = "";
                             chat.request({
                                 "action": "settings",
                                 "settings": {
@@ -1206,14 +1310,13 @@ PanelWindow {
                                     "cwd": cwdField.text
                                 }
                             });
-                            chat.page = "chat";
-                            composer.forceActiveFocus();
                         }
                     }
 
                     ActionButton {
                         text: "Back"
                         subtle: true
+                        hint: "Leave without saving agent settings"
                         onClicked: chat.page = "chat"
                     }
 

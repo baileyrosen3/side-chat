@@ -16,6 +16,10 @@ ColumnLayout {
     property var saved: ({})
     property bool pending: false
     readonly property bool dirty: JSON.stringify(draft) !== JSON.stringify(saved)
+    // Memory, routines, watches and undo save on their own; the Apply footer only governs preferences.
+    readonly property bool dataTab: section === "Companion" && !!companion.item && companion.item.section !== "Appearance"
+    readonly property var defaults: chat.peek.defaults || ({})
+    readonly property bool atDefaults: keys.every(key => defaults[key] === undefined || draft[key] === defaults[key])
     readonly property string listeningMode: draft.wakeEnabled ? "wake" : draft.handsFree ? "open" : "hold"
     readonly property color dim: ui.muted
     readonly property var keys: ["asrModel","modelPath","asrThreads","streamingProfile","ttsModel","ttsThreads","voice","volume","speechRate","spokenProgress","adaptivePause","noiseRejection","handsFree","endSilence","minSpeech","vadThreshold","maxUtterance","bargeIn","echoCancellation","source","sink","muted","scope","reducedMotion","wakeEnabled","wakeThreshold","followupSeconds","screenContext","selectionContext","screenImages","memoryEnabled","quickCommands","personality","expressiveness"]
@@ -24,6 +28,11 @@ ColumnLayout {
     function reset() {
         var next = {}; for (var key of keys) next[key] = chat.peek[key]
         saved = next; draft = Object.assign({},next)
+    }
+    function restoreDefaults() {
+        var next = Object.assign({}, draft)
+        for (var key of keys) if (defaults[key] !== undefined) next[key] = defaults[key]
+        draft = next
     }
     function set(key, value) {
         var next=Object.assign({},draft)
@@ -200,6 +209,7 @@ ColumnLayout {
         }
     }
     Loader {
+        id: companion
         visible: root.section === "Companion"; active: visible
         Layout.preferredHeight: Math.min(item ? item.contentHeight : 0, Style.space(420))
         Layout.fillWidth: true; Layout.fillHeight: true
@@ -209,10 +219,19 @@ ColumnLayout {
     RowLayout {
         Layout.fillWidth: true
         ActionButton {
+            objectName: "peek-apply"
+            visible: !root.dataTab || root.dirty
             text: root.pending ? "Applying…" : "Apply"; accent: true; enabled: root.dirty && !chat.busy && !root.pending
             onClicked: { var changed={}; for (var key of root.keys) if (root.draft[key] !== root.saved[key]) changed[key]=root.draft[key]; root.pending=true; chat.request({action:"peek_settings",settings:changed}) }
         }
         ActionButton { text: root.dirty ? "Discard" : "Back"; subtle: true; onClicked: { if (root.dirty) root.reset(); else root.done() } }
-        Note { text: chat.busy ? "Task running" : root.dirty ? "Unsaved changes" : "Saved"; horizontalAlignment: Text.AlignRight }
+        ActionButton {
+            objectName: "peek-defaults"
+            visible: !root.dataTab && Object.keys(root.defaults).length > 0
+            text: "Defaults"; subtle: true; enabled: !root.atDefaults && !chat.busy
+            hint: "Restore the built-in Peek preferences, then Apply"
+            onClicked: root.restoreDefaults()
+        }
+        Note { text: root.dataTab && !root.dirty ? "" : chat.busy ? "Task running" : root.dirty ? "Unsaved changes" : "Saved"; horizontalAlignment: Text.AlignRight }
     }
 }

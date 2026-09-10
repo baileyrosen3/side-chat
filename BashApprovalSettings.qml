@@ -26,6 +26,7 @@ ColumnLayout {
             color: ui.muted
             font.family: ui.family
             font.pixelSize: ui.small
+            font.weight: Font.DemiBold
         }
         ActionButton {
             objectName: "bash-ask"

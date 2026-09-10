@@ -141,11 +141,11 @@ class BridgeTests(unittest.TestCase):
         self.assertEqual(self.bridge.current['agent'], 'claude')
 
     def test_outline_defaults_persists_and_resets_without_changing_session(self):
-        self.assertEqual(self.bridge.metadata()['appearance'], {'outline': True})
+        self.assertEqual(self.bridge.metadata()['appearance'], {'outline': True, 'expanded': False})
         self.bridge.new()
         original_options = dict(self.bridge.current['options'])
         self.bridge.dispatch({'action': 'appearance', 'settings': {'outline': False}})
-        self.assertEqual(self.events[-1]['meta']['appearance'], {'outline': False})
+        self.assertEqual(self.events[-1]['meta']['appearance'], {'outline': False, 'expanded': False})
         self.assertEqual(self.bridge.current['options'], original_options)
         self.assertNotIn('outline', self.bridge.settings)
         self.bridge.close()
@@ -175,11 +175,24 @@ class BridgeTests(unittest.TestCase):
 
     def test_invalid_outline_values_are_rejected_without_saving(self):
         for options in (None, [], {}, {'outline': 'false'}, {'outline': 0},
-                        {'outline': None}, {'outline': False, 'model': 'unexpected'}):
+                        {'outline': None}, {'outline': False, 'model': 'unexpected'}, {'expanded': 'yes'}):
             with self.subTest(options=options), self.assertRaisesRegex(ValueError, 'Outline'):
                 self.bridge.dispatch({'action': 'appearance', 'settings': options})
         self.assertTrue(self.bridge.appearance['outline'])
         self.assertIsNone(self.bridge.db.execute("SELECT value FROM settings WHERE key='appearance'").fetchone())
+
+    def test_expanded_view_persists_beside_outline(self):
+        self.bridge.dispatch({'action': 'appearance', 'settings': {'expanded': True}})
+        self.assertEqual(self.bridge.appearance, {'outline': True, 'expanded': True})
+        self.bridge.dispatch({'action': 'appearance', 'settings': {'outline': False}})
+        self.assertEqual(self.bridge.appearance, {'outline': False, 'expanded': True})
+        self.bridge.close()
+        self.bridge = Bridge(self.path / 'state', self.events.append)
+        self.assertEqual(self.bridge.appearance, {'outline': False, 'expanded': True})
+
+    def test_saving_preferences_confirms_to_the_ui(self):
+        self.bridge.dispatch({'action': 'settings', 'settings': {'cwd': str(self.path), 'model': 'm'}})
+        self.assertEqual(self.events[-1]['type'], 'settings_saved')
 
     def test_export_delete_and_invalid_attachment(self):
         self.send('Export me')

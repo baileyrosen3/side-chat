@@ -12,15 +12,15 @@ ColumnLayout {
     spacing: Style.space(5)
     visible: (task.total || 0) > 0
     function stateLabel(state) {
-        return ({running:"Working",verified:"Verified",observed:"Observed",performed:"Performed",
-                 failed:"Failed",stopped:"Stopped",unconfirmed:"Not confirmed"})[state] || state
+        return ({running:"Working",verified:"Checked",observed:"Read",performed:"Done",
+                 failed:"Failed",stopped:"Stopped",unconfirmed:"Unchecked"})[state] || state
     }
     ActionButton {
         objectName: "task-details-toggle"
         Layout.fillWidth: true
         subtle: true
         textAlignment: Text.AlignLeft
-        text: root.task.total + (root.task.total === 1 ? " step" : " steps") + (root.task.checked ? " · " + root.task.checked + " verified" : "")
+        text: root.task.total + (root.task.total === 1 ? " step" : " steps") + (root.task.checked ? " · " + root.task.checked + " checked" : "")
         trailingGlyph: root.expanded ? "chevron-up" : "chevron-down"
         hint: root.expanded ? "Hide action details" : "Show performed actions and checks"
         checkable: true; checked: root.expanded

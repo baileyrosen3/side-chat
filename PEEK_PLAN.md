@@ -202,7 +202,7 @@ The existing panel morphs into a compact companion dock, still connected to the 
 
 Proposed modules; names can change during implementation:
 
-- `PeekView.qml`, `PeekBuddy.qml`, `PeekControls.qml`: mode UI, companion, captions, controls.
+- `CompanionSurface.qml`, `PeekBuddy.qml`, `TaskDetails.qml`: companion body, captions, and hover controls.
 - `AgentPointer.qml`: one overlay per output, shared geometry transforms, no input region.
 - `peek/controller.py`: mode lifecycle, transcript/turn routing, stop, speech queue, and session ownership.
 - `peek/audio.py`, `peek/stt.py`, `peek/tts.py`: persistent local audio/model workers.

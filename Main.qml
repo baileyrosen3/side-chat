@@ -26,6 +26,8 @@ Scope {
     property int editIndex: -1
     property string draft: ""
     property string page: "chat"
+    // Where Peek settings returns to: "chat" from the companion, "settings" from Preferences.
+    property string returnPage: "chat"
     property string activity: "Thinking…"
     property string streamingText: ""
     property string streamingModel: ""
@@ -45,6 +47,7 @@ Scope {
     }
     signal focusComposer()
     signal companionControlsRequested()
+    signal settingsSaved()
 
     function agentLabel(id) {
         return ({omp: "Oh My Pi", pi: "Pi", claude: "Claude", codex: "Codex", opencode: "OpenCode", gemini: "Gemini", copilot: "Copilot", crush: "Crush", grok: "Grok"})[id] || id
@@ -77,7 +80,11 @@ Scope {
         request({action:"peek",enabled:enabled,accent:String(Color.accent)})
     }
     function openConversation() { show(companionScreen || (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : Quickshell.screens[0].name),true); page="chat" }
-    function openPeekSettings() { openConversation(); page="peek_settings" }
+    function openPeekSettings(from) { openConversation(); returnPage = from === "settings" ? "settings" : "chat"; page="peek_settings" }
+    function settleNotice() { if (notice) noticeClear.restart() }
+    function announce(title, body) {
+        Quickshell.execDetached(["notify-send", "-a", "Side Chat", "-i", "dialog-information", String(title), String(body || "")])
+    }
     function toggle() { openScreen ? close() : open() }
     function hover(screenName, inside) {
         if (peek.enabled && !openScreen) return
@@ -109,6 +116,9 @@ Scope {
         }
         if (peek.enabled && busy && draft.trim()) {
             request({action:"peek_say",text:draft}); draft=""; return
+        }
+        if (busy && draft.trim()) {
+            notice = "Reply still running. Press Stop to interrupt, or wait to send."; noticeClear.restart(); return
         }
         if (busy || terminalOpen || !draft.trim()) return
         pin(); draftSave.stop(); error = ""
@@ -157,7 +167,12 @@ Scope {
                 attachments = []; editIndex = -1
             }
             if (began) { streamingText = ""; streamingModel = ""; streamingTools = []; activity = "Thinking…" }
-            if (finished && !openScreen) { notice = "Reply ready" }
+            if (finished && !openScreen) {
+                notice = "Reply ready"
+                var last = messages.length ? messages[messages.length - 1] : null
+                if (!peek.enabled && last && last.role === "assistant" && !last.error && last.status !== "stopped")
+                    announce("Reply ready", current ? current.title : "")
+            }
             restoring = false
             if (finished && draft.length) draftSave.restart()
         } else if (event.type === "delta") {
@@ -168,6 +183,8 @@ Scope {
         } else if (event.type === "agent_ui") {
             agentRequests = event.requests
             if (agentRequests.length && openScreen) pin()
+        } else if (event.type === "settings_saved") {
+            settingsSaved()
         } else if (event.type === "agent_draft") {
             draft = event.text
         } else if (event.type === "meta") {

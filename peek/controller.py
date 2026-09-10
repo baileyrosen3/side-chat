@@ -105,7 +105,7 @@ class PeekController:
             saved=json.loads(row[0])
             try:self.prefs=validate(self.prefs,{k:v for k,v in saved.items() if k in DEFAULTS},check_files=False)
             except ValueError:pass
-        self.state=dict(self.prefs,enabled=False,ready=False,listening=False,speaking=False,stage='off',caption='',partial='',inputLevel=0,outputLevel=0,error='',devices=[])
+        self.state=dict(self.prefs,defaults=dict(DEFAULTS),enabled=False,ready=False,listening=False,speaking=False,stage='off',caption='',partial='',inputLevel=0,outputLevel=0,error='',devices=[])
         self.state.update(model_info(self.prefs))
         self.correction_paused=False
         self.user_speaking=False;self.last_delta=0

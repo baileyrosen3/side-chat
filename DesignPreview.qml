@@ -6,10 +6,11 @@ ShellRoot {
  id: fixture
  QtObject {
   id: chat
-  property var peek: {"preview": true, "scope": "desktop", "source": "", "sink": "", "voice": "alba", "handsFree": true, "muted": false, "reducedMotion": false, "bargeIn": true, "echoCancellation": true, "asrModel": "parakeet-unified", "modelPath": "", "asrThreads": 4, "streamingProfile": "balanced", "endSilence": 0.65, "minSpeech": 0.18, "vadThreshold": 0.55, "maxUtterance": 25, "ttsModel": "pocket", "ttsThreads": 4, "volume": 1.0, "speechRate": 1.0, "wakeEnabled": false, "wakeThreshold": 0.97, "followupSeconds": 12, "screenContext": "on-request", "selectionContext": false, "screenImages": true, "memoryEnabled": true, "quickCommands": true, "personality": "balanced", "expressiveness": 1.0, "companionPosition": 0.16, "enabled": false, "ready": true, "listening": false, "speaking": false, "stage": "listening", "caption": "", "partial": "", "inputLevel": 0.35, "outputLevel": 0.3, "devices": [], "memories": [], "routines": [], "watches": [], "restorePoints": []}
+  property var peek: {"preview": true, "scope": "desktop", "source": "", "sink": "", "voice": "alba", "handsFree": true, "muted": false, "reducedMotion": false, "bargeIn": true, "echoCancellation": true, "asrModel": "parakeet-unified", "modelPath": "", "asrThreads": 4, "streamingProfile": "balanced", "endSilence": 0.65, "minSpeech": 0.18, "vadThreshold": 0.55, "maxUtterance": 25, "ttsModel": "pocket", "ttsThreads": 4, "volume": 1.0, "speechRate": 1.0, "wakeEnabled": false, "wakeThreshold": 0.97, "followupSeconds": 12, "screenContext": "on-request", "selectionContext": false, "screenImages": true, "memoryEnabled": true, "quickCommands": true, "personality": "balanced", "expressiveness": 1.0, "companionPosition": 0.16, "defaults": {"endSilence": 0.45, "streamingProfile": "fast", "handsFree": true, "wakeEnabled": false, "noiseRejection": "balanced", "scope": "desktop"}, "enabled": false, "ready": true, "listening": false, "speaking": false, "stage": "listening", "caption": "", "partial": "", "inputLevel": 0.35, "outputLevel": 0.3, "devices": [], "memories": [], "routines": [], "watches": [], "restorePoints": []}
   property string companionScreen: Quickshell.screens[Quickshell.screens.length-1].name
   property string openScreen: companionScreen
   property string page: "chat"
+  property string returnPage: "chat"
   property real panelWidth: 350
   property bool pinned: true
   property bool connected: true
@@ -37,9 +38,12 @@ ShellRoot {
   property var lastRequest: ({})
   signal focusComposer()
   signal companionControlsRequested()
+  signal settingsSaved()
+  function settleNotice() { notice="" }
   function request(c) {
    lastRequest=c
-   if(c.action === "appearance") meta=Object.assign({},meta,{appearance:c.settings})
+   if(c.action === "settings") settingsSaved()
+   if(c.action === "appearance") meta=Object.assign({},meta,{appearance:Object.assign({},meta.appearance || {},c.settings)})
    if(c.action === "permission_mode") current=Object.assign({},current,{permissionMode:c.mode})
    if(c.action === "peek_settings") peek=Object.assign({},peek,c.settings)
    if(c.action === "peek_listen") peek=Object.assign({},peek,{listening:c.enabled})
@@ -50,7 +54,7 @@ ShellRoot {
   function show(screen,persistent) { openScreen=screen;pinned=persistent }
   function setPeek(v,reopen) { peek=Object.assign({},peek,{enabled:v});if(v) close();else if(reopen !== false) openConversation() }
   function openConversation() { openScreen=companionScreen;page="chat" }
-  function openPeekSettings() { openConversation();page="peek_settings" }
+  function openPeekSettings(from) { openConversation();returnPage=from === "settings" ? "settings" : "chat";page="peek_settings" }
   function startNew() { current=Object.assign({},current,{messages:[]});draft="";page="chat" }
   function submit() { lastRequest={action:"send",text:draft};draft="" }
   function edit(i) { draft=messages[i].text;editIndex=i }
@@ -92,7 +96,7 @@ ShellRoot {
    var settings=chat.findItem(panel.contentItem,"companion-settings")
    if(settings) settings.section=name
   }
-  function expand(enabled: bool): void { panel.expanded=enabled }
+  function expand(enabled: bool): void { chat.request({action:"appearance",settings:{expanded:enabled}}) }
   function finish(): void { Qt.quit() }
   function peek(enabled: bool): void { chat.peek=Object.assign({},chat.peek,{enabled:enabled}) }
   function taskScenario(name: string): void {

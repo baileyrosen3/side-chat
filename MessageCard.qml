@@ -275,7 +275,7 @@ Item {
                                     chat.pin();
 
                             }
-                            Keys.onEscapePressed: chat.close()
+                            Keys.onEscapePressed: host.pressEscape()
                         }
 
                     }

@@ -17,6 +17,7 @@ ColumnLayout {
             color: ui.muted
             font.family: Style.font.family
             font.pixelSize: ui.small
+            font.weight: Font.DemiBold
         }
         ChatSwitch {
             objectName: "outline-toggle"
@@ -30,7 +31,7 @@ ColumnLayout {
             text: "Reset"
             subtle: true
             enabled: root.chat.connected
-            onClicked: root.chat.request({action: "appearance", settings: {outline: true}})
+            onClicked: root.chat.request({action: "appearance", settings: {outline: true, expanded: false}})
         }
     }
 }

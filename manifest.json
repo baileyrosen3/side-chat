@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "blr.side-chat",
   "name": "Side Chat",
-  "version": "1.12.1",
+  "version": "1.13.0",
   "author": "blr",
   "license": "GPL-3.0-or-later AND MIT",
   "description": "Omarchy edge chat and local Peek voice with native agent sessions and visible computer control.",

@@ -55,7 +55,7 @@ Column {
                         onClicked: toolRow.detailsOpen = !toolRow.detailsOpen
                         contentItem: RowLayout {
                             spacing: root.host.px(5)
-                            Text { text: toolRow.modelData.status === "running" ? "·" : toolRow.modelData.status === "complete" ? "✓" : "×"; color: toolRow.modelData.status === "error" ? ui.danger : ui.emphasis; font.family: root.host.family; font.pixelSize: ui.small }
+                            Icon { name: toolRow.modelData.status === "running" ? "chevron-right" : toolRow.modelData.status === "complete" ? "check" : "close"; ink: toolRow.modelData.status === "error" ? ui.danger : toolRow.modelData.status === "running" ? ui.muted : ui.emphasis; Layout.preferredWidth: root.host.px(11); Layout.preferredHeight: root.host.px(11) }
                             Text { Layout.maximumWidth: parent.width * 0.45; elide: Text.ElideRight; text: Theme.toolName(toolRow.modelData.name); color: root.host.fg; font.family: root.host.family; font.pixelSize: ui.small; font.weight: Font.Bold }
                             Text {
                                 Layout.fillWidth: true

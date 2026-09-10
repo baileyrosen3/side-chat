@@ -150,8 +150,18 @@ Item {
                 Layout.fillWidth: true
                 Text { text:"PEEK";color:ui.muted;font.family:ui.family;font.pixelSize:ui.caption;font.letterSpacing:.8;font.weight:Font.DemiBold }
                 Item { Layout.fillWidth:true }
-                Text { text:root.voice.scope === "browser" ? "Browser" : "Desktop";color:ui.muted;font.family:ui.family;font.pixelSize:ui.caption }
+                ActionButton {
+                    objectName:"companion-scope"
+                    text:root.voice.scope === "browser" ? "Browser" : "Desktop"
+                    glyph:root.voice.scope === "browser" ? "globe" : "desktop"
+                    subtle:true;implicitHeight:Style.space(20)
+                    enabled:!chat.busy
+                    hint:chat.busy ? "Finish or stop the task to switch" : root.voice.scope === "browser" ? "Isolated browser · click to use the desktop" : "Desktop · click to use the isolated browser"
+                    onClicked:root.setting("scope",root.voice.scope === "desktop" ? "browser" : "desktop")
+                }
                 Row {
+                    // Level meter. Hidden at rest so it never reads as a “…” menu.
+                    visible:!!(root.voice.listening || root.voice.speaking)
                     spacing:Style.space(2);Layout.preferredWidth:Style.space(10);Layout.preferredHeight:Style.space(12)
                     Repeater {
                         model:3
@@ -195,7 +205,7 @@ Item {
                     id:mic;objectName:"companion-mic"
                     glyph:root.voice.listening ? "mic" : "mic-off";accent:!!root.voice.listening
                     enabled:!!root.voice.ready && !root.voice.preview
-                    hint:root.voice.preview ? "Preview · microphone disabled" : root.voice.standby ? "Wake Peek" : root.voice.asrModel === "voxtype" ? (root.voice.listening ? "Stop Voxtype recording" : "Start Voxtype recording") : !root.voice.handsFree && !root.voice.wakeEnabled ? "Hold to talk" : root.voice.listening ? "Mute microphone" : "Listen"
+                    hint:root.voice.preview ? "Preview · microphone disabled" : root.voice.standby ? "Wake Peek" : root.voice.asrModel === "voxtype" ? (root.voice.listening ? "Stop Peek microphone" : "Start Peek microphone · Voxtype") : !root.voice.handsFree && !root.voice.wakeEnabled ? "Hold to talk" : root.voice.listening ? "Mute microphone" : "Listen"
                     onClicked: if(root.voice.standby) chat.request({action:"peek_wake"}); else if(root.voice.asrModel === "voxtype" || root.voice.handsFree || root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:!root.voice.listening})
                     onPressed: if(root.voice.asrModel !== "voxtype" && !root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:true})
                     onReleased: if(root.voice.asrModel !== "voxtype" && !root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_finish"})
@@ -210,9 +220,8 @@ Item {
                 visible:root.controlsPinned
                 Layout.fillWidth:true;spacing:Style.space(4)
                 ActionButton { glyph:root.voice.muted ? "muted" : "volume";hint:root.voice.muted ? "Unmute replies" : "Mute spoken replies";accent:!!root.voice.muted;onClicked:root.setting("muted",!root.voice.muted) }
-                ActionButton { glyph:root.voice.scope === "browser" ? "globe" : "desktop";hint:root.voice.scope === "browser" ? "Switch to desktop" : "Switch to isolated browser";enabled:!chat.busy;onClicked:root.setting("scope",root.voice.scope === "desktop" ? "browser" : "desktop") }
-                ActionButton { glyph:"settings";hint:"Peek settings";onClicked: { root.controlsPinned=false;chat.openPeekSettings() } }
-                ActionButton { glyph:"sleep";hint:root.voice.wakeEnabled ? "Stand by for the wake phrase" : "Mute microphone and pause";onClicked: { chat.request({action:"peek_standby"});root.controlsPinned=false } }
+                ActionButton { glyph:"settings";hint:"Peek settings";onClicked: { root.controlsPinned=false;chat.openPeekSettings("chat") } }
+                ActionButton { glyph:"sleep";hint:root.voice.wakeEnabled ? "Stand by · the wake phrase still listens" : "Stand by · microphone off until you wake Peek";onClicked: { chat.request({action:"peek_standby"});root.controlsPinned=false } }
                 Item { Layout.fillWidth:true }
                 ActionButton { glyph:"power";hint:"Turn Peek off";onClicked:chat.setPeek(false,false) }
             }

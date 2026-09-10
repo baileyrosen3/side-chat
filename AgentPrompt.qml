@@ -10,6 +10,9 @@ Rectangle {
     required property var request
     required property var chat
     required property var host
+    property bool expanded: false
+    readonly property real collapsedHeight: host.px(120)
+    readonly property bool overflows: promptColumn.implicitHeight > collapsedHeight + 1
 
     function answer(values) {
         values.action = "agent_ui_response";
@@ -48,8 +51,10 @@ Rectangle {
         }
 
         Flickable {
+            id: promptView
+
             Layout.fillWidth: true
-            Layout.preferredHeight: Math.min(root.host.px(120), promptColumn.implicitHeight)
+            Layout.preferredHeight: Math.min(root.expanded ? root.host.px(420) : root.collapsedHeight, promptColumn.implicitHeight)
             contentWidth: width
             contentHeight: promptColumn.implicitHeight
             clip: true
@@ -67,7 +72,7 @@ Rectangle {
                     text: root.request.message || ""
                     readOnly: true
                     selectByMouse: true
-                    wrapMode: TextEdit.WrapAnywhere
+                    wrapMode: TextEdit.WrapAtWordBoundaryOrAnywhere
                     color: ui.foreground
                     font.family: ui.family
                     font.pixelSize: ui.small
@@ -92,9 +97,27 @@ Rectangle {
             }
 
             ScrollBar.vertical: ChatScrollBar {
-                width: root.host.px(3)
+                width: root.host.px(4)
             }
 
+        }
+
+        ActionButton {
+            objectName: "prompt-expand"
+            // Never ask for approval of a command the user cannot read in full.
+            visible: root.overflows || root.expanded
+            subtle: true
+            glyph: root.expanded ? "chevron-up" : "chevron-down"
+            text: root.expanded ? "Show less" : "Show the full request"
+            textAlignment: Text.AlignLeft
+            Layout.fillWidth: true
+            implicitHeight: root.host.px(22)
+            onClicked: {
+                root.expanded = !root.expanded;
+                if (!root.expanded)
+                    promptView.contentY = 0;
+
+            }
         }
 
         ChatField {
