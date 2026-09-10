@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Prepare Side Chat dependencies without replacing the Omarchy plugin checkout."""
 import argparse
+import json
 import os
 from pathlib import Path
 import platform
@@ -85,6 +86,22 @@ def input_problems():
     return problems
 
 
+def require_peek_idle():
+    """Refuse a voice-runtime replacement while the current worker is active."""
+    status = subprocess.run(["omarchy-shell", PLUGIN, "status"], capture_output=True,
+                            text=True, timeout=5, check=False)
+    if status.returncode:
+        return
+    try:
+        state = json.loads(status.stdout)
+    except ValueError:
+        raise SystemExit("Could not read Side Chat status. Disable the plugin before voice setup.")
+    # `jarvis` is the state key used by installations before the Peek rename.
+    voice = state.get("peek") or state.get("jarvis") or {}
+    if state.get("busy") or (isinstance(voice, dict) and voice.get("enabled")):
+        raise SystemExit("Finish the current reply and power Peek off before voice setup.")
+
+
 def install_input_access():
     print("Granting the active local seat user access to keyboard/mouse events and uinput.\n"
           "This lets applications running as that user observe input and inject events.", flush=True)
@@ -157,21 +174,15 @@ def main(argv=None):
     if args.check:
         problems.extend("Missing package: " + package for package in missing)
     else:
+        if with_peek:
+            # Do this before installing packages or replacing the private
+            # runtime, so an active microphone session is never interrupted.
+            require_peek_idle()
         if missing:
             run(["omarchy", "pkg", "add", *missing])
         if with_peek:
             # Model/build changes are separate from plugin updates, which never
             # execute this script. Do not replace a running voice runtime.
-            status = subprocess.run(["omarchy-shell", PLUGIN, "status"], capture_output=True,
-                                    text=True, timeout=5, check=False)
-            if status.returncode == 0:
-                import json
-                try:
-                    state = json.loads(status.stdout)
-                except ValueError:
-                    raise SystemExit("Could not read Side Chat status. Disable the plugin before voice setup.")
-                if state.get("busy") or state.get("peek", {}).get("enabled"):
-                    raise SystemExit("Finish the current reply and power Peek off before voice setup.")
             command = [sys.executable, "-B", str(SOURCE / "peek/setup.py")]
             if args.with_kokoro:
                 command.append("--with-kokoro")

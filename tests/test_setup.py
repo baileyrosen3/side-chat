@@ -71,10 +71,21 @@ class SetupTests(unittest.TestCase):
     def test_package_failure_stops_before_downloads(self):
         with patch("setup.shutil.which", return_value="/bin/tool"), \
              patch("setup.missing_packages", return_value=["chromium"]), \
+             patch("setup.subprocess.run", return_value=subprocess.CompletedProcess([], 1)), \
              patch("setup.run", side_effect=subprocess.CalledProcessError(1, "omarchy")) as mutate:
             with self.assertRaises(subprocess.CalledProcessError):
                 setup.main(["--with-peek"])
             self.assertEqual(mutate.call_count, 1)
+
+    def test_active_old_voice_state_blocks_before_package_install(self):
+        with patch("setup.shutil.which", return_value="/bin/tool"), \
+             patch("setup.missing_packages", return_value=["chromium"]), \
+             patch("setup.subprocess.run", return_value=subprocess.CompletedProcess(
+                 [], 0, '{"jarvis":{"enabled":true}}')), \
+             patch("setup.run") as mutate:
+            with self.assertRaisesRegex(SystemExit, "power Peek off"):
+                setup.main(["--with-peek"])
+            mutate.assert_not_called()
 
     def test_reuses_existing_tools_and_skips_installed_packages(self):
         def query(command, **kwargs):
