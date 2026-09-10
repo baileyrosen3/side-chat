@@ -77,7 +77,10 @@ def validate(current, values, check_files=True):
 
 def model_info(prefs):
     path=model_path(prefs)
-    return {'modelResolvedPath':str(path), 'parakeetAvailable':all((path/n).is_file() for n in ('encoder.onnx','encoder.onnx.data','decoder_joint.onnx','tokenizer.model')),
+    binary=DATA/'bin/peek-parakeet'
+    if not binary.is_file():binary=DATA/'bin/jarvis-parakeet'
+    parakeet= binary.is_file() and all((path/n).is_file() for n in ('encoder.onnx','encoder.onnx.data','decoder_joint.onnx','tokenizer.model'))
+    return {'modelResolvedPath':str(path), 'parakeetAvailable':parakeet,
             'voxtypeAvailable':shutil.which('voxtype') is not None,
             'kokoroAvailable':(DATA/'models/kokoro-int8-multi-lang-v1_0/model.int8.onnx').is_file()}
 
