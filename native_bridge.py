@@ -185,6 +185,7 @@ class NativeBridge:
                      'balanced':'Warm, clear, concise spoken replies. Explain only what helps.',
                      'witty':'Concise, capable, lightly witty. Never let jokes obscure results or failures.'}[self.peek.prefs['personality']]
             text = ('[Current Peek interface context]\nYour companion name is Peek. Use Peek when referring to yourself.\n' + scope_instruction(self.peek.prefs['scope'])
+                    + '\nVoice requests reach you as locally transcribed text. For a voice-link check, acknowledge receiving the words; do not treat the absence of raw audio as a broken microphone. You cannot verify what the user hears from their speakers. '
                     + '\n'+persona+' Your public replies are spoken aloud as they stream. Use natural contractions, short sentences, and conversational language. '
                     + 'Lead with the useful answer; avoid ceremonial introductions, markdown-heavy lists, and reading paths or code aloud. '
                     + ('For work requiring tools, give one short public sentence about the next useful step before starting; add a brief update only at meaningful milestones or delays. '

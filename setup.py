@@ -156,6 +156,10 @@ def runtime_problems(with_kokoro=False, with_legacy=False, with_voxtype=False, w
     problems = [f"Missing runtime file: {path}" for path in required if not path.is_file()]
     if with_voxtype and not shutil.which("voxtype"):
         problems.append("Voxtype executable is not on PATH. Install voxtype-bin and enable its user daemon.")
+    elif with_voxtype and not with_parakeet:
+        from peek.voxtype import compatibility_problem
+        if problem := compatibility_problem():
+            problems.append(problem)
     python = DATA / "runtime/bin/python"
     if python.is_file():
         imports = "import sherpa_onnx, numpy, soundfile, evdev, websockets, pocket_tts, torch, onnxruntime"

@@ -84,6 +84,25 @@ class ActivityTests(unittest.TestCase):
         self.assertEqual(self.voice.state['stage'],'thinking')
         self.assertEqual(self.voice.state['caption'],'Peek is thinking…')
 
+    def test_shared_microphone_start_clears_stale_feedback(self):
+        self.bridge.busy=False
+        self.voice.prefs['asrModel']='voxtype'
+        self.voice.state.update(error='Old error',caption='Old reply',inputNotice='Old notice')
+        self.voice.voice_event({'type':'microphone','active':True})
+        self.assertEqual(self.voice.state['stage'],'listening')
+        self.assertIn('again to send',self.voice.state['caption'])
+        self.assertEqual(self.voice.state['error'],'')
+        self.assertEqual(self.voice.state['inputNotice'],'')
+
+    def test_failed_start_resets_toggle_for_immediate_retry(self):
+        self.voice.want_listen=True
+        self.voice.voice_event({'type':'microphone','active':False,'failed':True})
+        self.assertFalse(self.voice.want_listen)
+
+    def test_shared_input_level_reaches_interface(self):
+        self.voice.voice_event({'type':'level','input':.6})
+        self.assertEqual(self.voice.state['inputLevel'],.6)
+
     def test_completed_tool_returns_to_thinking_until_turn_finishes(self):
         tools=[{'name':'read','status':'running'}]
         self.bridge.current['messages'][-1]['tools']=tools

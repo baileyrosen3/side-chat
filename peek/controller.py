@@ -364,7 +364,8 @@ class PeekController:
         self.invalidate_input()
         with self.guard:self.feedback.finish()
         self.companion.generation+=1;self.correction_paused=False
-        self.pending='';self.bridge.cancelled.set();self.send_worker({'action':'cancel'})
+        if self.prefs['asrModel']=='voxtype':self.want_listen=False
+        self.pending='';self.bridge.cancelled.set();self.send_worker({'action':'cancel','input':True})
         self.send_worker({'action':'engaged','enabled':False})
         if self.control and self.control.poll() is None:
             try:control_request(self.socket,{'op':'_stop'})
@@ -538,12 +539,15 @@ class PeekController:
             self.send_worker({'action':'listen','enabled':self.want_listen})
             self.refresh_activity()
         elif kind=='microphone':
+            if e.get('failed'):self.want_listen=False
             finalizing=not e['active'] and e.get('finishing') is True
             if not e['active']:
                 self.user_speaking=False;self.transcribing=finalizing
                 if not finalizing:self.resume_input()
             values={'hearing':False,'transcribing':finalizing} if not e['active'] else {}
             if finalizing:values['caption']='Understanding what you said…'
+            elif e['active'] and self.prefs['asrModel']=='voxtype':
+                values.update(caption='Listening · toggle the microphone again to send',error='',inputNotice='',partial='')
             elif not e['active']:values['partial']=''
             self.publish(listening=e['active'],inputLevel=0,**values)
             self.refresh_activity()

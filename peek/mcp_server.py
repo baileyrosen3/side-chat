@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 """Standard stdio MCP transport for the same Peek computer broker."""
 import json,os,sys,threading
+sys.dont_write_bytecode=True  # Plugin file changes trigger a live Omarchy reload.
 from pathlib import Path
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]))
 from peek.control import request

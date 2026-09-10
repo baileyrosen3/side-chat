@@ -3,20 +3,39 @@
 
 Voxtype owns microphone capture and ASR in this mode.  Peek asks the daemon to
 write one transcript to a private file, then reads that file after recording
-finishes.  Keeping the bridge file-backed avoids depending on Voxtype's
-internal IPC protocol while still allowing Peek to preserve its own input,
-agent, and speech queues.
+finishes. Recording control and transcripts use the CLI/file contract. Optional
+level telemetry reads the daemon's audio socket without capturing audio or
+loading another model; losing telemetry never prevents transcription.
 """
 import json
+import math
 import os
 from pathlib import Path
 import shutil
+import socket
+import struct
 import subprocess
 import threading
+import time
 
 
 class VoxtypeError(RuntimeError):
     """A user-actionable Voxtype integration failure."""
+
+
+def compatibility_problem():
+    # Check the running daemon, not the CLI on PATH: signal-only clients can
+    # control a newer daemon installed through a systemd user override.
+    runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}')) / 'voxtype'
+    try:
+        version = (runtime / 'version').read_text().strip()
+    except OSError:
+        return None  # Older daemons may not publish a version; not a capability probe.
+    if version == '1.0.1':
+        return ('Peek requires a fixed Voxtype daemon: unpatched 1.0.1 can type streaming recordings '
+                'into the focused app instead of the private transcript. See docs/voxtype.md '
+                'for the pinned build, or select a downloaded local recognizer.')
+    return None
 
 
 class VoxtypeBridge:
@@ -31,6 +50,61 @@ class VoxtypeBridge:
         self.path = None
         self.active = False
         self.sequence = 0
+        self.runtime = Path(os.environ.get('XDG_RUNTIME_DIR', f'/run/user/{os.getuid()}')) / 'voxtype'
+        self.meter = None
+        self.meter_pending = b''
+        self.meter_retry = 0
+
+    def status(self):
+        result = self._run(['status', '--format', 'json'], 3)
+        try:
+            return json.loads(result.stdout)['alt']
+        except (ValueError, KeyError, TypeError) as exc:
+            raise VoxtypeError('Could not read Voxtype status. Check that its daemon is running.') from exc
+
+    def level(self):
+        """Read optional level metadata, never open another microphone stream.
+
+        Voxtype broadcasts native-endian (sequence, min, max, dBFS) frames.
+        Missing telemetry must not prevent transcription on older daemons.
+        Drain at 10 Hz; a slow consumer otherwise gets disconnected upstream.
+        """
+        if not self.active:
+            return 0.0
+        try:
+            if self.meter is None:
+                if time.monotonic() < self.meter_retry:
+                    return 0.0
+                self.meter_retry = time.monotonic() + 1
+                self.meter = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+                self.meter.settimeout(.05)
+                self.meter.connect(str(self.runtime / 'audio.sock'))
+                self.meter.setblocking(False)
+            peak = 0.0
+            for _ in range(16):
+                try:
+                    data = self.meter.recv(4096)
+                except BlockingIOError:
+                    break
+                if not data:
+                    self.close_meter()
+                    break
+                self.meter_pending += data
+                size = len(self.meter_pending) // 16 * 16
+                for _, low, high, _ in struct.iter_unpack('=Ifff', self.meter_pending[:size]):
+                    if math.isfinite(low) and math.isfinite(high):
+                        peak = max(peak, abs(low), abs(high))
+                self.meter_pending = self.meter_pending[size:]
+            return min(1.0, peak * 3)
+        except OSError:
+            self.close_meter()
+            return 0.0
+
+    def close_meter(self):
+        if self.meter is not None:
+            self.meter.close()
+        self.meter = None
+        self.meter_pending = b''
 
     def _run(self, args, timeout, allowed=(0,)):
         try:
@@ -47,6 +121,10 @@ class VoxtypeBridge:
         with self.lock:
             if self.active:
                 return
+            if problem := compatibility_problem():
+                raise VoxtypeError(problem)
+            if self.status() != 'idle':
+                raise VoxtypeError('Voxtype is busy. Finish regular dictation before starting the Peek microphone.')
             self.sequence += 1
             self.path = self.directory / f"transcript-{os.getpid()}-{self.sequence}.txt"
             self.path.unlink(missing_ok=True)
@@ -54,6 +132,16 @@ class VoxtypeBridge:
             # currently focused.  Peek owns the submit step after reading it.
             self._run(["record", "start", f"--file={self.path}", "--no-osd", "--no-auto-submit"], 10)
             self.active = True
+            # Sending a signal is not confirmation that capture has started.
+            deadline = time.monotonic() + 3
+            try:
+                while self.status() not in ('recording', 'streaming'):
+                    if time.monotonic() >= deadline:
+                        raise VoxtypeError('Voxtype did not start recording. Check its microphone and daemon log.')
+                    time.sleep(.05)
+            except Exception:
+                self.cancel()
+                raise
 
     @staticmethod
     def _text_from(path, stdout):
@@ -73,6 +161,7 @@ class VoxtypeBridge:
             if not self.active:
                 return ""
             path = self.path
+            self.close_meter()
             try:
                 result = self._run(["record", "stop", "--wait", "--json",
                                     "--timeout", str(int(timeout)), "--wait-file", str(path)], timeout + 5,
@@ -94,6 +183,7 @@ class VoxtypeBridge:
 
     def cancel(self):
         with self.lock:
+            self.close_meter()
             path = self.path
             if self.active:
                 try:

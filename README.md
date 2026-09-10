@@ -134,6 +134,8 @@ Complete that CLI's provider sign-in in its terminal, then verify the install wi
 
 ### 2. Add Peek voice and computer control (optional)
 
+**Voxtype prerequisite:** shared streaming needs a daemon containing the upstream private-file-output fix. Updating Side Chat does **not** update your Voxtype daemon. Peek conservatively refuses the known-affected, unpatched `1.0.1` daemon before starting a recording. Use the [pinned-build instructions](docs/voxtype.md), or install and select the optional local Parakeet recognizer below. Setup reports this known compatibility problem; it does not silently replace your daemon.
+
 With Peek powered off and no reply running:
 
 ```bash
@@ -171,7 +173,11 @@ python3 setup.py --check --with-voxtype
 
 Open **Peek settings → Speech → Recognition → Model**, choose **Voxtype · shared daemon**, and apply. Peek starts Voxtype in private file mode and sends the finished transcript through the normal assistant queue; it never types into the focused application or overwrites your clipboard. Turn the Peek microphone on and off with the usual Peek keybinding.
 
-Voxtype mode is manual push-to-talk: wake phrase, automatic silence endpointing, and Peek's local microphone/device controls are unavailable because Voxtype owns those responsibilities. Configure Voxtype itself in `~/.config/voxtype/config.toml`. To keep the large model unloaded while idle, enable its on-demand mode and restart the daemon:
+Voxtype mode is **tap to start, tap again to send**—not hold-to-talk. With the example bindings below, tap Decimal, speak, then tap Decimal again; Peek transcribes the recording, sends it to your assistant, and speaks the reply unless muted. An existing Enter dictation binding stays unchanged. Finish one recording before starting the other; both share one daemon and recognition model. Peek refuses to start while Voxtype is already busy.
+
+The input meter reads the daemon's existing audio-level stream; it does not open another microphone or load another recognition model. Older daemons without level telemetry can still transcribe, but will not show a live meter. Empty recordings show a notice instead of leaving the previous reply unexplained.
+
+Wake phrase, automatic silence endpointing, and Peek's local microphone/device controls are unavailable in this mode because Voxtype owns capture. Configure Voxtype itself in `~/.config/voxtype/config.toml`. To keep the large model unloaded while idle, enable its on-demand mode and restart the daemon:
 
 ```bash
 voxtype config set parakeet.on_demand_loading true
@@ -188,11 +194,12 @@ Side Chat never edits `~/.config/hypr/bindings.lua`. These are the maintainer's 
 -- Peek: bare numpad shortcuts, with Num Lock on or off.
 o.bind("KP_0", "Toggle Peek", "omarchy-shell blr.side-chat peek")
 o.bind("KP_Insert", "Toggle Peek", "omarchy-shell blr.side-chat peek")
-o.bind("KP_Decimal", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
-o.bind("KP_Delete", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
+o.bind("code:91", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
 ```
 
-`KP_0` and `KP_Insert` are the same physical key in the two Num Lock states; so are `KP_Decimal` and `KP_Delete`. To bind the chat drawer instead, map any unused key to `omarchy-shell blr.side-chat toggle`.
+`KP_0` and `KP_Insert` are the same physical key in the two Num Lock states. `code:91` binds the physical decimal key regardless of Num Lock. To bind the chat drawer instead, map any unused key to `omarchy-shell blr.side-chat toggle`.
+
+If you keep an existing Voxtype push-to-talk binding on numpad Enter, that key remains **generic Voxtype dictation** and intentionally types into the focused application. Use the Peek microphone binding above (or `peekToggleMicrophone`) to send the transcript to Peek without typing into another app.
 
 After editing bindings:
 
@@ -319,6 +326,15 @@ Run `python3 setup.py --check` with the same Peek, engine, and desktop-input fla
 <summary><strong>Voxtype mode cannot start or stays recording</strong></summary>
 
 Confirm the daemon is running with `systemctl --user status voxtype` and that `voxtype status` responds. Peek's Voxtype mode records until you toggle its microphone off; it does not use the bundled wake phrase or silence endpointing. If you want those behaviors, switch Recognition to **Parakeet Unified** and run setup with `--with-parakeet`.
+
+</details>
+
+<details>
+<summary><strong>Peek listens, but Voxtype types into the focused window</strong></summary>
+
+Voxtype 1.0.1's streaming path ignores the recording's `--file` override. A correct Peek microphone binding can therefore still type into another app and return an empty transcript. This is a daemon bug, not a keybinding problem. Streaming requires a Voxtype build containing the [upstream file-output fix](https://github.com/peteonrails/voxtype/blob/320a737e5d3c8662e0ec7de95f75407baa784d82/src/daemon.rs#L1187), followed by a daemon restart. The released 1.0.1 binary does not contain it. Alternatively, use Peek's optional local recognizer.
+
+Custom Voxtype overlays must also honor the daemon's `osd_suppressed` marker to hide during Peek recordings. An overlay appearing alone does not establish where the transcript was delivered.
 
 </details>
 

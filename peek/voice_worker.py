@@ -93,18 +93,19 @@ class VoiceWorker:
             self.emit('ready',loadSeconds=round(time.monotonic()-start,2),devices=devices())
         except Exception as exc:self.emit('error',text=str(exc))
 
-    def cancel(self,status_only=False,hold=False):
+    def cancel(self,status_only=False,hold=False,cancel_input=False):
         with self.lock:
             active=self.queue.cancel(status_only)
             if not status_only:
                 voxtype=getattr(self,'voxtype',None)
-                if voxtype and voxtype.active:
-                    # Stop/interrupt must release Voxtype's daemon too; it is
-                    # an external recorder rather than a child process Peek
-                    # can terminate directly.
+                if cancel_input and voxtype and voxtype.active:
+                    # Only explicit Stop cancels capture. Starting an agent
+                    # reply clears old speech too, but must keep a newer
+                    # microphone session alive until the user finishes it.
                     voxtype.cancel()
                     self.finish.clear();self.listening=False;self.input_active=False;self.record_epoch+=1
-                    self.emit('microphone',active=False,level=0,partial='')
+                    self.emit('microphone',active=False,level=0,partial='',
+                              utterance=self.input_utterance,generation=self.input_generation)
                 if hold or self.input_active:self.speech_paused.set()
                 else:self.speech_paused.clear()
             if active or not status_only:
@@ -193,11 +194,17 @@ class VoiceWorker:
                 self.input_utterance+=1;self.input_active=True
                 self.gate.wake()
                 if self.prefs['bargeIn']:self.pause_speech()
-                self.emit('microphone',active=True,aec=False)
+                self.emit('microphone',active=True,aec=False,
+                          utterance=self.input_utterance,generation=generation)
             while epoch==self.record_epoch and not self.shutdown.is_set() and not self.finish.wait(.1):
-                pass
+                with self.lock:
+                    if epoch!=self.record_epoch:break
+                    self.capture_event(epoch,'level',input=self.voxtype.level(),generation=generation)
             with self.lock:
-                if epoch!=self.record_epoch or self.shutdown.is_set() or not self.finish.is_set():
+                # The invalidating command already released the old recorder.
+                # A newer session may now own the shared daemon.
+                if epoch!=self.record_epoch:return
+                if self.shutdown.is_set() or not self.finish.is_set():
                     self.voxtype.cancel();return
                 endpoint=time.monotonic()
                 self.capture_event(epoch,'transcribing',generation=generation,partial='',utterance=self.input_utterance)
@@ -213,13 +220,15 @@ class VoiceWorker:
                 self.input_active=False
                 self.capture_event(epoch,'utterance_end',recognized=bool(final),hadSpeech=bool(final),limited=False,
                                    generation=generation,utterance=self.input_utterance)
+                if not final:
+                    self.capture_event(epoch,'input_notice',text='No words received from Voxtype. Try recording again.',generation=generation)
                 self.capture_event(epoch,'partial',text='',generation=generation)
         except Exception as exc:
-            self.voxtype.cancel()
             with self.lock:
                 if epoch==self.record_epoch:
+                    self.voxtype.cancel()
                     self.listening=False;self.input_active=False
-                    self.resume_speech();self.emit('microphone',active=False,level=0)
+                    self.resume_speech();self.emit('microphone',active=False,level=0,failed=True)
                     self.emit('error',text=str(exc))
         finally:
             with self.lock:
@@ -452,7 +461,7 @@ class VoiceWorker:
         if action=='listen':
             if c.get('enabled') is not True and c.get('finish') is True:self.finish_input()
             else:self.listen(c.get('enabled') is True)
-        elif action=='cancel':self.cancel(hold=c.get('hold') is True)
+        elif action=='cancel':self.cancel(hold=c.get('hold') is True,cancel_input=c.get('input') is True)
         elif action=='pause_speech':
             with self.lock:
                 # A controller acknowledgement can arrive after a microphone
