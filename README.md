@@ -243,6 +243,20 @@ omarchy plugin update blr.side-chat --yes
 cd ~/.config/omarchy/plugins/blr.side-chat
 python3 setup.py
 omarchy restart shell
+sleep 2
+omarchy-shell blr.side-chat open
+```
+
+The updater only works on Git-managed installs. If it says the plugin is not a
+Git checkout, migrate the legacy copy install (Omarchy moves it to a backup):
+
+```bash
+omarchy plugin remove blr.side-chat --yes
+omarchy plugin add https://github.com/baileyrosen3/side-chat.git --enable --yes
+cd ~/.config/omarchy/plugins/blr.side-chat
+python3 setup.py
+omarchy restart shell
+sleep 2
 omarchy-shell blr.side-chat open
 ```
 
