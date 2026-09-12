@@ -7,6 +7,7 @@ The screenshots contain synthetic conversation content. The automated test logs,
 - `qml.log`: 120 checks across eight 2D and four native Wayland/OpenGL suites.
 - `javascript.log`: all three JavaScript scripts, including the production Main.qml transition functions.
 - `final-recovery.log` and `final-thoughts.log`: focused validation after the final partial-save error handling change.
+- `deployment-python.log`: 250 checks after fixing the reminder/draft lock conflict discovered during device update; 233 passed and 17 optional-runtime skips.
 - `measurements.json`: controlled geometry, message rendering, and search observations.
 
 Native preview observations: the final 1,000-message assignment reported `THOUSAND_MESSAGES_MS 31`; its 337-pixel panel had three live message delegates. The selection probe reported `SELECTION_CHECK {"sameDelegate":true,"selectedText":"Select"}` after updating another reply. Fresh previews reached `Configuration Loaded` and exited with code 0 without QML warnings.

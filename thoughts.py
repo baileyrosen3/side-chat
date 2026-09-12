@@ -160,7 +160,7 @@ class ThoughtStore:
             self.recovery_warnings.append('A damaged draft file was preserved at ' + str(backup))
             return {}
 
-    def snapshot(self):
+    def snapshot(self, locked=False):
         notes, warnings = [], []
         seen = set()
         for folder, trashed in ((self.folder, False), (self.folder / '.thoughts/trash', True)):
@@ -179,7 +179,7 @@ class ThoughtStore:
                     warnings.append(path.name + ': ' + str(exc))
         with self.cache_lock:
             self.index_cache = {key: value for key, value in self.index_cache.items() if key in seen}
-        drafts = self.drafts()
+        drafts = self.drafts(locked=locked)
         return dict(notes=sorted(notes, key=lambda n: n['created'], reverse=True),
                     drafts=drafts, directory=str(self.folder), warnings=warnings + self.recovery_warnings)
 
@@ -344,7 +344,9 @@ class ThoughtsController:
         with self.store.locked():
             path = self.store.state / 'reminders.json'
             delivered = json.loads(path.read_text()) if path.exists() else {}
-            pending = [n for n in self.store.snapshot()['notes'] if n['kind'] == 'todo' and not n['done']
+            # Reuse this lock while reading draft recovery; reacquiring flock on
+            # another descriptor would block this process against itself.
+            pending = [n for n in self.store.snapshot(locked=True)['notes'] if n['kind'] == 'todo' and not n['done']
                        and not n['trashed'] and 0 < n['due'] <= now and delivered.get(n['id']) != n['due']]
         for note in pending[:6]:
             self.notify_reminder(note)

@@ -11,7 +11,7 @@
 
 **Chat** turns the agent you already use—OMP, Pi, Codex, or Claude—into a compact edge drawer with persistent sessions, native tools, approvals, and terminal handoff. **Peek** adds hands-free local voice, durable memory, fast desktop commands, and visible computer control. **Notes and To-dos** share the same drawer, header, navigation, and Peek controls. The numpad groups web apps, workspace tabs, and tap-to-toggle listening into three rows. The workspace includes task reminders, selected-text capture, shared search, source links, and recovery while keeping the same three tabs.
 
-Version **1.16.0** adds clearer controls, adaptive Notes, separate Stop and Redirect actions, safer draft recovery, and faster conversation rendering and search. See the [UI and interaction audit](docs/audit-fixes-2026-09-12.md) for the changes and validation.
+Version **1.16.1** adds clearer controls, adaptive Notes, separate Stop and Redirect actions, safer draft recovery, and faster conversation rendering and search. It also fixes a startup lock conflict between reminder checks and saved drafts. See the [UI and interaction audit](docs/audit-fixes-2026-09-12.md) for the changes and validation.
 
 ## Meet Peek
 

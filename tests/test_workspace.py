@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import sqlite3
 import subprocess
+import sys
 import tempfile
 import threading
 from types import SimpleNamespace
@@ -100,6 +101,39 @@ class WorkspaceTests(unittest.TestCase):
         with patch.object(restarted,'notify_reminder') as notify:
             restarted.check_reminders(now=300)
             notify.assert_not_called()
+
+    def test_reminders_with_saved_drafts_do_not_deadlock(self):
+        # Use a bounded child process so a flock regression cannot hang the suite.
+        code = '''
+from pathlib import Path
+from types import SimpleNamespace
+import sys
+from thoughts import ThoughtsController
+root = Path(sys.argv[1])
+events = []
+controller = ThoughtsController(SimpleNamespace(state=root/'state', emit=lambda **event: events.append(event)))
+controller.store.directory = root/'notes'
+store = controller.store
+store.write_draft({'key':'unfinished', 'body':'Keep this draft'})
+task = store.save({'body':'Remember this', 'kind':'todo', 'due':100})
+notified = []
+controller.notify_reminder = lambda note: notified.append(note['id'])
+controller.check_reminders(now=200)
+controller.check_reminders(now=210)
+assert notified == [task['id']]
+assert store.snapshot()['drafts']['unfinished']['body'] == 'Keep this draft'
+# Recovery of a malformed draft file must also reuse the reminder lock.
+(store.state/'drafts.json').write_text('{broken recovery')
+controller.check_reminders(now=220)
+assert notified == [task['id']]
+assert store.drafts() == {}
+assert next(store.state.glob('drafts-recovery-*.json')).read_text() == '{broken recovery'
+assert len(store.snapshot()['notes']) == 1
+'''
+        result = subprocess.run([sys.executable, '-B', '-c', code, str(self.root/'isolated')],
+                                cwd=Path(__file__).resolve().parents[1], capture_output=True,
+                                text=True, timeout=5)
+        self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_failed_delivery_retries_and_completed_or_trashed_tasks_stay_quiet(self):
         task = self.task()

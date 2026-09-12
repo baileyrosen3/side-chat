@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "blr.side-chat",
   "name": "Side Chat",
-  "version": "1.16.0",
+  "version": "1.16.1",
   "author": "blr",
   "license": "GPL-3.0-or-later AND MIT",
   "description": "One Omarchy workspace for agent chat, quick notes, to-dos, and the local Peek voice companion.",

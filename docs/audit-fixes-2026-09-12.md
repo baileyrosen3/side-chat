@@ -1,6 +1,6 @@
 Side Chat — UI and interaction hardening
 
-Implemented September 12, 2026, following the [full product audit](audit-2026-09-11.md). Changes are in the development workspace. The installed desktop plugin was not replaced, and no real provider request, microphone recording, or physical desktop action was started by this validation.
+Implemented September 12, 2026, following the [full product audit](audit-2026-09-11.md). The initial validation below used the development workspace without replacing the desktop plugin. No real provider request, microphone recording, or physical desktop action was started by these checks. A subsequent device update exposed the additional startup issue recorded below.
 
 The visual direction preserves Peek, the screen-edge silhouette, and live Omarchy colors and fonts. The surrounding workspace now uses consistent rounded controls, fewer competing status indicators, visible Save/Add/Send labels, and a separate Stop action. Notes grows with its content. Secondary message actions remain discoverable, code retains indentation with horizontal scrolling, and settings return to the page that opened them.
 
@@ -47,8 +47,14 @@ These are local fixture samples, not percentile targets or guarantees for every 
 
 **Remaining release checks and product work**
 
-One Quickshell process crashed during repeated development reloads. Its core identifies SIGSEGV in the Qt Quick rendering path, with mostly unresolved frames and only the crash-handler thread available. No out-of-memory event was found. This is evidence of a rendering failure during reload, not proof of its root cause. Subsequent fresh previews and native suites passed. No production data was involved. Validate the actual plugin update/reload path before release; no claim is made that this underlying crash is fixed.
+One Quickshell process crashed during repeated development reloads. Its core identifies SIGSEGV in the Qt Quick rendering path, with mostly unresolved frames and only the crash-handler thread available. No out-of-memory event was found. This is evidence of a rendering failure during reload, not proof of its root cause. Subsequent fresh previews and native suites passed. No production data was involved. During the subsequent device update, the Git fast-forward completed but the hot rescan stopped answering IPC. Omarchy's guarded shell restart restored the shell. The documented restart step remains necessary; no claim is made that the underlying reload failure is fixed.
 
 Real provider initialization/branch cancellation, physical mouse takeover between actions, device removal, microphone interruption, monitor removal, and screen-reader operation still need live acceptance checks. Automated fixtures establish the code behavior without claiming those hardware integrations were exercised.
 
 The next product iteration should concentrate on first-run agent/voice readiness, a richer preview of exactly which app and image will be shared, and usability sessions with people who have not seen the project. The implemented corrections improve the existing interface; award-level quality still needs that external evidence and refinement.
+
+**Device update follow-up · 1.16.1**
+
+The installed library exposed a missing combination in the original tests: reminder polling with an existing draft recovery file. The reminder checker already held the Thoughts file lock, then its snapshot tried to acquire the same lock through a second file descriptor. The backend blocked and Notes could not load, while its files remained intact. Version 1.16.1 passes the existing lock state into the snapshot's draft read.
+
+The new regression uses a child process with a five-second deadline and real file locking. It reproduces the hang against 1.16.0, then passes with the fix, verifies reminder deduplication, preserves a valid draft, and recovers malformed draft data without blocking. All 18 workspace checks passed. A full system-Python rerun collected 250 checks: 233 passed and the same 17 optional voice-runtime checks were skipped; their prior runtime results remain above. See [the follow-up Python log](audit-fixes-evidence-2026-09-12/deployment-python.log). UI code is unchanged from the 120-check QML validation.
