@@ -1,0 +1,168 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::ThemedChatControls::initTestCase()
+PASS   : qmltestrunner::ThemedChatControls::test_accent_text_uses_contrasting_theme_color()
+PASS   : qmltestrunner::ThemedChatControls::test_dropdown_keyboard_selection()
+PASS   : qmltestrunner::ThemedChatControls::test_existing_controls_follow_theme_changes()
+PASS   : qmltestrunner::ThemedChatControls::test_number_field_editing_preserves_units_and_bounds()
+PASS   : qmltestrunner::ThemedChatControls::test_toggle_keyboard_and_disabled_state()
+PASS   : qmltestrunner::ThemedChatControls::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 26ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::PermissionControls::initTestCase()
+PASS   : qmltestrunner::PermissionControls::test_agent_switch_has_its_own_choices_and_default()
+PASS   : qmltestrunner::PermissionControls::test_busy_disconnected_terminal_and_pending_disable_changes()
+PASS   : qmltestrunner::PermissionControls::test_descriptions_fit_compact_width()
+PASS   : qmltestrunner::PermissionControls::test_keyboard_selection_before_first_message()
+PASS   : qmltestrunner::PermissionControls::test_selection_waits_for_backend_and_sends_chat_identity()
+PASS   : qmltestrunner::PermissionControls::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 43ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::BashApprovalControls::initTestCase()
+PASS   : qmltestrunner::BashApprovalControls::test_allow_and_deny_do_not_remember()
+PASS   : qmltestrunner::BashApprovalControls::test_always_button_sends_explicit_choice_and_conversation()
+PASS   : qmltestrunner::BashApprovalControls::test_buttons_fit_narrow_panel()
+PASS   : qmltestrunner::BashApprovalControls::test_long_command_keeps_decisions_visible()
+PASS   : qmltestrunner::BashApprovalControls::test_other_approval_has_no_always_button()
+PASS   : qmltestrunner::BashApprovalControls::test_settings_toggle_and_disconnect()
+PASS   : qmltestrunner::BashApprovalControls::test_short_request_has_no_expand_toggle()
+PASS   : qmltestrunner::BashApprovalControls::test_unsupported_agent_hides_settings()
+PASS   : qmltestrunner::BashApprovalControls::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 169ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::PanelOutline::initTestCase()
+PASS   : qmltestrunner::PanelOutline::test_alpha_and_gradient_direction_repaint()
+PASS   : qmltestrunner::PanelOutline::test_argb_and_angles()
+PASS   : qmltestrunner::PanelOutline::test_full_width_stays_inside_silhouette()
+PASS   : qmltestrunner::PanelOutline::test_invalid_gradients()
+PASS   : qmltestrunner::PanelOutline::test_keyboard_focus_preserves_desktop_colors_and_gradient()
+PASS   : qmltestrunner::PanelOutline::test_settings_toggle_reset_and_keyboard()
+PASS   : qmltestrunner::PanelOutline::test_toggle_and_zero_width_keep_keyboard_focus_visible()
+PASS   : qmltestrunner::PanelOutline::test_width_validation()
+PASS   : qmltestrunner::PanelOutline::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 1060ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::SpeechSettings::initTestCase()
+PASS   : qmltestrunner::SpeechSettings::test_busy_or_unapplied_model_disables_preview()
+PASS   : qmltestrunner::SpeechSettings::test_hearing_and_transcribing_take_priority_over_busy()
+PASS   : qmltestrunner::SpeechSettings::test_listening_controls_render()
+PASS   : qmltestrunner::SpeechSettings::test_listening_modes_are_mutually_consistent()
+PASS   : qmltestrunner::SpeechSettings::test_preview_uses_draft_without_apply()
+PASS   : qmltestrunner::SpeechSettings::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 82ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::Thoughts::initTestCase()
+PASS   : qmltestrunner::Thoughts::test_chat_and_notes_share_navigation_and_preserve_both_drafts()
+PASS   : qmltestrunner::Thoughts::test_checkoff_animation_finishes_and_completed_item_remains()
+PASS   : qmltestrunner::Thoughts::test_completed_task_moves_out_of_active_list_and_is_reversible()
+PASS   : qmltestrunner::Thoughts::test_discuss_prepares_composer_without_sending()
+PASS   : qmltestrunner::Thoughts::test_existing_reminder_survives_body_edit_and_can_be_removed()
+PASS   : qmltestrunner::Thoughts::test_global_dictation_is_a_note_and_early_release_stops_it()
+PASS   : qmltestrunner::Thoughts::test_global_new_note_always_targets_notes_and_keeps_task_draft()
+PASS   : qmltestrunner::Thoughts::test_hidden_notes_do_not_handle_chat_shortcuts()
+PASS   : qmltestrunner::Thoughts::test_leaving_note_capture_cancels_only_note_recording()
+PASS   : qmltestrunner::Thoughts::test_navigation_recovers_unsaved_edit_and_independent_new_draft()
+PASS   : qmltestrunner::Thoughts::test_new_draft_restores_after_tab_switch_and_restart()
+PASS   : qmltestrunner::Thoughts::test_open_search_result_keeps_unsaved_draft()
+PASS   : qmltestrunner::Thoughts::test_other_voice_key_finishes_original_capture_without_changing_destination()
+PASS   : qmltestrunner::Thoughts::test_peek_navigation_selects_the_requested_kind_and_keeps_search()
+PASS   : qmltestrunner::Thoughts::test_phone_layout_keeps_save_inside_panel()
+PASS   : qmltestrunner::Thoughts::test_reminder_preview_is_required_before_saving_and_old_results_ignored()
+PASS   : qmltestrunner::Thoughts::test_save_keeps_draft_until_ack_then_clears_composer()
+PASS   : qmltestrunner::Thoughts::test_shared_navigation_opens_notes_and_todos()
+PASS   : qmltestrunner::Thoughts::test_source_links_and_reminders_survive_draft_recovery()
+PASS   : qmltestrunner::Thoughts::test_tap_listening(note)
+PASS   : qmltestrunner::Thoughts::test_tap_listening(todo)
+PASS   : qmltestrunner::Thoughts::test_todo_enter_adds_and_note_enter_is_a_newline()
+PASS   : qmltestrunner::Thoughts::cleanupTestCase()
+Totals: 24 passed, 0 failed, 0 skipped, 0 blacklisted, 941ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::Workspace::initTestCase()
+PASS   : qmltestrunner::Workspace::test_ask_prepares_chat_without_sending()
+PASS   : qmltestrunner::Workspace::test_capture_waits_for_selection_before_opening_drawer()
+PASS   : qmltestrunner::Workspace::test_escape_returns_to_current_page()
+PASS   : qmltestrunner::Workspace::test_recovery_uses_restore_and_refreshes_results()
+PASS   : qmltestrunner::Workspace::test_search_ignores_stale_results_and_enter_opens_choice()
+PASS   : qmltestrunner::Workspace::test_search_keeps_active_reply_and_draft_safe()
+PASS   : qmltestrunner::Workspace::cleanupTestCase()
+Totals: 8 passed, 0 failed, 0 skipped, 0 blacklisted, 53ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::AuditFixes::initTestCase()
+PASS   : qmltestrunner::AuditFixes::test_cleared_draft_stays_cleared_after_stale_snapshot()
+PASS   : qmltestrunner::AuditFixes::test_large_font_keeps_primary_action_inside_narrow_view()
+PASS   : qmltestrunner::AuditFixes::test_noon_and_midnight_wait_for_reminder_preview(noon)
+PASS   : qmltestrunner::AuditFixes::test_noon_and_midnight_wait_for_reminder_preview(midnight)
+PASS   : qmltestrunner::AuditFixes::test_stopped_tool_is_not_reported_as_completed()
+PASS   : qmltestrunner::AuditFixes::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 35ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::RobotCompanion::initTestCase()
+PASS   : qmltestrunner::RobotCompanion::test_actual_surface_size_and_hidden_clock()
+PASS   : qmltestrunner::RobotCompanion::test_every_preview()
+PASS   : qmltestrunner::RobotCompanion::test_listening_responds_to_audio_and_quiet_input_settles()
+PASS   : qmltestrunner::RobotCompanion::test_live_events()
+PASS   : qmltestrunner::RobotCompanion::test_live_theme_updates_without_recreating_robot()
+PASS   : qmltestrunner::RobotCompanion::test_preview_keyboard()
+PASS   : qmltestrunner::RobotCompanion::test_real_speech_interrupts_the_ready_flourish()
+PASS   : qmltestrunner::RobotCompanion::test_reduced_motion_stops_all_animation()
+PASS   : qmltestrunner::RobotCompanion::test_render_expressions()
+PASS   : qmltestrunner::RobotCompanion::test_state_colors_follow_the_theme_and_stay_distinct()
+PASS   : qmltestrunner::RobotCompanion::test_voxtype_mic_uses_one_toggle_request()
+PASS   : qmltestrunner::RobotCompanion::test_warmup_completion_has_one_ready_reaction()
+PASS   : qmltestrunner::RobotCompanion::cleanupTestCase()
+Totals: 14 passed, 0 failed, 0 skipped, 0 blacklisted, 14155ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::CompanionTransition::initTestCase()
+PASS   : qmltestrunner::CompanionTransition::test_departure_finishes_before_hiding_and_disables_input_immediately()
+PASS   : qmltestrunner::CompanionTransition::test_rapid_toggles_do_not_leave_a_stale_hide()
+PASS   : qmltestrunner::CompanionTransition::test_reduced_motion_settles_an_active_transition()
+PASS   : qmltestrunner::CompanionTransition::test_reversal_continues_from_current_position()
+PASS   : qmltestrunner::CompanionTransition::cleanupTestCase()
+Totals: 6 passed, 0 failed, 0 skipped, 0 blacklisted, 2357ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::CompanionGaze::initTestCase()
+PASS   : qmltestrunner::CompanionGaze::test_desktop_direction_and_monitor_offsets()
+PASS   : qmltestrunner::CompanionGaze::test_hidden_and_reduced_motion_stop_tracking_animation()
+PASS   : qmltestrunner::CompanionGaze::test_mouse_burst_is_coalesced_at_bounded_cadence()
+PASS   : qmltestrunner::CompanionGaze::test_spring_is_smooth_and_independent_of_frame_rate()
+PASS   : qmltestrunner::CompanionGaze::test_tracking_does_not_open_hover_pose()
+PASS   : qmltestrunner::CompanionGaze::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 1461ms
+********* Finished testing of qmltestrunner *********
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::TaskSurface::initTestCase()
+PASS   : qmltestrunner::TaskSurface::test_companion_tabs_open_the_same_workspace_sections()
+PASS   : qmltestrunner::TaskSurface::test_controls_only_appear_on_hover_and_stay_usable()
+PASS   : qmltestrunner::TaskSurface::test_exit_keeps_rendering_until_the_robot_is_offscreen()
+PASS   : qmltestrunner::TaskSurface::test_expanded_layout_contains_controls_and_reduced_motion_is_still()
+PASS   : qmltestrunner::TaskSurface::test_hiding_peek_resets_controls_before_reopening()
+PASS   : qmltestrunner::TaskSurface::test_keyboard_can_expand_details_and_escape_collapses_everything()
+PASS   : qmltestrunner::TaskSurface::test_note_capture_and_save_use_the_existing_companion_feedback()
+PASS   : qmltestrunner::TaskSurface::test_speech_and_question_take_priority_over_task_caption()
+PASS   : qmltestrunner::TaskSurface::test_stop_is_available_on_hover_without_expansion()
+PASS   : qmltestrunner::TaskSurface::test_task_target_takes_priority_and_interruption_returns_to_user()
+PASS   : qmltestrunner::TaskSurface::test_voice_readiness_and_hearing_reach_the_face()
+PASS   : qmltestrunner::TaskSurface::cleanupTestCase()
+Totals: 13 passed, 0 failed, 0 skipped, 0 blacklisted, 2276ms
+********* Finished testing of qmltestrunner *********

@@ -1,0 +1,18 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::ThemedChatControls::initTestCase() entering
+PASS   : qmltestrunner::ThemedChatControls::initTestCase()
+INFO   : qmltestrunner::ThemedChatControls::test_accent_text_uses_contrasting_theme_color() entering
+PASS   : qmltestrunner::ThemedChatControls::test_accent_text_uses_contrasting_theme_color()
+INFO   : qmltestrunner::ThemedChatControls::test_dropdown_keyboard_selection() entering
+PASS   : qmltestrunner::ThemedChatControls::test_dropdown_keyboard_selection()
+INFO   : qmltestrunner::ThemedChatControls::test_existing_controls_follow_theme_changes() entering
+PASS   : qmltestrunner::ThemedChatControls::test_existing_controls_follow_theme_changes()
+INFO   : qmltestrunner::ThemedChatControls::test_number_field_editing_preserves_units_and_bounds() entering
+PASS   : qmltestrunner::ThemedChatControls::test_number_field_editing_preserves_units_and_bounds()
+INFO   : qmltestrunner::ThemedChatControls::test_toggle_keyboard_and_disabled_state() entering
+PASS   : qmltestrunner::ThemedChatControls::test_toggle_keyboard_and_disabled_state()
+INFO   : qmltestrunner::ThemedChatControls::cleanupTestCase() entering
+PASS   : qmltestrunner::ThemedChatControls::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 8ms
+********* Finished testing of qmltestrunner *********

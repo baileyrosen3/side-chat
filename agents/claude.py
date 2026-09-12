@@ -10,7 +10,7 @@ import subprocess
 import threading
 import time
 import uuid
-from agent_session import SessionLease, cli_binary, text_content
+from agent_session import SessionLease, cli_binary, text_content, wait_response
 from permission_modes import permission_args
 
 
@@ -68,7 +68,7 @@ class ClaudeSession:
         with self.guard:self.waiters[identity]=waiter
         try:
             self.write({'type':'control_request','request_id':identity,'request':request})
-            try:e=waiter.get(timeout=timeout)
+            try:e=wait_response(waiter,timeout,self.options.get('_cancel_event'))
             except queue.Empty:raise RuntimeError('Claude did not answer '+request['subtype']+'. '+self.stderr[-500:])
             if e.get('subtype')=='error':raise RuntimeError(str(e.get('error','Claude control request failed.')))
             return e.get('response') or {}

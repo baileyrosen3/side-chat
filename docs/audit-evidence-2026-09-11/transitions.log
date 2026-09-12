@@ -1,0 +1,2 @@
+{"case":"new_chat_before_debounce","draft":"","requests":[{"action":"new"}]}
+{"case":"edit_replaces_unsent_draft","draft":"Original prompt","requests":[]}

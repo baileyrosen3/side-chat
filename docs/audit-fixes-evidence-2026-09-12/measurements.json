@@ -1,0 +1,34 @@
+{
+  "conversation": {
+    "messages": 1000,
+    "before_callback_ms": 2380,
+    "final_callback_ms": 31,
+    "live_delegates": 3,
+    "selection_preserved": true,
+    "panel_width": 337
+  },
+  "search": {
+    "notes": 2000,
+    "chats": 1000,
+    "query": "project",
+    "milliseconds": [
+      136.6,
+      75.8,
+      84.2,
+      81.7
+    ]
+  },
+  "attachment": {
+    "panel_width": 337,
+    "button_width": 202,
+    "button_right": 215
+  },
+  "validation": {
+    "python_collected": 249,
+    "python_system_passed": 232,
+    "python_system_skipped": 17,
+    "skipped_passed_in_voice_runtime": 17,
+    "qml_checks": 120,
+    "javascript_scripts": 3
+  }
+}

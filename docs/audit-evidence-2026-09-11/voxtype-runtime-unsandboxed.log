@@ -1,0 +1,21 @@
+test_busy_dictation_is_not_hijacked_or_cancelled (test_voxtype.VoxtypeBridgeTests.test_busy_dictation_is_not_hijacked_or_cancelled) ... ok
+test_empty_transcript_is_not_reported_as_an_error (test_voxtype.VoxtypeBridgeTests.test_empty_transcript_is_not_reported_as_an_error) ... ok
+test_failed_start_cleans_up_and_allows_retry (test_voxtype.VoxtypeBridgeTests.test_failed_start_cleans_up_and_allows_retry) ... ok
+test_guard_reads_daemon_version_not_packaged_cli_version (test_voxtype.VoxtypeBridgeTests.test_guard_reads_daemon_version_not_packaged_cli_version) ... ok
+test_known_broken_daemon_is_rejected_before_recording (test_voxtype.VoxtypeBridgeTests.test_known_broken_daemon_is_rejected_before_recording) ... ok
+test_meter_handles_split_frames_and_disconnect_without_capturing_audio (test_voxtype.VoxtypeBridgeTests.test_meter_handles_split_frames_and_disconnect_without_capturing_audio) ... ok
+test_missing_daemon_is_actionable (test_voxtype.VoxtypeBridgeTests.test_missing_daemon_is_actionable) ... ok
+test_missing_meter_does_not_fail_recording (test_voxtype.VoxtypeBridgeTests.test_missing_meter_does_not_fail_recording) ... ok
+test_missing_version_is_not_treated_as_verified_incompatibility (test_voxtype.VoxtypeBridgeTests.test_missing_version_is_not_treated_as_verified_incompatibility) ... ok
+test_start_uses_private_file_mode_without_typing_into_focused_apps (test_voxtype.VoxtypeBridgeTests.test_start_uses_private_file_mode_without_typing_into_focused_apps) ... ok
+test_stop_reads_transcript_and_removes_private_file (test_voxtype.VoxtypeBridgeTests.test_stop_reads_transcript_and_removes_private_file) ... ok
+test_empty_recording_shows_notice_without_submitting_a_request (test_voxtype.VoxtypeWorkerTests.test_empty_recording_shows_notice_without_submitting_a_request) ... ok
+test_explicit_stop_releases_daemon_and_speech_pause (test_voxtype.VoxtypeWorkerTests.test_explicit_stop_releases_daemon_and_speech_pause) ... ok
+test_manual_toggle_emits_one_transcript_through_normal_controller_events (test_voxtype.VoxtypeWorkerTests.test_manual_toggle_emits_one_transcript_through_normal_controller_events) ... ok
+test_old_recording_thread_cannot_cancel_new_session (test_voxtype.VoxtypeWorkerTests.test_old_recording_thread_cannot_cancel_new_session) ... ok
+test_starting_reply_does_not_cancel_a_newer_recording (test_voxtype.VoxtypeWorkerTests.test_starting_reply_does_not_cancel_a_newer_recording) ... ok
+
+----------------------------------------------------------------------
+Ran 16 tests in 0.154s
+
+OK

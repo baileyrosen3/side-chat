@@ -25,6 +25,7 @@ import uuid
 from agent_session import NATIVE_AGENTS
 from native_bridge import NativeBridge
 from permission_modes import MODES, permission_args, session_options
+from workspace import initialize_search, index_chat
 
 AGENTS = {"omp": "Oh My Pi", "pi": "Pi", "claude": "Claude", "codex": "Codex",
           "opencode": "OpenCode", "gemini": "Gemini", "copilot": "Copilot",
@@ -249,7 +250,10 @@ class Bridge(NativeBridge):
         self.db = sqlite3.connect(self.state / "chats.sqlite3", check_same_thread=False)
         self.db.execute("PRAGMA journal_mode=WAL")
         self.db.execute("CREATE TABLE IF NOT EXISTS chats (id TEXT PRIMARY KEY, updated REAL, data TEXT)")
+        self.db.execute("CREATE TABLE IF NOT EXISTS chat_trash (id TEXT PRIMARY KEY, updated REAL, data TEXT)")
         self.db.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+        self.db.execute("CREATE TABLE IF NOT EXISTS recovery (kind TEXT, identity TEXT, data TEXT, reason TEXT, created REAL)")
+        initialize_search(self.db)
         self.db.commit()
         self.active = ""
         self.busy = False
@@ -261,30 +265,66 @@ class Bridge(NativeBridge):
         self.settings = {"model": "", "thinking": "default", "cwd": str(self.home / "Work" if (self.home / "Work").is_dir() else self.home)}
         row = self.db.execute("SELECT value FROM settings WHERE key='preferences'").fetchone()
         if row:
-            self.settings.update(json.loads(row[0]))
+            saved = self.recover_json(row[0], 'settings', 'preferences') or {}
+            self.settings.update({k:v for k,v in saved.items() if k in self.settings and isinstance(v,str)})
         self.appearance = {"outline": True, "expanded": False}
         row = self.db.execute("SELECT value FROM settings WHERE key='appearance'").fetchone()
         if row:
-            saved = json.loads(row[0])
+            saved = self.recover_json(row[0], 'settings', 'appearance')
             if isinstance(saved, dict):
                 for key in ("outline", "expanded"):
                     if isinstance(saved.get(key), bool):
                         self.appearance[key] = saved[key]
         for row in self.db.execute("SELECT id,data FROM chats").fetchall():
-            chat = json.loads(row[1])
+            chat = self.recover_json(row[1], 'chats', row[0])
+            if chat is None:
+                continue
             dirty = False
             for message in chat["messages"]:
+                if not message.get("id"):
+                    message["id"] = uuid.uuid4().hex
+                    dirty = True
                 if message.get("status") == "streaming":
                     message["status"] = "stopped"
                     dirty = True
             if dirty:
                 self.save(chat)
+            else:
+                index_chat(self.db, chat)
+        self.db.commit()
         row = self.db.execute("SELECT data FROM chats ORDER BY updated DESC LIMIT 1").fetchone()
         if row:
             self.current = json.loads(row[0])
             self.active = self.current["id"]
         from peek.controller import PeekController
+        from thoughts import ThoughtsController
+        self.thoughts = ThoughtsController(self)
+        from workspace import WorkspaceController
+        self.workspace = WorkspaceController(self)
         self.peek = PeekController(self)
+
+    def recover_json(self, raw, table, identity):
+        try:
+            data = json.loads(raw)
+            if not isinstance(data, dict):
+                raise ValueError('Expected an object')
+            if table == 'chats':
+                if (data.get('id') != identity or not isinstance(data.get('messages'), list)
+                        or not isinstance(data.get('options'), dict)
+                        or not all(isinstance(data.get(k), str) for k in ('title', 'agent'))
+                        or not isinstance(data.get('updated'), (int, float))
+                        or any(not isinstance(m, dict) or not isinstance(m.get('text'), str) for m in data['messages'])):
+                    raise ValueError('Invalid conversation record')
+            return data
+        except (ValueError, TypeError) as exc:
+            # Preserve the original bytes in the same transaction before removing a bad row.
+            with self.db:
+                self.db.execute('INSERT INTO recovery VALUES (?,?,?,?,?)', (table, identity, raw, str(exc), time.time()))
+                if table == 'chats':
+                    self.db.execute('DELETE FROM chats WHERE id=?', (identity,))
+                else:
+                    self.db.execute('DELETE FROM settings WHERE key=?', (identity,))
+            return None
 
     def emit(self, **event):
         with self.output_lock:
@@ -305,9 +345,10 @@ class Bridge(NativeBridge):
 
     def metadata(self):
         agent = self.default_agent()
+        from peek.context import REQUEST_PATTERN
         return {"agent": agent, "agentName": AGENTS.get(agent, "Choose an agent"),
                 "available": agent in AGENTS and shutil.which(agent) is not None,
-                "settings": self.settings, "appearance": self.appearance,
+                "settings": self.settings, "appearance": self.appearance, "screenContextPattern": REQUEST_PATTERN,
                 "statePath": str(self.state), "nativeAgents": sorted(NATIVE_AGENTS), "permissionModes": MODES}
 
     def sync_default_agent(self):
@@ -330,15 +371,18 @@ class Bridge(NativeBridge):
 
     def save(self, chat):
         with self.lock:
+            for message in chat.get('messages', []):
+                if not message.get('id'):
+                    message['id'] = uuid.uuid4().hex
             self.db.execute("INSERT OR REPLACE INTO chats VALUES (?,?,?)", (chat["id"], chat["updated"], json.dumps(chat)))
+            index_chat(self.db, chat)
             self.db.commit()
 
     def snapshot(self):
         with self.lock:
             chats = []
-            for (data,) in self.db.execute("SELECT data FROM chats ORDER BY updated DESC"):
-                chat = json.loads(data)
-                chats.append({key: chat[key] for key in ("id", "title", "agent", "updated")})
+            for row in self.db.execute("SELECT id,title,agent,updated FROM chat_search ORDER BY updated DESC"):
+                chats.append(dict(zip(("id", "title", "agent", "updated"), row)))
             self.emit(type="state", meta=self.metadata(), chats=chats, current=self.current, busy=self.busy)
 
     def new(self):
@@ -352,6 +396,13 @@ class Bridge(NativeBridge):
     def require_idle(self):
         if self.busy:
             raise ValueError("Stop the current reply before changing conversations.")
+
+    @staticmethod
+    def draft_attachments(values):
+        if not isinstance(values, list) or len(values) > 8 or any(not isinstance(v, str) or len(v) > 4096 for v in values):
+            raise ValueError("Attach up to 8 local files per message.")
+        # Drafts keep references; submission validates and snapshots the file contents.
+        return list(dict.fromkeys(values))
 
     def attachment(self, value):
         path = local_path(value)
@@ -436,14 +487,21 @@ class Bridge(NativeBridge):
         if isinstance(edit, int) and edit >= 0:
             if edit >= len(messages) or messages[edit]["role"] != "user":
                 raise ValueError("That message cannot be edited.")
-            if not attachments:
+            if not attachments and not command.get("replaceAttachments"):
                 attachments = messages[edit].get("attachments", [])
             branch = messages[edit].get("nativeEntry", "")
             messages = messages[:edit]
         user_message = {"role": "user", "text": text, "attachments": attachments, "status": "complete", "time": time.time()}
+        from thoughts import item_source
+        user_message['source'] = item_source(command.get('source'))
+        user_message['excludeScreen'] = command.get('excludeScreen') is True
         if branch:
             user_message["branchFrom"] = branch
         proposed = dict(self.current, messages=messages + [user_message])
+        next_draft = command.get("nextDraft") or {}
+        if not isinstance(next_draft, dict):
+            raise ValueError("Invalid saved draft.")
+        next_attachments = self.draft_attachments(next_draft.get("attachments", []))
         self.peek.begin_turn()
         try:
             if agent in NATIVE_AGENTS:
@@ -460,7 +518,10 @@ class Bridge(NativeBridge):
         self.current = proposed
         if not messages:
             self.current["title"] = " ".join(text.split())[:64]
-        self.current["draft"] = ""
+        self.current["draft"] = str(next_draft.get("text", ""))[:100_000]
+        self.current['draftSource'] = item_source(next_draft.get("source"))
+        self.current['draftAttachments'] = next_attachments
+        self.current['draftEdit'] = None
         self.current["messages"].append({"role": "assistant", "text": "", "status": "streaming", "time": time.time(), "model": "", "usage": {}})
         self.current["updated"] = time.time()
         self.busy = True
@@ -583,10 +644,45 @@ class Bridge(NativeBridge):
         except ProcessLookupError:
             pass
 
+    def open_link(self, value):
+        href = str(value)
+        line_match = re.search(r'(?:#L|:)(\d+)(?::\d+)?$', href)
+        line = int(line_match[1]) if line_match else 0
+        if line_match:
+            href = href[:line_match.start()]
+        parsed = urlparse(href)
+        if parsed.scheme not in ('', 'file') or parsed.netloc not in ('', 'localhost'):
+            raise ValueError('Only local file links can be opened in the editor.')
+        path = Path(unquote(parsed.path)).expanduser()
+        if not path.is_absolute():
+            path = Path((self.current or {}).get('options', self.settings)['cwd']) / path
+        path = path.resolve()
+        if not path.is_file():
+            raise ValueError('That linked file no longer exists: ' + str(path))
+        editor_file = Path(os.environ.get('XDG_STATE_HOME', self.home / '.local/state')) / 'omarchy/defaults/editor'
+        editor = Path(editor_file.read_text().strip()).name if editor_file.is_file() else 'nvim'
+        args = [str(path)]
+        if line > 0:
+            if editor in ('code', 'code-insiders', 'cursor'):
+                args = ['--goto', str(path) + ':' + str(line)]
+            elif editor in ('hx', 'helix', 'zed'):
+                args = [str(path) + ':' + str(line)]
+            elif editor in ('nvim', 'vim', 'nano', 'micro'):
+                args = ['+' + str(line), str(path)]
+        subprocess.Popen(['omarchy-launch-editor', *args], start_new_session=True,
+                         stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+
     def dispatch(self, command):
         with self.lock:
             action = command.get("action")
-            if isinstance(action, str) and action.startswith("peek"):
+            if action == 'open_link':
+                self.open_link(command.get('url', ''))
+                return
+            if isinstance(action, str) and action.startswith("workspace_"):
+                self.workspace.dispatch(command)
+            elif isinstance(action, str) and action.startswith("thoughts_"):
+                self.thoughts.dispatch(command)
+            elif isinstance(action, str) and action.startswith("peek"):
                 self.peek.dispatch(command)
             elif action in ("hello", "refresh"):
                 self.sync_default_agent()
@@ -626,6 +722,8 @@ class Bridge(NativeBridge):
                 row = self.db.execute("SELECT data FROM chats WHERE id=?", (target,)).fetchone()
                 if row and self.terminal_state(json.loads(row[0])):
                     raise ValueError("Exit this session's terminal before deleting it.")
+                if row:
+                    self.db.execute("INSERT OR REPLACE INTO chat_trash VALUES (?,?,?)", (target, time.time(), row[0]))
                 self.db.execute("DELETE FROM chats WHERE id=?", (target,))
                 self.db.commit()
                 if target == self.active:
@@ -644,13 +742,30 @@ class Bridge(NativeBridge):
                         self.current["title"] = title
                 self.snapshot()
             elif action == "draft":
-                if not self.busy:
-                    if self.current is None:
-                        if not command.get("text"):
-                            return
-                        self.new()
-                    self.current["draft"] = str(command.get("text", ""))[:100_000]
-                    self.save(self.current)
+                draft_attachments = self.draft_attachments(command.get("attachments", []))
+                edit_draft = command.get("editDraft")
+                if edit_draft is not None:
+                    if not isinstance(edit_draft, dict) or not isinstance(edit_draft.get('index'), int):
+                        raise ValueError('Invalid message edit draft.')
+                    from thoughts import item_source
+                    edit_draft = dict(index=edit_draft['index'],messageId=str(edit_draft.get('messageId',''))[:100],
+                                      text=str(edit_draft.get('text',''))[:100_000],source=item_source(edit_draft.get('source')),
+                                      attachments=self.draft_attachments(edit_draft.get('attachments',[])))
+                created = self.current is None
+                if created:
+                    if not command.get("text") and not command.get("attachments"):
+                        return
+                    self.new()
+                if command.get("id") and command["id"] != self.current["id"]:
+                    raise ValueError("The conversation changed. Your draft was not overwritten.")
+                self.current["draft"] = str(command.get("text", ""))[:100_000]
+                from thoughts import item_source
+                self.current['draftSource'] = item_source(command.get('source'))
+                self.current['draftAttachments'] = draft_attachments
+                self.current['draftEdit'] = edit_draft
+                self.save(self.current)
+                if created:
+                    self.snapshot()
             elif action == "appearance":
                 options = command.get("settings")
                 if (not isinstance(options, dict) or not options or not set(options) <= {"outline", "expanded"}
@@ -715,7 +830,9 @@ class Bridge(NativeBridge):
                 raise ValueError("Unknown chat action.")
 
     def close(self):
+        self.workspace.close()
         self.cancelled.set()
+        self.thoughts.close()
         if self.peek:
             self.peek.close()
         if self.worker and self.worker.is_alive():
@@ -737,6 +854,9 @@ def main():
     try:
         bridge.sync_default_agent()
         bridge.snapshot()
+        damaged = bridge.db.execute('SELECT COUNT(*) FROM recovery').fetchone()[0]
+        if damaged:
+            bridge.emit(type='notice', text=f'{damaged} damaged records preserved in the local recovery table. Available conversations are ready.')
         for line in sys.stdin:
             try:
                 command = json.loads(line)

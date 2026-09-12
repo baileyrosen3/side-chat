@@ -1,0 +1,16 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::CompanionTransition::initTestCase() entering
+PASS   : qmltestrunner::CompanionTransition::initTestCase()
+INFO   : qmltestrunner::CompanionTransition::test_departure_finishes_before_hiding_and_disables_input_immediately() entering
+PASS   : qmltestrunner::CompanionTransition::test_departure_finishes_before_hiding_and_disables_input_immediately()
+INFO   : qmltestrunner::CompanionTransition::test_rapid_toggles_do_not_leave_a_stale_hide() entering
+PASS   : qmltestrunner::CompanionTransition::test_rapid_toggles_do_not_leave_a_stale_hide()
+INFO   : qmltestrunner::CompanionTransition::test_reduced_motion_settles_an_active_transition() entering
+PASS   : qmltestrunner::CompanionTransition::test_reduced_motion_settles_an_active_transition()
+INFO   : qmltestrunner::CompanionTransition::test_reversal_continues_from_current_position() entering
+PASS   : qmltestrunner::CompanionTransition::test_reversal_continues_from_current_position()
+INFO   : qmltestrunner::CompanionTransition::cleanupTestCase() entering
+PASS   : qmltestrunner::CompanionTransition::cleanupTestCase()
+Totals: 6 passed, 0 failed, 0 skipped, 0 blacklisted, 2105ms
+********* Finished testing of qmltestrunner *********

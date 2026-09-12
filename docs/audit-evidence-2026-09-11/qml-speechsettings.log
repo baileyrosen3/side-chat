@@ -1,0 +1,18 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::SpeechSettings::initTestCase() entering
+PASS   : qmltestrunner::SpeechSettings::initTestCase()
+INFO   : qmltestrunner::SpeechSettings::test_busy_or_unapplied_model_disables_preview() entering
+PASS   : qmltestrunner::SpeechSettings::test_busy_or_unapplied_model_disables_preview()
+INFO   : qmltestrunner::SpeechSettings::test_hearing_and_transcribing_take_priority_over_busy() entering
+PASS   : qmltestrunner::SpeechSettings::test_hearing_and_transcribing_take_priority_over_busy()
+INFO   : qmltestrunner::SpeechSettings::test_listening_controls_render() entering
+PASS   : qmltestrunner::SpeechSettings::test_listening_controls_render()
+INFO   : qmltestrunner::SpeechSettings::test_listening_modes_are_mutually_consistent() entering
+PASS   : qmltestrunner::SpeechSettings::test_listening_modes_are_mutually_consistent()
+INFO   : qmltestrunner::SpeechSettings::test_preview_uses_draft_without_apply() entering
+PASS   : qmltestrunner::SpeechSettings::test_preview_uses_draft_without_apply()
+INFO   : qmltestrunner::SpeechSettings::cleanupTestCase() entering
+PASS   : qmltestrunner::SpeechSettings::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 84ms
+********* Finished testing of qmltestrunner *********

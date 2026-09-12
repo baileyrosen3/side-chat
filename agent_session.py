@@ -17,6 +17,20 @@ from permission_modes import permission_args
 
 NATIVE_AGENTS = {"omp", "pi", "codex", "claude"}
 
+def wait_response(waiter, timeout, cancelled=None):
+    """Interrupt startup handshakes promptly when the user presses Stop."""
+    deadline = time.monotonic() + timeout
+    while True:
+        if cancelled is not None and cancelled.is_set():
+            raise ValueError("Stopped before the task began.")
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise queue.Empty
+        try:
+            return waiter.get(timeout=min(0.1, remaining))
+        except queue.Empty:
+            pass
+
 
 def cli_binary(agent):
     """Omarchy launch wrappers run mise setup before exec, which can consume RPC stdin."""
@@ -74,6 +88,7 @@ class RpcSession:
         return super().__new__(cls)
 
     def __init__(self, agent, folder, options, session_file=None, ui_callback=None):
+        self.options = options
         permissions = permission_args(agent, options.get("_permission_mode", "default"))
         self.agent = agent
         self.lease = SessionLease(folder)
@@ -142,7 +157,7 @@ class RpcSession:
         try:
             self.send(dict(values, type=kind, id=identity))
             try:
-                result = waiter.get(timeout=timeout)
+                result = wait_response(waiter, timeout, self.options.get("_cancel_event"))
             except queue.Empty:
                 raise ValueError(f"The agent did not answer {kind}. Check its terminal session.")
             if not result.get("success"):

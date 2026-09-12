@@ -6,10 +6,16 @@ from pathlib import Path
 import re
 import subprocess
 
+REQUEST_PATTERN = r'\b(?:my|the|this|current|active)\s+(?:screen|window|selected text|selection)\b|\b(?:on screen|(?:take|share|use|inspect|analyze|read|look at)\s+(?:(?:a|the|my|this)\s+)?screenshot)\b'
+
+def requested(text):
+    # Ordinary pronouns and coding errors do not imply sharing the desktop.
+    return bool(re.search(REQUEST_PATTERN, text, re.I))
+
 
 def capture(prefs, text):
     mode=prefs.get('screenContext','off')
-    if mode=='off' or (mode=='on-request' and not re.search(r'\b(this|that|screen|window|selected|here|error|looking)\b',text,re.I)):
+    if mode=='off' or (mode=='on-request' and not requested(text)):
         return '',[]
     try:
         active=json.loads(subprocess.check_output(['hyprctl','activewindow','-j'],timeout=2))

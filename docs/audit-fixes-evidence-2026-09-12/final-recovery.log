@@ -1,0 +1,18 @@
+test_busy_draft_attachments_survive_switch_and_restart (test_audit_fixes.BridgeAuditTests.test_busy_draft_attachments_survive_switch_and_restart) ... ok
+test_corrupt_conversation_and_preferences_do_not_block_startup (test_audit_fixes.BridgeAuditTests.test_corrupt_conversation_and_preferences_do_not_block_startup) ... ok
+test_file_links_use_editor_argv_and_reject_other_schemes (test_audit_fixes.BridgeAuditTests.test_file_links_use_editor_argv_and_reject_other_schemes) ... ok
+test_original_draft_and_in_progress_edit_both_survive_restart (test_audit_fixes.BridgeAuditTests.test_original_draft_and_in_progress_edit_both_survive_restart) ... ok
+test_redirect_acknowledges_only_after_acceptance (test_audit_fixes.BridgeAuditTests.test_redirect_acknowledges_only_after_acceptance) ... ok
+test_search_is_not_queued_behind_export (test_audit_fixes.BridgeAuditTests.test_search_is_not_queued_behind_export) ... ok
+test_search_tracks_edits_deletes_restores_and_message_location (test_audit_fixes.BridgeAuditTests.test_search_tracks_edits_deletes_restores_and_message_location) ... ok
+test_stop_during_startup_never_delivers_prompt (test_audit_fixes.BridgeAuditTests.test_stop_during_startup_never_delivers_prompt) ... ok
+test_generic_words_never_capture_desktop (test_audit_fixes.InputAuditTests.test_generic_words_never_capture_desktop) ... ok
+test_startup_wait_is_interruptible (test_audit_fixes.InputAuditTests.test_startup_wait_is_interruptible) ... ok
+test_takeover_remains_armed_between_actions_and_capability_is_real (test_audit_fixes.InputAuditTests.test_takeover_remains_armed_between_actions_and_capability_is_real) ... ok
+test_corrupt_drafts_preserve_original_and_allow_one_save (test_audit_fixes.RecoveryTests.test_corrupt_drafts_preserve_original_and_allow_one_save) ... ok
+test_retry_after_committed_note_and_failed_cleanup_is_idempotent (test_audit_fixes.RecoveryTests.test_retry_after_committed_note_and_failed_cleanup_is_idempotent) ... ok
+
+----------------------------------------------------------------------
+Ran 13 tests in 1.244s
+
+OK

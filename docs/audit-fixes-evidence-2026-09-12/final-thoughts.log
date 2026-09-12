@@ -1,0 +1,28 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+PASS   : qmltestrunner::Thoughts::initTestCase()
+PASS   : qmltestrunner::Thoughts::test_chat_and_notes_share_navigation_and_preserve_both_drafts()
+PASS   : qmltestrunner::Thoughts::test_checkoff_animation_finishes_and_completed_item_remains()
+PASS   : qmltestrunner::Thoughts::test_completed_task_moves_out_of_active_list_and_is_reversible()
+PASS   : qmltestrunner::Thoughts::test_discuss_prepares_composer_without_sending()
+PASS   : qmltestrunner::Thoughts::test_existing_reminder_survives_body_edit_and_can_be_removed()
+PASS   : qmltestrunner::Thoughts::test_global_dictation_is_a_note_and_early_release_stops_it()
+PASS   : qmltestrunner::Thoughts::test_global_new_note_always_targets_notes_and_keeps_task_draft()
+PASS   : qmltestrunner::Thoughts::test_hidden_notes_do_not_handle_chat_shortcuts()
+PASS   : qmltestrunner::Thoughts::test_leaving_note_capture_cancels_only_note_recording()
+PASS   : qmltestrunner::Thoughts::test_navigation_recovers_unsaved_edit_and_independent_new_draft()
+PASS   : qmltestrunner::Thoughts::test_new_draft_restores_after_tab_switch_and_restart()
+PASS   : qmltestrunner::Thoughts::test_open_search_result_keeps_unsaved_draft()
+PASS   : qmltestrunner::Thoughts::test_other_voice_key_finishes_original_capture_without_changing_destination()
+PASS   : qmltestrunner::Thoughts::test_peek_navigation_selects_the_requested_kind_and_keeps_search()
+PASS   : qmltestrunner::Thoughts::test_phone_layout_keeps_save_inside_panel()
+PASS   : qmltestrunner::Thoughts::test_reminder_preview_is_required_before_saving_and_old_results_ignored()
+PASS   : qmltestrunner::Thoughts::test_save_keeps_draft_until_ack_then_clears_composer()
+PASS   : qmltestrunner::Thoughts::test_shared_navigation_opens_notes_and_todos()
+PASS   : qmltestrunner::Thoughts::test_source_links_and_reminders_survive_draft_recovery()
+PASS   : qmltestrunner::Thoughts::test_tap_listening(note)
+PASS   : qmltestrunner::Thoughts::test_tap_listening(todo)
+PASS   : qmltestrunner::Thoughts::test_todo_enter_adds_and_note_enter_is_a_newline()
+PASS   : qmltestrunner::Thoughts::cleanupTestCase()
+Totals: 24 passed, 0 failed, 0 skipped, 0 blacklisted, 948ms
+********* Finished testing of qmltestrunner *********

@@ -1,0 +1,6 @@
+  INFO: Launching config: "/tmp/side-chat-audit-2026-09-11/source/AuditPreview.qml"
+  INFO: Shell ID: "1a99a021b39dd723e110e2e6eef0eeed" Path ID "1a99a021b39dd723e110e2e6eef0eeed"
+  INFO: Saving logs to "/run/user/1000/quickshell/by-id/uqll1eje8lt/log.qslog"
+  WARN scene: QML Connections at @ChatWindow.qml[151:5]: Detected function "onPreferencesRequested" in Connections element. This is probably intended to be a signal handler but no signal of the target matches the name.
+  INFO: Configuration Loaded
+ DEBUG qml: AUDIT_LONG_CREATE_MS 2380

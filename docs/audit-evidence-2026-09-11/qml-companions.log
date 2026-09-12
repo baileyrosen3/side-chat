@@ -1,0 +1,32 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::RobotCompanion::initTestCase() entering
+PASS   : qmltestrunner::RobotCompanion::initTestCase()
+INFO   : qmltestrunner::RobotCompanion::test_actual_surface_size_and_hidden_clock() entering
+PASS   : qmltestrunner::RobotCompanion::test_actual_surface_size_and_hidden_clock()
+INFO   : qmltestrunner::RobotCompanion::test_every_preview() entering
+PASS   : qmltestrunner::RobotCompanion::test_every_preview()
+INFO   : qmltestrunner::RobotCompanion::test_listening_responds_to_audio_and_quiet_input_settles() entering
+PASS   : qmltestrunner::RobotCompanion::test_listening_responds_to_audio_and_quiet_input_settles()
+INFO   : qmltestrunner::RobotCompanion::test_live_events() entering
+PASS   : qmltestrunner::RobotCompanion::test_live_events()
+INFO   : qmltestrunner::RobotCompanion::test_live_theme_updates_without_recreating_robot() entering
+PASS   : qmltestrunner::RobotCompanion::test_live_theme_updates_without_recreating_robot()
+INFO   : qmltestrunner::RobotCompanion::test_preview_keyboard() entering
+PASS   : qmltestrunner::RobotCompanion::test_preview_keyboard()
+INFO   : qmltestrunner::RobotCompanion::test_real_speech_interrupts_the_ready_flourish() entering
+PASS   : qmltestrunner::RobotCompanion::test_real_speech_interrupts_the_ready_flourish()
+INFO   : qmltestrunner::RobotCompanion::test_reduced_motion_stops_all_animation() entering
+PASS   : qmltestrunner::RobotCompanion::test_reduced_motion_stops_all_animation()
+INFO   : qmltestrunner::RobotCompanion::test_render_expressions() entering
+PASS   : qmltestrunner::RobotCompanion::test_render_expressions()
+INFO   : qmltestrunner::RobotCompanion::test_state_colors_follow_the_theme_and_stay_distinct() entering
+PASS   : qmltestrunner::RobotCompanion::test_state_colors_follow_the_theme_and_stay_distinct()
+INFO   : qmltestrunner::RobotCompanion::test_voxtype_mic_uses_one_toggle_request() entering
+PASS   : qmltestrunner::RobotCompanion::test_voxtype_mic_uses_one_toggle_request()
+INFO   : qmltestrunner::RobotCompanion::test_warmup_completion_has_one_ready_reaction() entering
+PASS   : qmltestrunner::RobotCompanion::test_warmup_completion_has_one_ready_reaction()
+INFO   : qmltestrunner::RobotCompanion::cleanupTestCase() entering
+PASS   : qmltestrunner::RobotCompanion::cleanupTestCase()
+Totals: 14 passed, 0 failed, 0 skipped, 0 blacklisted, 14108ms
+********* Finished testing of qmltestrunner *********

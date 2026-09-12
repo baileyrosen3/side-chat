@@ -1,0 +1,102 @@
+[
+  {
+    "file": "Main.qml",
+    "sha256": "f8ff544a26d4988c5045b7c93e9e1d6fac416a53aa41a140d52100d764475a20",
+    "matches_snapshot": true
+  },
+  {
+    "file": "ChatWindow.qml",
+    "sha256": "032e2f91f922ddd52fa766c93e27f81257252d4b7bf2436de1158c035f46299f",
+    "matches_snapshot": false
+  },
+  {
+    "file": "MessageCard.qml",
+    "sha256": "7c84f673149d48c89fbe107d7e63191117ceb063e21142008fa428a5986b2af0",
+    "matches_snapshot": true
+  },
+  {
+    "file": "ThoughtsModel.qml",
+    "sha256": "d43252adbe243b356cf76919175e0bd028319780c3ecf8d27fd81723a3ac685a",
+    "matches_snapshot": true
+  },
+  {
+    "file": "ThoughtsView.qml",
+    "sha256": "1c59abab3dbe0747ed82b2e26000a0e8e5c513c4dc1215bac9b1c4880af732ff",
+    "matches_snapshot": true
+  },
+  {
+    "file": "ThoughtRow.qml",
+    "sha256": "35f69af761852eb2d8536568743db1355b402204904952e322a893bddb4ec255",
+    "matches_snapshot": true
+  },
+  {
+    "file": "WorkspaceModel.qml",
+    "sha256": "a7ee2e5493a1ba16dc87c4ec4bedef9c4af10d1fa23f0a23d4d49b823c3663b8",
+    "matches_snapshot": true
+  },
+  {
+    "file": "WorkspaceOverlay.qml",
+    "sha256": "8d10e7254c92f811d26e96a0349a10f027b9ad35a3f8d49b56b83009392110cd",
+    "matches_snapshot": true
+  },
+  {
+    "file": "DesignPreview.qml",
+    "sha256": "64e9938cd56f15d91b6721a1f719adb00d4b4d30f995f43ba42c25d377be5f47",
+    "matches_snapshot": true
+  },
+  {
+    "file": "ToolActivity.qml",
+    "sha256": "78a66e23dff034ba7270e11c1e128b06d5dc4cbb9825c21b0da4af4257e3c79a",
+    "matches_snapshot": true
+  },
+  {
+    "file": "ChatStyle.qml",
+    "sha256": "0a0e1a198050e628a72823ad3baa1aa41b3fd78c3de933a914b7c180f239a129",
+    "matches_snapshot": true
+  },
+  {
+    "file": "ActionButton.qml",
+    "sha256": "1bc59a41b41d6f9e54f5273388145823adf1d14943dc24bb10e34b0524ebea65",
+    "matches_snapshot": true
+  },
+  {
+    "file": "backend.py",
+    "sha256": "347571f7042cfe9e0cd84f827c61037a8046da5862fc5a2f4be1b5b936c4b13a",
+    "matches_snapshot": true
+  },
+  {
+    "file": "native_bridge.py",
+    "sha256": "7ae9619720f071784ec11be632f3769b366a01a35902c739c59b9c7fbbdc4344",
+    "matches_snapshot": true
+  },
+  {
+    "file": "thoughts.py",
+    "sha256": "2559cf6ab24360cc4bc5e101617ab844d11d2ebb15aa0c36fd15bd8d745f0f8e",
+    "matches_snapshot": true
+  },
+  {
+    "file": "workspace.py",
+    "sha256": "f6f6577397cca58ffe05955b73666d3af6f2381d4dd82a33d14c460b16eeac64",
+    "matches_snapshot": true
+  },
+  {
+    "file": "peek/context.py",
+    "sha256": "4eff85da23058714f795fec373975926b47f977b4f9f44bdde29b1c561eb9578",
+    "matches_snapshot": true
+  },
+  {
+    "file": "peek/control.py",
+    "sha256": "fa4d612826529d551f6c3e35d162360e6d17318db85d921349c9a02516a412b7",
+    "matches_snapshot": true
+  },
+  {
+    "file": "PeekSettings.qml",
+    "sha256": "79278444c923af4858dc34ceab60a236e79699dc16174e7e26e7dab1031c2868",
+    "matches_snapshot": true
+  },
+  {
+    "file": "manifest.json",
+    "sha256": "67e3e8d7f327b0549347321c387f5faf8e4170f4d854e310f997754245a163a4",
+    "matches_snapshot": true
+  }
+]

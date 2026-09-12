@@ -10,12 +10,15 @@ Rectangle {
     QtObject {
         id: chat
         property var peek: ({})
+        property var thoughts: null
+        property string page: "chat"
         property bool busy: false
         property string error: ""
         property var agentRequests: []
         property var lastRequest: ({})
         function request(command) { lastRequest=command }
         function openConversation() { lastRequest={action:"conversation"} }
+        function navigate(section) { page=section;lastRequest={action:"navigate",section:section} }
         function openPeekSettings() { }
         function setPeek(enabled,reopen) { }
     }
@@ -29,7 +32,7 @@ Rectangle {
         when:windowShown
         function init() {
             failOnWarning(/.?/)
-            chat.busy=false;chat.error="";chat.agentRequests=[];chat.lastRequest={}
+            chat.busy=false;chat.error="";chat.agentRequests=[];chat.lastRequest={};chat.thoughts=null;chat.page="chat"
             chat.peek={stage:"idle",ready:true,preview:true,previewScenario:true,reducedMotion:true,expressiveness:1,scope:"desktop",task:{state:"idle",total:0,steps:[]}}
             mouseMove(scene,scene.width-1,scene.height-1)
             host.visible=true;surface.present=true;surface.hideControls();surface.desktopPointer=null
@@ -47,6 +50,26 @@ Rectangle {
             voice.stage="acting";compare(Gaze.attention(voice,true,mouse,null).source,"rest")
             compare(Gaze.attention(voice,false,mouse,target).source,"cursor")
             voice.reducedMotion=true;compare(Gaze.attention(voice,true,mouse,target).source,"rest")
+        }
+        function test_companion_tabs_open_the_same_workspace_sections() {
+            surface.showControls()
+            mouseClick(findChild(surface,"workspace-tab-notes"))
+            compare(chat.page,"notes");compare(chat.lastRequest.action,"navigate")
+            compare(surface.controlsVisible,false)
+            surface.showControls()
+            mouseClick(findChild(surface,"workspace-tab-todos"))
+            compare(chat.page,"todos")
+        }
+        function test_note_capture_and_save_use_the_existing_companion_feedback() {
+            chat.thoughts={recording:true,saving:false,voicePhase:"recording",voiceLevel:.4,savedAt:0}
+            var buddy=findChild(surface,"companion-body")
+            compare(buddy.mood,"listening");compare(buddy.inputLevel,.4)
+            compare(findChild(surface,"companion-headline").text,"Taking a note")
+            chat.thoughts=Object.assign({},chat.thoughts,{voicePhase:"transcribing"})
+            compare(buddy.mood,"thinking")
+            compare(findChild(surface,"companion-headline").text,"Writing your note")
+            chat.thoughts=Object.assign({},chat.thoughts,{recording:false,savedAt:123})
+            compare(buddy.completedAt,123)
         }
         function test_controls_only_appear_on_hover_and_stay_usable() {
             var dock=surface.panelRegion

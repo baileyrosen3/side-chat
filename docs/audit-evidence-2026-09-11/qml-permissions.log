@@ -1,0 +1,18 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::PermissionControls::initTestCase() entering
+PASS   : qmltestrunner::PermissionControls::initTestCase()
+INFO   : qmltestrunner::PermissionControls::test_agent_switch_has_its_own_choices_and_default() entering
+PASS   : qmltestrunner::PermissionControls::test_agent_switch_has_its_own_choices_and_default()
+INFO   : qmltestrunner::PermissionControls::test_busy_disconnected_terminal_and_pending_disable_changes() entering
+PASS   : qmltestrunner::PermissionControls::test_busy_disconnected_terminal_and_pending_disable_changes()
+INFO   : qmltestrunner::PermissionControls::test_descriptions_fit_compact_width() entering
+PASS   : qmltestrunner::PermissionControls::test_descriptions_fit_compact_width()
+INFO   : qmltestrunner::PermissionControls::test_keyboard_selection_before_first_message() entering
+PASS   : qmltestrunner::PermissionControls::test_keyboard_selection_before_first_message()
+INFO   : qmltestrunner::PermissionControls::test_selection_waits_for_backend_and_sends_chat_identity() entering
+PASS   : qmltestrunner::PermissionControls::test_selection_waits_for_backend_and_sends_chat_identity()
+INFO   : qmltestrunner::PermissionControls::cleanupTestCase() entering
+PASS   : qmltestrunner::PermissionControls::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 41ms
+********* Finished testing of qmltestrunner *********

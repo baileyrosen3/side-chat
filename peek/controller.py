@@ -195,7 +195,8 @@ class PeekController:
 
     def configure_control(self,enabled):
         if self.control and self.control.poll() is None:
-            control_request(self.socket,{'op':'_configure','enabled':enabled,'scope':self.prefs['scope'],'turn':self.turn,'accent':self.state.get('accent',''),'cwd':self.cwd()})
+            capabilities=control_request(self.socket,{'op':'_configure','enabled':enabled,'scope':self.prefs['scope'],'turn':self.turn,'accent':self.state.get('accent',''),'cwd':self.cwd()})
+            self.publish(controlCapabilities=capabilities)
 
     def extension_options(self):
         if not self.enabled:return {}
@@ -242,12 +243,30 @@ class PeekController:
 
     def dispatch(self,c):
         action=c.get('action')
+        thoughts = getattr(self.bridge, 'thoughts', None)
+        if (thoughts and thoughts.capturing and
+                action in ('peek', 'peek_listen', 'peek_toggle_listen', 'peek_standby', 'peek_wake')):
+            if action == 'peek_toggle_listen' or c.get('enabled') or action in ('peek_standby', 'peek_wake'):
+                raise ValueError('Finish the thought recording before starting Peek’s microphone.')
+        if (thoughts and thoughts.capturing and action == 'peek_settings'
+                and set(c.get('settings', {})) & (RELOAD | {'handsFree', 'wakeEnabled'})):
+            raise ValueError('Finish the thought recording before changing microphone settings.')
         if self.companion.dispatch(c):return
         if action=='peek':
             self.state['accent']=str(c.get('accent',''))
             self.enable(c.get('enabled') is True)
         elif action=='peek_status':self.companion.publish()
         elif action=='peek_say':self.submit_voice(str(c.get('text','')))
+        elif action=='peek_redirect':
+            text=str(c.get('text','')).strip()
+            if not self.enabled or not self.bridge.busy:
+                raise ValueError('The reply finished. Your draft is ready to send as a new message.')
+            if not text or len(text)>100_000:
+                raise ValueError('Write a correction under 100,000 characters.')
+            if self.bridge.ui_requests:
+                raise ValueError('Answer the pending question before redirecting. Your draft is still here.')
+            self.steer(text)
+            self.bridge.emit(type='redirect_accepted',text=str(c.get('text','')))
         elif action=='peek_voice_preview':
             if not self.enabled or not self.state['ready']:raise ValueError('Turn on Peek and wait for the voice to be ready before previewing.')
             if self.bridge.busy or self.bridge.ui_requests:raise ValueError('Finish or stop the task before previewing a voice.')
@@ -464,6 +483,13 @@ class PeekController:
                         matches=[v for v in r.get('options',[]) if v.lower()==answer]
                         if len(matches)==1:self.bridge.answer_ui({'id':r['id'],'value':matches[0]});return
                     self.publish(caption='Please answer the pending question using its controls.',stage='needs_input');return
+                thought = self.companion.match_thought(text)
+                if thought:
+                    result = self.companion.execute(thought)
+                    self.publish(caption=result, lastHeard=text)
+                    if not self.bridge.busy:
+                        self.say([result])
+                    return
                 if self.bridge.busy:
                     if self.prefs['bargeIn']:self.steer(text)
                     else:self.pending=(self.pending+'\n'+text).strip();self.publish(caption='I’ll take that next.',taskCaption='Follow-up queued')
@@ -514,7 +540,7 @@ class PeekController:
             try:
                 result=self.companion.execute(match)
                 reply.update(text=result,status='complete')
-                if match[0] not in ('remember','forget','memories'):
+                if match[0] not in ('remember','forget','memories','thought_save','thought_find','thought_todo','thought_todos'):
                     self.companion.store.activity(text,result)
             except Exception as exc:reply.update(text='',error=str(exc),status='error')
             finally:
@@ -600,6 +626,9 @@ class PeekController:
         elif kind=='error':self.publish(error=e['text'],stage='error')
 
     def control_event(self,e):
+        if e.get('type')=='control_capabilities':
+            self.publish(controlCapabilities=e.get('capabilities',{}))
+            return
         if not self.enabled or (e.get('turn') and e['turn']!=self.turn):return
         kind=e.get('type')
         if kind in ('pointer','control_action') and self.task.state!='running':return

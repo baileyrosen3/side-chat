@@ -1,0 +1,17 @@
+test_cancel_keeps_new_speech_held_while_user_is_talking (test_speech_interruptions.SpeechInterruptionTests.test_cancel_keeps_new_speech_held_while_user_is_talking) ... ok
+test_capture_events_from_a_muted_session_are_discarded (test_speech_interruptions.SpeechInterruptionTests.test_capture_events_from_a_muted_session_are_discarded) ... ok
+test_completed_or_draining_player_cannot_announce_previous_reply (test_speech_interruptions.SpeechInterruptionTests.test_completed_or_draining_player_cannot_announce_previous_reply) ... ok
+test_delayed_pause_cannot_mute_a_new_or_disabled_microphone_session (test_speech_interruptions.SpeechInterruptionTests.test_delayed_pause_cannot_mute_a_new_or_disabled_microphone_session) ... ok
+test_delayed_resume_cannot_restart_reply_during_next_utterance (test_speech_interruptions.SpeechInterruptionTests.test_delayed_resume_cannot_restart_reply_during_next_utterance) ... ok
+test_empty_microphone_off_keeps_current_speech_playing (test_speech_interruptions.SpeechInterruptionTests.test_empty_microphone_off_keeps_current_speech_playing) ... ok
+test_microphone_off_finalizes_without_waiting_for_silence (test_speech_interruptions.SpeechInterruptionTests.test_microphone_off_finalizes_without_waiting_for_silence) ... ok
+test_muting_discards_a_buffered_capture_frame_before_it_can_pause_speech (test_speech_interruptions.SpeechInterruptionTests.test_muting_discards_a_buffered_capture_frame_before_it_can_pause_speech) ... ok
+test_pause_during_pcm_pacing_resumes_without_duplicate_samples (test_speech_interruptions.SpeechInterruptionTests.test_pause_during_pcm_pacing_resumes_without_duplicate_samples) ... ok
+test_quick_off_on_keeps_phrase_and_reopens_after_finalization (test_speech_interruptions.SpeechInterruptionTests.test_quick_off_on_keeps_phrase_and_reopens_after_finalization) ... ok
+test_second_off_during_finalization_cancels_reopen_without_duplicate_send (test_speech_interruptions.SpeechInterruptionTests.test_second_off_during_finalization_cancels_reopen_without_duplicate_send) ... ok
+test_stop_discards_phrase_already_being_finalized (test_speech_interruptions.SpeechInterruptionTests.test_stop_discards_phrase_already_being_finalized) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 0.805s
+
+OK

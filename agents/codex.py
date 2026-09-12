@@ -9,7 +9,7 @@ import subprocess
 import threading
 import time
 import uuid
-from agent_session import SessionLease,text_content,cli_binary
+from agent_session import SessionLease,text_content,cli_binary,wait_response
 from permission_modes import codex_permissions
 
 
@@ -70,7 +70,7 @@ class CodexSession:
         with self.guard:self.pending[identity]=waiter
         try:
             self.write({'id':identity,'method':method,'params':params or {}})
-            try:response=waiter.get(timeout=timeout)
+            try:response=wait_response(waiter,timeout,self.options.get('_cancel_event'))
             except queue.Empty:raise RuntimeError('Codex did not answer '+method+'. '+self.stderr[-500:])
             if response.get('error'):raise RuntimeError(str(response['error'].get('message',response['error'])))
             return response.get('result',{})

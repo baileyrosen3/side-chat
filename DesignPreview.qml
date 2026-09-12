@@ -4,8 +4,28 @@ import Quickshell.Io
 import qs.Commons
 ShellRoot {
  id: fixture
+ ThoughtsModel {id:previewThoughts;chat:chat}
+ WorkspaceModel {id:previewWorkspace;chat:chat}
  QtObject {
   id: chat
+  property var thoughts: previewThoughts
+  property var workspace: previewWorkspace
+  property var draftSource: ({})
+  property var pageHistory: []
+  property var messageTarget: null
+  property bool screenWillBeShared: false
+  property bool excludeScreen: false
+  function revealMessage(id, index) {messageTarget={chatId:id,index:index};openConversation()}
+  function focusWorkspace() {if(workspace.mode) workspace.focusInput();else if(page === "notes" || page === "todos") thoughts.focusEditor();else focusComposer()}
+  function thoughtsScreen() {return companionScreen}
+  function visit(next) {if(page === next)return;pageHistory=pageHistory.concat([page]);returnPage=page;page=next}
+  function back() {var history=pageHistory.slice();page=history.length ? history.pop() : "chat";pageHistory=history;returnPage=history.length ? history[history.length-1] : "chat"}
+  function navigate(name) {if(name === "chat") openConversation();else openThoughts(name === "todos" ? "todo" : "note")}
+  function openThoughts(kind) {thoughts.switchKind(kind);pageHistory=[];page=kind === "todo" ? "todos" : "notes";openScreen=companionScreen}
+  function openWorkspacePeek() {peek=Object.assign({},peek,{enabled:true});companionControlsRequested()}
+  function saveThought(text) {thoughts.newThought(text);openThoughts("note")}
+  function openSource(source) {}
+  function cancelEdit() {editIndex=-1;draft=""}
   property var peek: {"preview": true, "scope": "desktop", "source": "", "sink": "", "voice": "alba", "handsFree": true, "muted": false, "reducedMotion": false, "bargeIn": true, "echoCancellation": true, "asrModel": "parakeet-unified", "modelPath": "", "asrThreads": 4, "streamingProfile": "balanced", "endSilence": 0.65, "minSpeech": 0.18, "vadThreshold": 0.55, "maxUtterance": 25, "ttsModel": "pocket", "ttsThreads": 4, "volume": 1.0, "speechRate": 1.0, "wakeEnabled": false, "wakeThreshold": 0.97, "followupSeconds": 12, "screenContext": "on-request", "selectionContext": false, "screenImages": true, "memoryEnabled": true, "quickCommands": true, "personality": "balanced", "expressiveness": 1.0, "companionPosition": 0.16, "defaults": {"endSilence": 0.45, "streamingProfile": "fast", "handsFree": true, "wakeEnabled": false, "noiseRejection": "balanced", "scope": "desktop"}, "enabled": false, "ready": true, "listening": false, "speaking": false, "stage": "listening", "caption": "", "partial": "", "inputLevel": 0.35, "outputLevel": 0.3, "devices": [], "memories": [], "routines": [], "watches": [], "restorePoints": []}
   property string companionScreen: Quickshell.screens[Quickshell.screens.length-1].name
   property string openScreen: companionScreen
@@ -39,6 +59,7 @@ ShellRoot {
   signal focusComposer()
   signal companionControlsRequested()
   signal settingsSaved()
+  signal preferencesRequested()
   function settleNotice() { notice="" }
   function request(c) {
    lastRequest=c
@@ -47,6 +68,8 @@ ShellRoot {
    if(c.action === "permission_mode") current=Object.assign({},current,{permissionMode:c.mode})
    if(c.action === "peek_settings") peek=Object.assign({},peek,c.settings)
    if(c.action === "peek_listen") peek=Object.assign({},peek,{listening:c.enabled})
+   if(c.action === "stop") busy=false
+   return true
   }
   function hover(screen,inside) { }
   function pin() { pinned=true }
@@ -54,7 +77,7 @@ ShellRoot {
   function show(screen,persistent) { openScreen=screen;pinned=persistent }
   function setPeek(v,reopen) { peek=Object.assign({},peek,{enabled:v});if(v) close();else if(reopen !== false) openConversation() }
   function openConversation() { openScreen=companionScreen;page="chat" }
-  function openPeekSettings(from) { openConversation();returnPage=from === "settings" ? "settings" : "chat";page="peek_settings" }
+  function openPeekSettings(from) {visit("peek_settings");openScreen=companionScreen}
   function startNew() { current=Object.assign({},current,{messages:[]});draft="";page="chat" }
   function submit() { lastRequest={action:"send",text:draft};draft="" }
   function edit(i) { draft=messages[i].text;editIndex=i }
@@ -66,8 +89,8 @@ ShellRoot {
    for(var child of (item.children || [])) { var found=findItem(child,name);if(found) return found }
    return null
   }
-  function addAttachment(p) { }
-  function removeAttachment(i) { }
+  function addAttachment(p) {attachments=attachments.concat([p])}
+  function removeAttachment(i) {var next=attachments.slice();next.splice(i,1);attachments=next}
  }
  FileView {
   path: String(Qt.resolvedUrl("manifest.json")).replace("file://", "")
@@ -118,7 +141,13 @@ ShellRoot {
    return JSON.stringify({width:panel.width,height:panel.height,threadHeight:thread.height,composerY:composer.mapToItem(panel.contentItem,0,0).y,latestVisible:latest.visible,scrollY:thread.contentY})
   }
   function scenario(name: string): void {
-   chat.openConversation();chat.agentRequests=[];chat.busy=false
+   chat.openConversation();chat.agentRequests=[];chat.busy=false;chat.attachments=[];chat.messageTarget=null
+   if(name === "notes" || name === "todos") {previewThoughts.initialized=true;previewThoughts.resetInput();chat.openThoughts(name === "todos" ? "todo" : "note")}
+   if(name === "attachment") chat.attachments=["file:///tmp/A_very_long_attachment_filename_that_should_fit_inside_the_compact_drawer_without_overflowing_the_visible_controls_and_content.md"]
+   if(name === "redirect") {chat.busy=true;chat.peek=Object.assign({},chat.peek,{enabled:true});chat.draft="Use the other approach"}
+   if(name === "thousand") {var start=Date.now();chat.current=Object.assign({},chat.current,{messages:Array.from({length:1000},(_,i)=>({role:i%2 ? "assistant" : "user",text:"Message "+i+". "+Array(8).fill("A useful response about the project.").join(" "),status:"complete",time:Date.now()/1000}))});Qt.callLater(()=>console.log("THOUSAND_MESSAGES_MS",Date.now()-start))}
+   if(name === "search-match") chat.revealMessage(chat.current.id, 42)
+   if(name === "code") chat.current=Object.assign({},chat.current,{messages:[{role:"assistant",text:"A long line should keep its indentation:\n\n```python\n    result = some_long_function_name(first_argument, second_argument, third_argument, fourth_argument)\n```",status:"complete",time:Date.now()/1000}]})
    if(name === "empty") chat.startNew()
    if(name === "long") chat.current=Object.assign({},chat.current,{messages:Array.from({length:10},(_,i)=>({role:i%2 ? "assistant" : "user",text:"Message "+(i+1)+". A long conversation to check scrolling, the latest-reply button, and stable composer positioning.",status:"complete",time:Date.now()/1000}))})
    if(name === "approval") chat.agentRequests=[{id:"preview-request",method:"confirm",title:"Allow Bash?",message:"git diff --stat\n\nReview the working tree before running the project checks.",allowAlwaysBash:true}]
@@ -131,6 +160,31 @@ ShellRoot {
   function snapshot(name: string): void {
    if(!/^[a-z-]+$/.test(name)) return
    panel.contentItem.children.find(c=>c.objectName === "chat-drawer").grabToImage(r=>r.saveToFile("/tmp/side-chat-"+name+".png"))
+  }
+  function reviewGeometry(): string {
+   var thread=chat.findItem(panel.contentItem,"message-thread"), rows=[]
+   function visit(item) {
+    if(item.objectName === "chat-stop" || item.objectName === "chat-send" || (item.hint && item.hint.indexOf("Remove A_very_long")===0)) {
+     var point=item.mapToItem(panel.contentItem,0,0)
+     rows.push({name:item.objectName,text:item.text,visible:item.visible,x:point.x,y:point.y,width:item.width,height:item.height,right:point.x+item.width})
+    }
+    for(var child of item.children || []) visit(child)
+   }
+   visit(panel.contentItem)
+   return JSON.stringify({width:panel.width,height:panel.height,controls:rows,thread:{height:thread.height,count:thread.count,delegates:thread.contentItem.children.filter(c=>c.messageIndex!==undefined).length,contentY:thread.contentY,atEnd:thread.atYEnd}})
+  }
+  function reviewSelection(): void {
+   chat.openConversation();chat.busy=false;chat.messageTarget=null
+   chat.current=Object.assign({},chat.current,{messages:[{id:"selection",role:"user",text:"Select these words",time:1,status:"complete"},{id:"reply",role:"assistant",text:"An early reply",time:1,status:"complete"}]})
+   Qt.callLater(()=>{
+    var before=chat.findItem(panel.contentItem,"message-text-0-0")
+    before.select(0,6)
+    chat.current=Object.assign({},chat.current,{messages:chat.messages.map(m=>Object.assign({},m,m.id === "reply" ? {text:"The updated reply"} : {}))})
+    Qt.callLater(()=>{
+     var after=chat.findItem(panel.contentItem,"message-text-0-0")
+     console.log("SELECTION_CHECK",JSON.stringify({sameDelegate:before===after,selectedText:after.selectedText}))
+    })
+   })
   }
   function snapshotCompanion(name: string): void {
    if(!/^[a-z-]+$/.test(name)) return

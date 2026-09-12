@@ -12,15 +12,17 @@ Column {
     property bool expanded: false
     readonly property int runningCount: tools.filter(t => t.status === "running").length
     readonly property int failedCount: tools.filter(t => t.status === "error").length
+    readonly property int stoppedCount: tools.filter(t => t.status === "stopped").length
+    readonly property int completedCount: tools.filter(t => t.status === "complete").length
     width: parent.width
     spacing: host.px(4)
     ActionButton {
         width: parent.width
         textAlignment: Text.AlignLeft
-        glyph: root.runningCount ? "terminal" : root.failedCount ? "close" : "check"
+        glyph: root.runningCount ? "terminal" : root.failedCount ? "close" : root.stoppedCount ? "stop" : "check"
         trailingGlyph: root.expanded ? "chevron-up" : "chevron-down"
         text: root.runningCount ? "Using " + root.tools.filter(t => t.status === "running").map(t => Theme.toolName(t.name)).join(", ") + "…"
-                               : root.tools.length + (root.tools.length === 1 ? " action" : " actions") + (root.failedCount ? " · " + root.failedCount + " failed" : " completed")
+                               : [root.completedCount ? root.completedCount + " completed" : "", root.failedCount ? root.failedCount + " failed" : "", root.stoppedCount ? root.stoppedCount + " stopped" : ""].filter(Boolean).join(" · ") || "Tool activity"
         hint: root.expanded ? "Hide tool activity" : "Show commands, files, and results"
         subtle: false
         onClicked: root.expanded = !root.expanded
@@ -30,14 +32,14 @@ Column {
         width: parent.width
         spacing: root.host.px(5)
         Repeater {
-            model: root.tools
+            model: root.expanded ? root.tools : []
             Rectangle {
                 id: toolRow
                 required property var modelData
                 property bool detailsOpen: false
                 width: parent.width
                 height: details.implicitHeight + root.host.px(12)
-                radius: 0
+                radius: ui.radius
                 color: ui.field
                 border.width: 1; border.color: ui.line
                 Column {
@@ -47,7 +49,7 @@ Column {
                     spacing: root.host.px(5)
                     AbstractButton {
                         width: parent.width
-                        implicitHeight: root.host.px(22)
+                        implicitHeight: ui.controlHeight
                         background: Rectangle { color: "transparent"; radius: ui.radius; border.width: parent.activeFocus ? 1 : 0; border.color: ui.accent }
                         Accessible.name: Theme.toolName(toolRow.modelData.name) + " " + toolRow.modelData.status
                         hoverEnabled: true

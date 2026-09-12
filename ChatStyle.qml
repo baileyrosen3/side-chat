@@ -18,8 +18,8 @@ QtObject {
     readonly property int body: Style.font.body
     readonly property int small: Math.max(10, body - 1)
     readonly property int caption: Math.max(10, body - 2)
-    readonly property int controlHeight: Math.max(Style.space(26), body + Style.space(10))
-    readonly property int radius: 0
+    readonly property int controlHeight: Math.max(24, Style.space(28), body + Style.space(12))
+    readonly property int radius: Style.space(6)
     readonly property real stroke: Math.max(1, Style.space(1.5))
-    readonly property real shadow: Style.space(2)
+    readonly property real shadow: 0
 }

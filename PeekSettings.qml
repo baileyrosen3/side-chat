@@ -196,7 +196,7 @@ ColumnLayout {
                 Choice { label: "Computer control"; key: "scope"; options: [{id:"desktop",name:"Desktop"},{id:"browser",name:"Isolated browser"}] }
                 Note { text: root.draft.scope === "desktop" ? "Uses your apps and normal browser profile, with screenshots, mouse and keyboard." : "Uses a separate headless Chromium without desktop input." }
                 Choice { label: "Screen context"; key: "screenContext"; options: [{id:"off",name:"Off"},{id:"on-request",name:"When I mention my screen"},{id:"always",name:"Every Desktop request"}] }
-                Note { visible: root.draft.screenContext === "on-request"; text: "Triggers on “this”, “that”, or “my screen”." }
+                Note { visible: root.draft.screenContext === "on-request"; text: "Shares the active window when you explicitly mention “my screen”, “this window”, or a screenshot. Ordinary words like “this” or “error” do not capture it." }
                 Toggle { label: "Include screen image"; key: "screenImages" }
                 Toggle { label: "Include selected text"; key: "selectionContext" }
                 Note { text: "Screen context goes to your agent’s provider. Selected text comes from the focused app." }
@@ -204,7 +204,7 @@ ColumnLayout {
                 Toggle { label: "Use saved memories"; key: "memoryEnabled" }
                 Toggle { label: "Fast local commands"; key: "quickCommands" }
                 Choice { label: "Spoken personality"; key: "personality"; options: [{id:"concise",name:"Concise"},{id:"balanced",name:"Balanced"},{id:"witty",name:"Lightly witty"}] }
-                Note { text: "Move the mouse to take over. Ctrl+Alt+Esc stops speech and computer actions. Agent permissions still apply." }
+                Note { text: (root.chat.peek.controlCapabilities && root.chat.peek.controlCapabilities.takeover ? "Physical takeover monitors " + root.chat.peek.controlCapabilities.inputDevices + " input devices. " : "Physical takeover is not available yet. Use the Stop button. ") + (root.chat.peek.controlCapabilities && root.chat.peek.controlCapabilities.stopShortcut ? "Ctrl+Alt+Esc stops speech and computer actions. " : "") + "Agent permissions still apply." }
             }
         }
     }

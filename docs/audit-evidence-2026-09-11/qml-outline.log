@@ -1,0 +1,24 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::PanelOutline::initTestCase() entering
+PASS   : qmltestrunner::PanelOutline::initTestCase()
+INFO   : qmltestrunner::PanelOutline::test_alpha_and_gradient_direction_repaint() entering
+PASS   : qmltestrunner::PanelOutline::test_alpha_and_gradient_direction_repaint()
+INFO   : qmltestrunner::PanelOutline::test_argb_and_angles() entering
+PASS   : qmltestrunner::PanelOutline::test_argb_and_angles()
+INFO   : qmltestrunner::PanelOutline::test_full_width_stays_inside_silhouette() entering
+PASS   : qmltestrunner::PanelOutline::test_full_width_stays_inside_silhouette()
+INFO   : qmltestrunner::PanelOutline::test_invalid_gradients() entering
+PASS   : qmltestrunner::PanelOutline::test_invalid_gradients()
+INFO   : qmltestrunner::PanelOutline::test_keyboard_focus_preserves_desktop_colors_and_gradient() entering
+PASS   : qmltestrunner::PanelOutline::test_keyboard_focus_preserves_desktop_colors_and_gradient()
+INFO   : qmltestrunner::PanelOutline::test_settings_toggle_reset_and_keyboard() entering
+PASS   : qmltestrunner::PanelOutline::test_settings_toggle_reset_and_keyboard()
+INFO   : qmltestrunner::PanelOutline::test_toggle_and_zero_width_keep_keyboard_focus_visible() entering
+PASS   : qmltestrunner::PanelOutline::test_toggle_and_zero_width_keep_keyboard_focus_visible()
+INFO   : qmltestrunner::PanelOutline::test_width_validation() entering
+PASS   : qmltestrunner::PanelOutline::test_width_validation()
+INFO   : qmltestrunner::PanelOutline::cleanupTestCase() entering
+PASS   : qmltestrunner::PanelOutline::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 1061ms
+********* Finished testing of qmltestrunner *********

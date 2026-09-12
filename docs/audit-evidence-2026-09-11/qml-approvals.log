@@ -1,0 +1,24 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::BashApprovalControls::initTestCase() entering
+PASS   : qmltestrunner::BashApprovalControls::initTestCase()
+INFO   : qmltestrunner::BashApprovalControls::test_allow_and_deny_do_not_remember() entering
+PASS   : qmltestrunner::BashApprovalControls::test_allow_and_deny_do_not_remember()
+INFO   : qmltestrunner::BashApprovalControls::test_always_button_sends_explicit_choice_and_conversation() entering
+PASS   : qmltestrunner::BashApprovalControls::test_always_button_sends_explicit_choice_and_conversation()
+INFO   : qmltestrunner::BashApprovalControls::test_buttons_fit_narrow_panel() entering
+PASS   : qmltestrunner::BashApprovalControls::test_buttons_fit_narrow_panel()
+INFO   : qmltestrunner::BashApprovalControls::test_long_command_keeps_decisions_visible() entering
+PASS   : qmltestrunner::BashApprovalControls::test_long_command_keeps_decisions_visible()
+INFO   : qmltestrunner::BashApprovalControls::test_other_approval_has_no_always_button() entering
+PASS   : qmltestrunner::BashApprovalControls::test_other_approval_has_no_always_button()
+INFO   : qmltestrunner::BashApprovalControls::test_settings_toggle_and_disconnect() entering
+PASS   : qmltestrunner::BashApprovalControls::test_settings_toggle_and_disconnect()
+INFO   : qmltestrunner::BashApprovalControls::test_short_request_has_no_expand_toggle() entering
+PASS   : qmltestrunner::BashApprovalControls::test_short_request_has_no_expand_toggle()
+INFO   : qmltestrunner::BashApprovalControls::test_unsupported_agent_hides_settings() entering
+PASS   : qmltestrunner::BashApprovalControls::test_unsupported_agent_hides_settings()
+INFO   : qmltestrunner::BashApprovalControls::cleanupTestCase() entering
+PASS   : qmltestrunner::BashApprovalControls::cleanupTestCase()
+Totals: 10 passed, 0 failed, 0 skipped, 0 blacklisted, 168ms
+********* Finished testing of qmltestrunner *********

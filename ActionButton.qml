@@ -14,7 +14,7 @@ AbstractButton {
     property bool selected: false
     property bool tab: false
     property bool danger: false
-    property bool uppercase: tab
+    property bool uppercase: false
     property int textAlignment: Text.AlignHCenter
     property string hint: ""
     property color ink: danger ? Theme.readable(ui.danger, ui.foreground, ui.surface) : accent || selected ? ui.accentInk : subtle && !hovered && !activeFocus ? ui.muted : ui.foreground
@@ -60,13 +60,6 @@ AbstractButton {
             radius: ui.radius
             border.width: ui.stroke
             border.color: ui.line
-        }
-
-    }
-
-    Behavior on opacity {
-        NumberAnimation {
-            duration: 140
         }
 
     }
@@ -117,6 +110,7 @@ AbstractButton {
             width: parent.width - root.lift
             height: parent.height - root.lift
             color: ui.foreground
+            radius: ui.radius
             visible: root.lift > 0 && root.enabled
         }
 
@@ -126,6 +120,7 @@ AbstractButton {
             width: parent.width - root.lift
             height: parent.height - root.lift
             color: root.danger ? ui.danger : root.accent || root.selected ? ui.accent : root.hovered || root.activeFocus ? ui.secondary : root.subtle || root.tab ? "transparent" : ui.field
+            radius: ui.radius
             border.width: root.activeFocus || root.accent || root.danger ? ui.stroke : root.selected || !root.subtle && !root.tab ? 1 : 0
             border.color: root.activeFocus || root.accent || root.danger ? ui.foreground : ui.border
         }

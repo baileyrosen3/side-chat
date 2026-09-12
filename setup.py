@@ -14,10 +14,10 @@ sys.dont_write_bytecode = True
 
 SOURCE = Path(__file__).resolve().parent
 PLUGIN = "blr.side-chat"
-BASE_PACKAGES = ("python", "qt6-quick3d", "wl-clipboard")
+BASE_PACKAGES = ("python", "python-gobject", "qt6-quick3d", "wl-clipboard")
 PEEK_PACKAGES = (
     "base-devel", "pipewire", "pipewire-audio", "pipewire-pulse", "wireplumber",
-    "libpulse", "libsndfile", "chromium", "grim", "wtype", "python-gobject",
+    "libpulse", "libsndfile", "chromium", "grim", "wtype",
     "at-spi2-core", "brightnessctl", "playerctl",
 )
 VOXTYPE_PACKAGES = ("voxtype-bin",)

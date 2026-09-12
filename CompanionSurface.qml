@@ -37,6 +37,8 @@ Item {
     property point desktopOrigin: Qt.point(0, 0)
     property real gazeDistance: Style.space(280)
     readonly property var voice: chat.peek
+    readonly property var notes: chat.thoughts || null
+    readonly property bool noteRecording: !!notes && notes.recording
     readonly property var task: voice.task || ({state:"idle",steps:[],total:0})
     readonly property alias bodyRegion: bodyHit
     readonly property alias panelRegion: dock
@@ -47,8 +49,8 @@ Item {
         desktopOrigin.x + bodyHit.x + buddy.x + buddy.width / 2 + Style.space(-17 + buddy.animation.lean * 23),
         desktopOrigin.y + bodyHit.y + buddy.y + buddy.height / 2 - Style.space(15)), gazeDistance) : ({x:0,y:0})
     readonly property bool needsAnswer: voice.stage === "needs_input"
-    readonly property string stateLabel: chat.error ? "Needs attention" : Voice.label(voice,chat.busy)
-    readonly property string headline: chat.error || voice.error ? stateLabel : needsAnswer ? "Your answer is needed" : voice.hearing || voice.transcribing || voice.speaking ? stateLabel
+    readonly property string stateLabel: noteRecording ? notes.voicePhase === "transcribing" ? "Writing your note" : "Taking a note" : chat.error ? "Needs attention" : Voice.label(voice,chat.busy)
+    readonly property string headline: noteRecording || chat.error || voice.error ? stateLabel : needsAnswer ? "Your answer is needed" : voice.hearing || voice.transcribing || voice.speaking ? stateLabel
                                       : chat.busy ? (voice.taskCaption || task.label || "Working through your request")
                                       : resultVisible ? task.label || stateLabel : stateLabel
     readonly property string captionText: voice.preview && !voice.previewScenario ? "Design preview. Microphone and agent are disabled."
@@ -100,9 +102,9 @@ Item {
             id: buddy
             objectName: "companion-body"
             x: -Style.space(66); y: -Style.space(15); width: Style.space(200); height: width
-            mood: chat.error || root.voice.error ? "error" : root.voice.stage || "idle"
-            inputLevel: root.voice.inputLevel || 0; outputLevel: root.voice.outputLevel || 0
-            reducedMotion: root.voice.reducedMotion || false; completedAt: root.voice.completedAt || 0
+            mood: root.noteRecording ? root.notes.voicePhase === "transcribing" ? "thinking" : "listening" : chat.error || root.voice.error ? "error" : root.voice.stage || "idle"
+            inputLevel: root.noteRecording ? root.notes.voiceLevel : root.voice.inputLevel || 0; outputLevel: root.voice.outputLevel || 0
+            reducedMotion: root.voice.reducedMotion || false; completedAt: Math.max(root.voice.completedAt || 0, root.notes ? root.notes.savedAt : 0)
             revealProgress: transition.progress
             voiceReady: !!root.voice.ready; hearing: !!root.voice.hearing
             expressiveness: root.voice.expressiveness === undefined ? 1 : root.voice.expressiveness
@@ -148,7 +150,7 @@ Item {
             spacing: Style.space(7)
             RowLayout {
                 Layout.fillWidth: true
-                Text { text:"PEEK";color:ui.muted;font.family:ui.family;font.pixelSize:ui.caption;font.letterSpacing:.8;font.weight:Font.DemiBold }
+                Text { text:"Side Chat · Peek";color:ui.muted;font.family:ui.family;font.pixelSize:ui.caption;font.weight:Font.DemiBold }
                 Item { Layout.fillWidth:true }
                 ActionButton {
                     objectName:"companion-scope"
@@ -198,6 +200,13 @@ Item {
                 onClicked:chat.openConversation()
             }
             TaskDetails { id:taskDetails;Layout.fillWidth:true;task:root.task }
+            WorkspaceTabs {
+                objectName:"companion-workspace-navigation"
+                Layout.fillWidth:true;compact:true
+                section:chat.page || "chat";reducedMotion:!!root.voice.reducedMotion
+                notesLocked:!!root.notes && (root.notes.recording || root.notes.saving)
+                onChosen:section=>{root.hideControls();chat.navigate(section)}
+            }
             Rectangle { Layout.fillWidth:true;height:1;color:ui.line }
             RowLayout {
                 Layout.fillWidth:true;spacing:Style.space(4)
@@ -211,8 +220,7 @@ Item {
                     onReleased: if(root.voice.asrModel !== "voxtype" && !root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_finish"})
                     onCanceled: if(root.voice.asrModel !== "voxtype" && !root.voice.handsFree && !root.voice.wakeEnabled) chat.request({action:"peek_listen",enabled:false})
                 }
-                ActionButton { objectName:"companion-stop";glyph:"stop";hint:"Stop speech and actions · Ctrl+Alt+Esc";enabled:chat.busy || root.voice.speaking || root.voice.stage === "acting";onClicked:chat.request({action:"peek_stop"}) }
-                ActionButton { glyph:"chat";hint:"Open conversation";onClicked:chat.openConversation() }
+                ActionButton { objectName:"companion-stop";glyph:"stop";hint:"Stop speech and actions" + (root.voice.controlCapabilities && root.voice.controlCapabilities.stopShortcut ? " · " + root.voice.controlCapabilities.stopShortcut : "");enabled:chat.busy || root.voice.speaking || root.voice.stage === "acting";onClicked:chat.request({action:"peek_stop"}) }
                 Item { Layout.fillWidth:true }
                 ActionButton { objectName:"companion-more";glyph:root.controlsPinned ? "chevron-up" : "chevron-down";hint:root.controlsPinned ? "Fewer controls" : "More controls";selected:root.controlsPinned;checkable:true;checked:root.controlsPinned;onClicked:root.controlsPinned=!root.controlsPinned }
             }

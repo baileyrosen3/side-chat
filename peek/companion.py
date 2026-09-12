@@ -52,6 +52,12 @@ class Companion:
         return self.store.put('watch',dict(data,message=message,state='waiting'))
 
     def check_watches(self):
+        thoughts = getattr(self.owner.bridge, 'thoughts', None)
+        if thoughts:
+            try:
+                thoughts.check_reminders()
+            except Exception:
+                pass  # A reminder can retry without delaying existing timer watches.
         for r in self.store.items('watch'):
             if r['state']!='waiting':continue
             if r['kind']=='timer':done=time.time()>=r['due']
@@ -83,6 +89,8 @@ class Companion:
 
     def match(self,text):
         stripped=text.strip();clean=stripped.lower().rstrip('.!?')
+        thought = self.match_thought(text)
+        if thought:return thought
         if clean in ('stop','stop peek','peek stop','stop peek','cancel that','never mind'):return ('stop',None)
         if clean in ('go to sleep','sleep peek','peek go to sleep','sleep peek','stand by'):return ('sleep',None)
         m=re.fullmatch(r'(?:remember|save) routine ([^:]+):\s*(.+)',stripped,re.I|re.S)
@@ -106,8 +114,29 @@ class Companion:
             if c:return ('quick',c)
         return None
 
+    def match_thought(self, text):
+        task = re.fullmatch(r'add (?:a )?(?:to-do|todo|task)\s*[:,]?\s+(.+)', text.strip(), re.I | re.S)
+        if task:return ('thought_todo', task[1])
+        match = re.fullmatch(r'(?:save (?:this |a )?thought|take (?:a )?note|note this)\s*[:,]?\s+(.+)', text.strip(), re.I | re.S)
+        if match:return ('thought_save', match[1])
+        match = re.fullmatch(r'(?:find|search|show)(?: my)? (?:thoughts|ideas|notes)(?: (?:about|on|for))?\s+(.+)', text.strip(), re.I | re.S)
+        if match:return ('thought_find', match[1].rstrip('.!?'))
+        if re.fullmatch(r'(?:open|show)(?: my)? (?:to-dos|todos|tasks)', text.strip().rstrip('.!?'), re.I):
+            return ('thought_todos', '')
+        if text.strip().lower().rstrip('.!?') in ('open thoughts', 'show my thoughts', 'open my notes', 'show my notes', 'open notes'):
+            return ('thought_find', '')
+        return None
+
     def execute(self,match):
         kind,value=match
+        if kind in ('thought_save', 'thought_todo'):
+            self.owner.bridge.thoughts.store.save({'body': value, 'kind':'todo' if kind == 'thought_todo' else 'note'})
+            self.owner.bridge.thoughts.publish()
+            return 'Added your to-do.' if kind == 'thought_todo' else 'Saved your note.'
+        if kind in ('thought_find', 'thought_todos'):
+            self.owner.bridge.thoughts.publish()
+            self.owner.bridge.emit(type='thoughts_open', query=value, kind='todo' if kind == 'thought_todos' else 'note')
+            return 'Opened your to-dos.' if kind == 'thought_todos' else 'Opened your notes' + (' about ' + value if value else '') + '.'
         if kind=='remember':self.store.remember(value);return 'Remembered: '+value
         if kind=='forget':
             rows=[r for r in self.store.items('memory') if r['text'].rstrip('.!?').casefold()==value.casefold()]

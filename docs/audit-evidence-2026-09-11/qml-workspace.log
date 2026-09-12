@@ -1,0 +1,20 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::Workspace::initTestCase() entering
+PASS   : qmltestrunner::Workspace::initTestCase()
+INFO   : qmltestrunner::Workspace::test_ask_prepares_chat_without_sending() entering
+PASS   : qmltestrunner::Workspace::test_ask_prepares_chat_without_sending()
+INFO   : qmltestrunner::Workspace::test_capture_waits_for_selection_before_opening_drawer() entering
+PASS   : qmltestrunner::Workspace::test_capture_waits_for_selection_before_opening_drawer()
+INFO   : qmltestrunner::Workspace::test_escape_returns_to_current_page() entering
+PASS   : qmltestrunner::Workspace::test_escape_returns_to_current_page()
+INFO   : qmltestrunner::Workspace::test_recovery_uses_restore_and_refreshes_results() entering
+PASS   : qmltestrunner::Workspace::test_recovery_uses_restore_and_refreshes_results()
+INFO   : qmltestrunner::Workspace::test_search_ignores_stale_results_and_enter_opens_choice() entering
+PASS   : qmltestrunner::Workspace::test_search_ignores_stale_results_and_enter_opens_choice()
+INFO   : qmltestrunner::Workspace::test_search_keeps_active_reply_and_draft_safe() entering
+PASS   : qmltestrunner::Workspace::test_search_keeps_active_reply_and_draft_safe()
+INFO   : qmltestrunner::Workspace::cleanupTestCase() entering
+PASS   : qmltestrunner::Workspace::cleanupTestCase()
+Totals: 8 passed, 0 failed, 0 skipped, 0 blacklisted, 49ms
+********* Finished testing of qmltestrunner *********

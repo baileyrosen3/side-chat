@@ -1,13 +1,17 @@
 <div align="center">
   <h1>Side Chat</h1>
-  <p><strong>A native AI side chat and local Peek companion for Omarchy.</strong></p>
-  <p>Keep your coding-agent sessions close, continue them in a terminal, or talk to Peek and watch him work.</p>
-  <p><a href="#meet-peek">Peek</a> · <a href="#install">Install</a> · <a href="#keybindings">Keybindings</a> · <a href="#update">Update</a> · <a href="#privacy-and-safety">Privacy</a></p>
+  <p><strong>One native workspace for Chat, Notes, To-dos, and Peek on Omarchy.</strong></p>
+  <p>Keep your agent sessions close, talk to Peek, and jot down notes and to-dos without breaking your flow.</p>
+  <p><a href="#meet-peek">Peek</a> · <a href="#thoughts-quick-notes-and-to-dos">Thoughts</a> · <a href="#install">Install</a> · <a href="#keybindings">Keybindings</a> · <a href="#update">Update</a> · <a href="#privacy-and-safety">Privacy</a></p>
 </div>
 
-![Side Chat open at the left edge of an Omarchy desktop](preview.png)
+<p align="center">
+  <img src="screenshots/workspace-chat.png" alt="Side Chat with shared Chat, Notes, and To-dos tabs and Peek in the app header" width="400">
+</p>
 
-Side Chat brings two parts of an AI workspace together. **Chat** turns the agent you already use—OMP, Pi, Codex, or Claude—into a compact edge drawer with persistent sessions, native tools, approvals, and terminal handoff. **Peek** adds hands-free local voice, durable memory, fast desktop commands, and visible computer control.
+**Chat** turns the agent you already use—OMP, Pi, Codex, or Claude—into a compact edge drawer with persistent sessions, native tools, approvals, and terminal handoff. **Peek** adds hands-free local voice, durable memory, fast desktop commands, and visible computer control. **Notes and To-dos** share the same drawer, header, navigation, and Peek controls. The numpad groups web apps, workspace tabs, and tap-to-toggle listening into three rows. The workspace includes task reminders, selected-text capture, shared search, source links, and recovery while keeping the same three tabs.
+
+Version **1.16.0** adds clearer controls, adaptive Notes, separate Stop and Redirect actions, safer draft recovery, and faster conversation rendering and search. See the [UI and interaction audit](docs/audit-fixes-2026-09-12.md) for the changes and validation.
 
 ## Meet Peek
 
@@ -50,6 +54,121 @@ Speech recognition and synthesis run locally after setup. Voxtype is the default
 All screenshots use fixture content. No microphone, provider session, or private desktop content was captured.
 
 </details>
+
+## Thoughts: quick notes and to-dos
+
+<p align="center">
+  <img src="screenshots/thoughts.png" alt="Notes inside the Side Chat drawer with the shared navigation and Peek controls; fixture content" width="32%">
+  <img src="screenshots/workspace-todos.png" alt="To-dos in the same Side Chat drawer; fixture content" width="32%">
+  <img src="screenshots/workspace-peek.png" alt="Peek controls with the same Chat, Notes, and To-dos navigation; fixture content" width="32%">
+</p>
+
+Choose **Notes** or **To-dos** beside **Chat** in the drawer's navigation.
+Peek's controls use the same tabs. Everything opens in the same edge drawer,
+with a shared app header, theme, window controls, and sliding tab highlight.
+Switching sections preserves both your chat draft and unfinished notes.
+
+The **Peek** button in the app header brings the companion alongside the drawer.
+While enabled, Peek reacts to note capture and saving. Notes and to-dos also work
+with Peek powered off and while a chat reply is running.
+
+- **Notes:** type, then **Ctrl+Enter** to save. Click a note to edit it.
+- **To-dos:** type, then **Enter** to add. Check it off; completed items fold
+  into **Completed**, where you can uncheck them.
+- **Voice:** click the microphone, speak, then stop. Review the transcript and
+  save. The existing Voxtype daemon handles recognition; no agent is started.
+- **Search:** press **Ctrl+K** or use the app-header magnifier to search notes, tasks, and conversations together. **Ctrl+F** filters the current Notes / To-dos list.
+- **Delete:** hover a note or to-do and click ×. **Undo** brings it back.
+- **Chat:** a message's lightbulb switches to a note draft. A note's chat icon
+  returns to Chat with its text in the composer for you to review and send. Saved items and messages keep a clickable link to their source note or conversation.
+- **Convert:** hover an item and choose the checkmark to turn a note into a task, or the pencil to turn a task into a note. Converting to a note clears completion and its reminder.
+
+The drawer eases between content sizes, pages fade into place, and checked
+to-dos fold out of the list. Peek's **Reduce motion** preference applies throughout.
+
+Drafts recover across closing, changing tabs, and restarting. Notes remain plain
+Markdown in `~/Documents/Thoughts`; an existing Omathought `notesDir` setting is
+honored. To-dos add `kind: "todo"` and `done: true/false` frontmatter. Deleted
+files remain in `.thoughts/trash` inside the notes folder; Undo is shown for seven
+seconds. **Preferences → Recently deleted** restores notes, tasks, and conversations later. Nothing is automatically purged; conversations deleted before 1.15.0 cannot be recovered retroactively. Draft recovery lives
+in Side Chat's state folder under `thoughts/drafts.json`. An external edit causes
+a conflict message with **Save copy**, preserving both versions.
+
+While Peek is listening, say **“Save this thought: …”**, **“Add a todo: …”**, or
+**“Find my notes about …”**, or **“Show my to-dos”**. These run locally;
+navigation and search open the corresponding workspace tab. Notes are separate from Peek's
+memories and do not enter agent context unless you choose to discuss them.
+Finish or pause one microphone recording before starting the other.
+
+This desktop uses the **numpad** for Side Chat. **4 / 5 / 6** open Chat / Notes / To-dos.
+**1 / 2 / 3** open those sections and start listening; tap again to stop.
+Notes and To-dos keep the transcript as a draft for review. Use the regular
+keyboard's **Ctrl+Return** to save. **Numpad Enter** remains system dictation:
+hold to record, release to type into the focused application.
+See the [complete keypad map and temporary homes for displaced shortcuts](docs/keypad.md).
+
+`thoughtsNew` always opens a fresh note, and `thoughtsCaptureStart` always records
+a note, regardless of the last tab. `thoughtsTodos` opens the To-dos tab.
+The former F1 / Super+F1 / Super+F2 bindings have moved to the keypad.
+Set `SIDE_CHAT_THOUGHTS_DIR` to use a different Markdown folder for development.
+
+## Capture, find, and follow through
+
+<p>
+  <img src="screenshots/workspace-reminder.png" alt="A to-do with its exact reminder time previewed before saving; fixture content" width="32%">
+  <img src="screenshots/workspace-search.png" alt="One search across notes, tasks, and conversations; fixture content" width="32%">
+  <img src="screenshots/workspace-capture.png" alt="Selected text with Note, To-do, and Ask Peek actions; fixture content" width="32%">
+</p>
+
+### Reminders without a form
+
+In **To-dos**, type **“Call Alex tomorrow at 3pm”**. Check the date and time shown
+under the composer, then press **Enter**. The task saves as “Call Alex” with its
+reminder. You can also use the bell to add or change a time on an existing task.
+
+Supported examples: `in 20 minutes`, `tomorrow at 3pm`, `Friday at 9am`,
+`2026-09-18 at 15:30`, and `at noon`. Dates use your local timezone; a date without
+a time uses **9am**, and a bare hour from 1–7 means the afternoon. The preview
+shows the actual choice before saving. Past times and invalid dates are rejected.
+Use × beside the preview to remove the reminder.
+
+Desktop notifications offer **Open task**, **Snooze 10 min**, and **Done**.
+Reminders work with Peek off. Completed and deleted tasks stay quiet, and delivery
+state survives app restarts. If the shell is closed or the computer sleeps,
+overdue reminders arrive when it is running again. Notification action buttons
+remain available for up to 24 hours; the task remains accessible in To-dos.
+
+### Capture selected text
+
+Select text in another application and run
+`omarchy-shell blr.side-chat captureSelection`. The capture sheet opens
+with **Note**, **To-do**, and **Ask Peek** actions. These prepare a draft for review;
+Ask Peek uses the shared chat and never sends automatically. The source app is
+shown when available. Your existing note and chat drafts are preserved.
+
+Selection is read through accessibility or Wayland's primary selection before
+opening the drawer. If an application does not expose its selection, copy the
+text and choose **Use clipboard**. Capture does not synthesize Copy or overwrite
+your clipboard. The Clipboard button in search explicitly reads copied text.
+
+The [keypad configuration](deploy/side-chat-keypad.lua) uses physical keycodes
+for this desktop's Magic Keyboard. On another keyboard, choose an unused binding
+for `omarchy-shell blr.side-chat captureSelection` after checking your layout.
+
+### One search, simple recovery
+
+**Ctrl+K** inside the app searches saved note bodies, task bodies, conversation titles, and full
+message text locally. The most relevant and recent 40 matches appear together.
+Use **↑ / ↓**, then **Enter**, or click a result. **Esc** returns to the section
+you came from with your draft intact. Searching never starts an agent.
+
+**Preferences → Recently deleted** restores removed notes, tasks, and chats.
+**Export workspace** saves a private `.zip` with Markdown, deleted items,
+recoverable drafts, a consistent snapshot of the app databases, and saved
+attachments. Pick a new filename; existing backups are never overwritten.
+The archive includes restoration instructions. External agent session files,
+agent credentials, and speech models are excluded, so this is a backup of this
+workspace rather than a complete copy of your CLI agents.
 
 ## Your agent, without another terminal in the way
 
@@ -188,18 +307,52 @@ To switch back to a downloaded local recognizer, run `python3 setup.py --with-pa
 
 ## Keybindings
 
-Side Chat never edits `~/.config/hypr/bindings.lua`. These are the maintainer's exact Peek bindings: physical numpad **0** opens or closes Peek, and numpad **decimal** toggles its microphone, with Num Lock either on or off.
+Plugin setup does not automatically edit your keybindings. This desktop loads
+[`deploy/side-chat-keypad.lua`](deploy/side-chat-keypad.lua) through
+`~/.config/hypr/side_chat_keypad.lua`. Physical numpad **0** opens or closes Peek,
+and **decimal (.)** toggles Peek's microphone, with Num Lock either on or off.
 
 ```lua
 -- Peek: bare numpad shortcuts, with Num Lock on or off.
-o.bind("KP_0", "Toggle Peek", "omarchy-shell blr.side-chat peek")
-o.bind("KP_Insert", "Toggle Peek", "omarchy-shell blr.side-chat peek")
+hl.unbind("code:90")
+hl.unbind("code:91")
+hl.unbind("KP_0")
+hl.unbind("KP_Insert")
+hl.unbind("KP_Decimal")
+hl.unbind("KP_Delete")
+o.bind("code:90", "Toggle Peek", "omarchy-shell blr.side-chat peek")
 o.bind("code:91", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekToggleMicrophone")
 ```
 
-`KP_0` and `KP_Insert` are the same physical key in the two Num Lock states. `code:91` binds the physical decimal key regardless of Num Lock. To bind the chat drawer instead, map any unused key to `omarchy-shell blr.side-chat toggle`.
+These physical keycodes match this desktop's Magic Keyboard. The full mapping
+also clears previous bindings before assigning each key. To bind the chat drawer
+to another unused key, use `omarchy-shell blr.side-chat toggle`.
 
-If you keep an existing Voxtype push-to-talk binding on numpad Enter, that key remains **generic Voxtype dictation** and intentionally types into the focused application. Use the Peek microphone binding above (or `peekToggleMicrophone`) to send the transcript to Peek without typing into another app.
+The preferred desktop controls now live on the numpad:
+
+| 7 · ChatGPT | 8 · Gemini | 9 · Higgsfield AI |
+| --- | --- | --- |
+| **4 · Chat** | **5 · Notes** | **6 · To-dos** |
+| **1 · Chat + listen** | **2 · Notes + listen** | **3 · To-dos + listen** |
+| **0 · Toggle Peek** | **. · Toggle Peek microphone** | **Enter · System dictation (hold)** |
+
+Tap **1 / 2 / 3** once to open that section and start listening, then again to
+stop. In Chat, Peek transcribes and handles the voice request as usual; Notes
+and To-dos prepare drafts to review and save. The **.** key uses the same Peek
+microphone as **1**, without opening the Chat drawer. Finish a recording before
+switching voice destinations.
+
+**Clear** hides the drawer; **/** stops work; **=** opens Peek controls.
+**+ / − / \*** retain volume and play/pause. Old numpad launchers temporarily
+use **Super + the same numpad key**. See [the complete map](docs/keypad.md).
+**Ctrl+K** searches inside the app. History and Preferences remain accessible
+in the header; the old F1 / Super+F1 / Super+F2 app bindings are removed.
+
+
+**Numpad Enter** is **system dictation**: hold to record and release to type into
+the focused application. **Super+Numpad Enter** is also available as an alias.
+Use **.** or **1** to speak to Peek. Both share the existing Voxtype daemon with
+system dictation, so finish one recording before starting another.
 
 After editing bindings:
 
@@ -228,12 +381,21 @@ Useful IPC commands:
 
 | Command | Result |
 | --- | --- |
-| `omarchy-shell blr.side-chat toggle` | Open or close chat |
-| `omarchy-shell blr.side-chat open` | Open chat |
+| `omarchy-shell blr.side-chat toggle` | Open or close the workspace |
+| `omarchy-shell blr.side-chat open` | Open the workspace at its current section |
 | `omarchy-shell blr.side-chat newChat` | Start a conversation |
 | `omarchy-shell blr.side-chat peek` | Open or close Peek |
 | `omarchy-shell blr.side-chat peekToggleMicrophone` | Toggle Peek's microphone |
 | `omarchy-shell blr.side-chat companionControls` | Open Peek controls |
+| `omarchy-shell blr.side-chat thoughts` | Open or close Notes / To-dos in the shared drawer |
+| `omarchy-shell blr.side-chat thoughtsNew` | Open a new note draft |
+| `omarchy-shell blr.side-chat thoughtsTodos` | Open To-dos |
+| `omarchy-shell blr.side-chat thoughtsCaptureStart` | Start recording a note |
+| `omarchy-shell blr.side-chat thoughtsCaptureStop` | Stop recording and transcribe into a draft |
+| `omarchy-shell blr.side-chat thoughtsCaptureCancel` | Cancel note recording |
+| `omarchy-shell blr.side-chat captureSelection` | Capture selected text before opening the drawer |
+| `omarchy-shell blr.side-chat workspaceSearch` | Open or close shared search |
+| `omarchy-shell blr.side-chat keypad ACTION` | Run a keypad action: `chat`, `notes`, `todos`, `listen-chat`, `listen-notes`, `listen-todos`, `note`, `selection`, `search`, `workspace`, `history`, `settings`, `peek`, `microphone`, `record`, `record-stop`, `stop`, `hide`, `controls` |
 | `omarchy-shell blr.side-chat status \| jq` | Show live plugin status |
 
 `openOnScreen DP-1` and `peekOnScreen DP-3` target a specific monitor. `peekSettings` opens advanced voice and control settings. Selecting a microphone does not enable listening.
@@ -296,6 +458,7 @@ The manifest and `uiVersion` should match, and `uiSource` should point inside `~
 - Screen context is off or on-request according to your setting. There is no background screenshot recording or clipboard history.
 - Desktop input access is optional. Peek pauses automation when it detects physical takeover and exposes Stop; **Ctrl+Alt+Esc** is the emergency stop when native input support is installed.
 - Memories, routines, watches, action history, and tracked config restore points are local. Normal agent edits and arbitrary desktop actions are not automatically undoable.
+- Thoughts uses local Markdown files and recoverable drafts. Notes enter agent context only when you choose to discuss them; recording a note does not send it to an agent.
 
 Set `SIDE_CHAT_STATE` for an isolated state directory or `SIDE_CHAT_DATA` for the speech runtime and models. Deleting a conversation currently leaves attachment snapshots and native session files on disk.
 

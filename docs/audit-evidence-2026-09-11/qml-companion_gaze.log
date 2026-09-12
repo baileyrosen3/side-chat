@@ -1,0 +1,18 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::CompanionGaze::initTestCase() entering
+PASS   : qmltestrunner::CompanionGaze::initTestCase()
+INFO   : qmltestrunner::CompanionGaze::test_desktop_direction_and_monitor_offsets() entering
+PASS   : qmltestrunner::CompanionGaze::test_desktop_direction_and_monitor_offsets()
+INFO   : qmltestrunner::CompanionGaze::test_hidden_and_reduced_motion_stop_tracking_animation() entering
+PASS   : qmltestrunner::CompanionGaze::test_hidden_and_reduced_motion_stop_tracking_animation()
+INFO   : qmltestrunner::CompanionGaze::test_mouse_burst_is_coalesced_at_bounded_cadence() entering
+PASS   : qmltestrunner::CompanionGaze::test_mouse_burst_is_coalesced_at_bounded_cadence()
+INFO   : qmltestrunner::CompanionGaze::test_spring_is_smooth_and_independent_of_frame_rate() entering
+PASS   : qmltestrunner::CompanionGaze::test_spring_is_smooth_and_independent_of_frame_rate()
+INFO   : qmltestrunner::CompanionGaze::test_tracking_does_not_open_hover_pose() entering
+PASS   : qmltestrunner::CompanionGaze::test_tracking_does_not_open_hover_pose()
+INFO   : qmltestrunner::CompanionGaze::cleanupTestCase() entering
+PASS   : qmltestrunner::CompanionGaze::cleanupTestCase()
+Totals: 7 passed, 0 failed, 0 skipped, 0 blacklisted, 1463ms
+********* Finished testing of qmltestrunner *********

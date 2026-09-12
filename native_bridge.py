@@ -163,11 +163,13 @@ class NativeBridge:
             self.close_rpc()
         if not self.rpc:
             native = chat.setdefault("native", {"prefixCount": max(0, len(chat["messages"]) - 2)})
-            self.rpc = RpcSession(chat["agent"], self.session_folder(chat), dict(session_options(chat), **peek_options),
+            self.rpc = RpcSession(chat["agent"], self.session_folder(chat), dict(session_options(chat), _cancel_event=self.cancelled, **peek_options),
                                   native.get("sessionFile"), self.native_ui)
             self.rpc_chat = chat["id"]
         self.process = self.rpc.proc
         self.remember_native(chat)
+        if hasattr(self.rpc, "options"):
+            self.rpc.options.pop("_cancel_event", None)
         return self.rpc
 
     def remember_native(self, chat):
@@ -209,7 +211,7 @@ class NativeBridge:
                     "Earlier replies came from a text-only interface; their tool limitations no longer apply. "
                     "Use this earlier conversation as context, then act on the latest request below.\n\n"
                     + history + "\n\nLATEST REQUEST:\n" + text)
-        if self.peek and self.peek.enabled and self.peek.prefs['scope']=='desktop':
+        if self.peek and self.peek.enabled and self.peek.prefs['scope']=='desktop' and not user_message.get('excludeScreen'):
             from peek.context import capture
             context,observations=capture(self.peek.prefs,user_message['text'])
             text+=context
@@ -227,7 +229,11 @@ class NativeBridge:
         started = time.monotonic()
         aborted = None
         try:
+            if self.cancelled.is_set():
+                return
             rpc = self.ensure_rpc(chat)
+            if self.cancelled.is_set():
+                return
             if user.get("branchFrom"):
                 result = rpc.request("branch" if chat["agent"] == "omp" else "fork", entryId=user["branchFrom"])
                 if result.get("cancelled"):
@@ -236,7 +242,10 @@ class NativeBridge:
             while not rpc.events.empty():
                 rpc.events.get_nowait()
             prompt_id = "prompt-" + str(time.time_ns())
-            rpc.send({"type": "prompt", "id": prompt_id, "message": prompt, "images": images})
+            with self.lock:
+                if self.cancelled.is_set():
+                    return
+                rpc.send({"type": "prompt", "id": prompt_id, "message": prompt, "images": images})
             last_emit = last_save = 0
             while not turn.done:
                 if self.cancelled.is_set() and aborted is None:
@@ -272,7 +281,8 @@ class NativeBridge:
                     user["nativeEntry"] = matches[-1]["entryId"]
                 user.pop("branchFrom", None)
         except Exception as exc:
-            reply["error"] = str(exc)
+            if not self.cancelled.is_set():
+                reply["error"] = str(exc)
         finally:
             with self.lock:
                 for tool in turn.tools:

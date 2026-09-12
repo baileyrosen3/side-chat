@@ -13,6 +13,11 @@ PanelWindow {
 
     required property var chat
     readonly property bool opened: chat.openScreen === screen.name
+    readonly property bool overlayActive: !!chat.workspace.mode
+    readonly property bool notesPage: chat.page === "notes" || chat.page === "todos"
+    readonly property bool reducedMotion: !!chat.peek.reducedMotion
+    readonly property bool showGlobalStop: chat.busy && (chat.page !== "chat" || overlayActive)
+    property real pageReveal: 1
     readonly property bool pointerInside: edgeMouse.containsMouse || drawerHover.hovered
     readonly property color surface: ui.surface
     readonly property color fg: ui.foreground
@@ -48,9 +53,17 @@ PanelWindow {
     function bottom() {
         if (followBottom)
             Qt.callLater(() => {
-            return thread.contentY = Math.max(0, thread.contentHeight - thread.height);
+            thread.positionViewAtEnd();
         });
 
+    }
+
+    function locateMessage() {
+        var target=chat.messageTarget
+        if (!opened || !target || !chat.current || target.chatId !== chat.current.id || target.index < 0) return false
+        followBottom=false
+        Qt.callLater(() => {thread.forceLayout();thread.positionViewAtIndex(target.index,ListView.Beginning)})
+        return true
     }
 
     function showSettings() {
@@ -60,7 +73,7 @@ PanelWindow {
         cwdField.text = source.cwd || "";
         thinking.currentIndex = Math.max(0, ["default", "low", "medium", "high"].indexOf(source.thinking));
         settingsPending = false;
-        chat.page = "settings";
+        chat.workspace.mode="";chat.visit("settings");
         chat.pin();
     }
 
@@ -75,19 +88,19 @@ PanelWindow {
 
     // Leave the current page toward where the user came from.
     function leavePage() {
-        if (chat.page === "peek_settings" && chat.returnPage === "settings")
-            showSettings();
-        else
-            chat.page = "chat";
+        chat.back();
     }
 
     // One Escape ladder for every focus target: leave a page, cancel an edit, then hide.
     function pressEscape() {
-        if (chat.page !== "chat") {
+        if (window.overlayActive) {
+            chat.workspace.dismiss();
+        } else if (window.notesPage) {
+            chat.close();
+        } else if (chat.page !== "chat") {
             leavePage();
         } else if (chat.editIndex >= 0) {
-            chat.editIndex = -1;
-            chat.draft = "";
+            chat.cancelEdit();
         } else {
             chat.close();
         }
@@ -113,15 +126,15 @@ PanelWindow {
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.namespace: "omarchy-side-chat"
     WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: opened && chat.pinned ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: opened && chat.pinned && !chat.peek.preview ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     onOpenedChanged: {
         if (opened) {
+            focusRetry.restart();
             chat.panelWidth = width;
             chat.settleNotice();
-            if (chat.pinned && !chat.peek.enabled)
-                Qt.callLater(() => {
-                return composer.forceActiveFocus();
-            });
+            if (chat.pinned)
+                Qt.callLater(chat.focusWorkspace);
+            Qt.callLater(window.locateMessage);
 
         }
     }
@@ -142,9 +155,22 @@ PanelWindow {
     }
 
     Connections {
+        function onMessageTargetChanged() {window.locateMessage()}
+        function onPreferencesRequested() {if(window.opened) window.showSettings()}
+        function onPinnedChanged() {if(window.opened && chat.pinned) focusRetry.restart()}
+        function onPageChanged() {
+            if (window.opened) {
+                pageEntry.restart();
+                Qt.callLater(chat.focusWorkspace);
+                if(chat.page === "history") Qt.callLater(() => historyField.forceActiveFocus());
+            }
+        }
+
         function onFocusComposer() {
-            if (window.opened)
-                composer.forceActiveFocus();
+            if (window.opened && !window.overlayActive) {
+                if(chat.page === "chat") composer.forceActiveFocus();
+                else if(chat.page === "history") historyField.forceActiveFocus();
+            }
 
         }
 
@@ -153,8 +179,8 @@ PanelWindow {
                 return;
 
             window.settingsPending = false;
-            chat.page = "chat";
-            composer.forceActiveFocus();
+            window.leavePage();
+            chat.focusWorkspace();
         }
 
         function onErrorChanged() {
@@ -177,11 +203,14 @@ PanelWindow {
                 window.followBottom = true;
                 window.displayedChatId = id;
             }
-            window.bottom();
+            if (!window.locateMessage()) window.bottom();
         }
 
         target: chat
     }
+
+    // The compositor grants keyboard focus after the layer surface commits.
+    Timer {id:focusRetry;interval:80;onTriggered:if(window.opened && chat.pinned) chat.focusWorkspace()}
 
     Timer {
         id: copiedReset
@@ -220,6 +249,15 @@ PanelWindow {
         })
     }
 
+    FileDialog {
+        id: backupDialog
+        title: "Export workspace backup"
+        fileMode: FileDialog.SaveFile
+        defaultSuffix: "zip"
+        nameFilters: ["Workspace backup (*.zip)"]
+        onAccepted: chat.workspace.exportTo(decodeURIComponent(String(selectedFile).replace("file://", "")))
+    }
+
     FolderDialog {
         id: folderDialog
 
@@ -228,7 +266,7 @@ PanelWindow {
     }
 
     HyprlandFocusGrab {
-        active: window.opened && chat.pinned && !chat.peek.enabled && !attachmentDialog.visible && !exportDialog.visible && !folderDialog.visible
+        active: window.opened && chat.pinned && !chat.peek.preview && !chat.peek.enabled && !attachmentDialog.visible && !exportDialog.visible && !backupDialog.visible && !folderDialog.visible
         windows: [window]
         onCleared: {
             if (!chat.peek.enabled)
@@ -312,24 +350,26 @@ PanelWindow {
                 gesturePolicy: TapHandler.WithinBounds
             }
 
+            Shortcut {sequence:"Ctrl+K";enabled:window.opened;onActivated:chat.workspace.toggleSearch()}
+
             Shortcut {
                 sequence: "Ctrl+N"
-                enabled: window.opened
+                enabled: window.opened && !window.notesPage && !window.overlayActive
                 onActivated: chat.startNew()
             }
 
             Shortcut {
                 sequence: "Ctrl+H"
-                enabled: window.opened
+                enabled: window.opened && !window.overlayActive
                 onActivated: {
-                    chat.page = chat.page === "history" ? "chat" : "history";
+                    if (chat.page === "history") chat.back(); else chat.visit("history");
                     chat.pin();
                 }
             }
 
             Shortcut {
                 sequence: "Ctrl+Shift+C"
-                enabled: window.opened
+                enabled: window.opened && chat.page === "chat" && !window.overlayActive
                 onActivated: {
                     if (chat.messages.length)
                         window.copyText(chat.messages[chat.messages.length - 1].text, "last");
@@ -339,7 +379,7 @@ PanelWindow {
 
             Shortcut {
                 sequence: "Ctrl+Shift+V"
-                enabled: window.opened
+                enabled: window.opened && chat.page === "chat" && !window.overlayActive
                 onActivated: chat.request({
                     "action": "paste_image"
                 })
@@ -357,7 +397,70 @@ PanelWindow {
                 spacing: 0
 
                 RowLayout {
+                    Layout.fillWidth: true
+                    spacing: window.px(3)
+                    Rectangle {
+                        Layout.preferredWidth: window.px(6); Layout.preferredHeight: window.px(6)
+                        radius: width / 2; color: chat.connected ? ui.accent : ui.danger
+                    }
+                    Text {
+                        text: "Side Chat"; Layout.fillWidth: true
+                        Layout.minimumWidth: 0; elide: Text.ElideRight
+                        color: ui.foreground; font.family: ui.family
+                        font.pixelSize: ui.body; font.weight: Font.DemiBold
+                    }
+                    ActionButton {
+                        objectName:"workspace-search";glyph:"search";subtle:true
+                        hint:"Find saved items · Ctrl+K";selected:chat.workspace.mode === "search"
+                        onClicked:chat.workspace.toggleSearch()
+                    }
+                    ActionButton {
+                        objectName: "workspace-peek"
+                        glyph: "orb"; text: "Peek"; subtle: true; selected: !!chat.peek.enabled
+                        hint: chat.peek.enabled ? "Peek · " + (chat.thoughts.recording ? "Taking a note" : chat.peek.listening ? "Listening" : chat.peek.speaking ? "Speaking" : "Open controls") : "Enable Peek alongside this workspace"
+                        enabled: chat.connected && !chat.terminalOpen
+                        onClicked: chat.openWorkspacePeek()
+                    }
+                    ActionButton {
+                        glyph: window.expanded ? "collapse" : "expand"
+                        visible: !window.showGlobalStop
+                        hint: window.expanded ? "Compact view" : "Expand view"
+                        subtle: true; enabled: chat.connected
+                        onClicked: window.setExpanded(!window.expanded)
+                    }
+                    ActionButton {
+                        glyph: "settings"; hint: "Preferences"; subtle: true
+                        enabled: chat.connected
+                        onClicked: window.showSettings()
+                    }
+                    ActionButton {
+                        objectName: "workspace-stop"
+                        visible: window.showGlobalStop
+                        glyph: "stop"; danger: true
+                        hint: "Stop generation"
+                        onClicked: chat.request({action:"stop"})
+                    }
+                    ActionButton {
+                        glyph: "close"; hint: "Hide Side Chat · Clear / Esc"; subtle: true
+                        onClicked: chat.close()
+                    }
+                }
+
+                WorkspaceTabs {
+                    objectName: "workspace-navigation"
+                    Layout.fillWidth: true
+                    visible: chat.page === "chat" || window.notesPage
+                    Layout.topMargin: window.px(8)
+                    Layout.bottomMargin: window.px(8)
+                    section: window.notesPage ? chat.page : "chat"
+                    reducedMotion: window.reducedMotion
+                    notesLocked: chat.thoughts.recording || chat.thoughts.saving
+                    onChosen: section => chat.navigate(section)
+                }
+
+                RowLayout {
                     id: headerRow
+                    visible: !window.notesPage && !window.overlayActive
 
                     Layout.fillWidth: true
                     spacing: window.px(3)
@@ -365,16 +468,9 @@ PanelWindow {
                     ActionButton {
                         visible: chat.page !== "chat"
                         glyph: "back"
-                        hint: (chat.page === "peek_settings" && chat.returnPage === "settings" ? "Back to preferences" : "Back to chat") + " · Esc"
+                        hint: "Back to " + ({settings:"preferences",notes:"notes",todos:"to-dos",history:"history",chat:"chat"}[chat.returnPage] || "workspace") + " · Esc"
                         subtle: true
                         onClicked: window.leavePage()
-                    }
-
-                    Rectangle {
-                        visible: chat.page === "chat"
-                        Layout.preferredWidth: window.px(6)
-                        Layout.preferredHeight: window.px(6)
-                        color: chat.connected ? ui.accent : ui.danger
                     }
 
                     Text {
@@ -391,7 +487,7 @@ PanelWindow {
                     }
 
                     Text {
-                        visible: chat.page === "chat"
+                        visible: chat.page === "chat" && !window.overlayActive
                         Layout.maximumWidth: window.px(72)
                         text: chat.connected ? chat.agentName : "Offline"
                         color: ui.muted
@@ -401,12 +497,12 @@ PanelWindow {
                     }
 
                     ActionButton {
-                        visible: chat.page === "chat"
+                        visible: chat.page === "chat" && !window.overlayActive
                         glyph: "history"
                         hint: "Conversation history · Ctrl+H"
                         subtle: true
                         onClicked: {
-                            chat.page = "history";
+                            chat.visit("history");
                             chat.pin();
                         }
                     }
@@ -420,36 +516,43 @@ PanelWindow {
                         onClicked: chat.startNew()
                     }
 
-                    ActionButton {
-                        glyph: window.expanded ? "collapse" : "expand"
-                        hint: window.expanded ? "Compact view" : "Expand view"
-                        subtle: true
-                        enabled: chat.connected
-                        onClicked: window.setExpanded(!window.expanded)
-                    }
-
-                    ActionButton {
-                        visible: chat.page === "chat"
-                        glyph: "settings"
-                        hint: "Preferences"
-                        subtle: true
-                        enabled: !chat.busy
-                        onClicked: window.showSettings()
-                    }
-
-                    ActionButton {
-                        glyph: "close"
-                        hint: "Hide panel · Esc"
-                        subtle: true
-                        onClicked: chat.close()
-                    }
-
                 }
 
-                Item { Layout.preferredHeight: window.px(8) }
+                Item { visible: !window.notesPage && !window.overlayActive; Layout.preferredHeight: window.px(8) }
+
+                Loader {
+                    objectName:"workspace-overlay"
+                    Layout.fillWidth:true;Layout.fillHeight:true
+                    Layout.preferredHeight:window.px(window.expanded ? 500 : 420)
+                    active:window.overlayActive && (window.opened || window.reveal>0)
+                    visible:window.overlayActive
+                    sourceComponent:WorkspaceOverlay {
+                        model:window.chat.workspace;active:window.opened && window.overlayActive
+                        reducedMotion:window.reducedMotion
+                    }
+                }
+
+                Loader {
+                    id: notesLoader
+                    objectName: "workspace-notes"
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    Layout.preferredHeight: item ? Math.min(item.implicitHeight, window.px(window.expanded ? 560 : 480)) : window.px(280)
+                    visible: window.notesPage && !window.overlayActive
+                    active: window.notesPage && (window.opened || window.reveal > 0)
+                    opacity: window.pageReveal
+                    transform: Translate { y: window.px(6) * (1 - window.pageReveal) }
+                    onLoaded: Qt.callLater(chat.thoughts.focusEditor)
+                    sourceComponent: ThoughtsView {
+                        model: window.chat.thoughts
+                        active: window.opened && window.notesPage && !window.overlayActive
+                        reducedMotion: window.reducedMotion
+                    }
+                }
 
                 ColumnLayout {
-                    visible: chat.page === "chat"
+                    visible: chat.page === "chat" && !window.overlayActive
+                    opacity: window.pageReveal
+                    transform: Translate { y: window.px(6) * (1 - window.pageReveal) }
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: 0
@@ -514,46 +617,59 @@ PanelWindow {
 
                     }
 
-                    Flickable {
+                    ListView {
                         id: thread
                         objectName: "message-thread"
+                        property string sourceChat: ""
+                        function refresh() {
+                            var identity=chat.current ? chat.current.id : ""
+                            var next=window.opened || window.reveal>0 ? chat.messages : []
+                            if (sourceChat!==identity) {messageRows.clear();sourceChat=identity}
+                            for (var i=0;i<next.length;i++) {
+                                var key=next[i].id || "message-"+i
+                                // Edits replace the suffix; unchanged messages retain their delegates,
+                                // including keyboard focus and selected text during reply updates.
+                                if (i<messageRows.count && messageRows.get(i).identity!==key)
+                                    messageRows.remove(i,messageRows.count-i)
+                                if (i>=messageRows.count) messageRows.append({identity:key,rowMessage:next[i]})
+                                else if (JSON.stringify(messageRows.get(i).rowMessage)!==JSON.stringify(next[i]))
+                                    messageRows.setProperty(i,"rowMessage",next[i])
+                            }
+                            if (messageRows.count>next.length) messageRows.remove(next.length,messageRows.count-next.length)
+                        }
+                        ListModel {id:messageRows;dynamicRoles:true}
+                        Component.onCompleted: refresh()
+                        Connections {target:window.chat;function onMessagesChanged() {thread.refresh()}}
+                        Connections {
+                            target:window
+                            function onOpenedChanged() {thread.refresh()}
+                            function onRevealChanged() {if(!window.opened && window.reveal<=0) thread.refresh()}
+                        }
 
                         Layout.preferredHeight: Math.min(contentHeight, window.px(window.expanded ? 460 : 300))
                         Layout.minimumHeight: 0
                         visible: chat.messages.length > 0
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        contentWidth: width
-                        contentHeight: messageColumn.implicitHeight + 4
+                        model: messageRows
+                        spacing: window.px(8)
+                        cacheBuffer: window.px(160)
+                        onContentHeightChanged: window.bottom()
                         onHeightChanged: window.bottom()
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         onMovementStarted: window.followBottom = false
-                        onMovementEnded: window.followBottom = contentY + height >= contentHeight - 30
+                        onMovementEnded: window.followBottom = atYEnd
 
-                        Column {
-                            id: messageColumn
-
-                            width: thread.width - 5
-                            spacing: window.px(8)
-                            onImplicitHeightChanged: window.bottom()
-
-                            Repeater {
-                                model: chat.messages
-
-                                MessageCard {
-                                    required property var modelData
-                                    required property int index
-
-                                    width: messageColumn.width
-                                    message: modelData
-                                    messageIndex: index
-                                    chat: window.chat
-                                    host: window
-                                }
-
-                            }
-
+                        delegate: MessageCard {
+                            required property var rowMessage
+                            required property int index
+                            width: ListView.view.width - window.px(5)
+                            message: rowMessage
+                            messageIndex: index
+                            chat: window.chat
+                            host: window
+                            highlighted: !!chat.messageTarget && chat.current && chat.messageTarget.chatId === chat.current.id && chat.messageTarget.index === index
                         }
 
                         ScrollBar.vertical: ChatScrollBar {
@@ -625,8 +741,7 @@ PanelWindow {
                             subtle: true
                             implicitHeight: window.px(24)
                             onClicked: {
-                                chat.editIndex = -1;
-                                chat.draft = "";
+                                chat.cancelEdit();
                             }
                         }
 
@@ -649,7 +764,7 @@ PanelWindow {
 
                                 text: fileName
                                 trailingGlyph: "close"
-                                Layout.maximumWidth: window.px(170)
+                                width: Math.min(implicitWidth, parent.width, window.px(220))
                                 hint: "Remove " + fileName
                                 implicitHeight: ui.controlHeight
                                 onClicked: chat.removeAttachment(index)
@@ -657,6 +772,16 @@ PanelWindow {
 
                         }
 
+                    }
+
+                    ActionButton {
+                        objectName: "screen-context-chip"
+                        visible: !!chat.screenWillBeShared
+                        Layout.fillWidth: true; Layout.topMargin: window.px(5)
+                        glyph: "desktop"; trailingGlyph: "close"
+                        text: "Active window · share on send"
+                        hint: "Your active window goes to the agent’s provider. Click to exclude it from this message."
+                        onClicked: chat.excludeScreen=true
                     }
 
                     Item {
@@ -667,6 +792,7 @@ PanelWindow {
                         Layout.fillWidth: true
                         implicitHeight: composeLayout.implicitHeight + window.px(12)
                         color: ui.field
+                        radius: window.px(10)
                         border.width: ui.stroke
                         border.color: composer.activeFocus ? ui.accent : ui.border
 
@@ -766,7 +892,7 @@ PanelWindow {
                                     trailingGlyph: "chevron-down"
                                     hint: "Access: " + chat.permissionLabel + " · /permissions"
                                     onClicked: {
-                                        chat.page = "permissions";
+                                        chat.visit("permissions");
                                         chat.pin();
                                     }
                                 }
@@ -790,15 +916,22 @@ PanelWindow {
                                 }
 
                                 ActionButton {
-                                    glyph: chat.busy && !(chat.peek.enabled && chat.draft.trim()) ? "stop" : "send"
-                                    hint: chat.busy ? (chat.peek.enabled && chat.draft.trim() ? "Redirect agent · Enter" : "Stop generation") : "Send · Enter"
+                                    objectName: "chat-stop"
+                                    visible: chat.busy
+                                    glyph: "stop"; text: "Stop"; danger: true
+                                    hint: "Stop generation"
+                                    onClicked: chat.request({action:"stop"})
+                                }
+
+                                ActionButton {
+                                    objectName: "chat-send"
+                                    visible: !chat.busy || (chat.peek.enabled && !!chat.draft.trim())
+                                    glyph: "send"
+                                    text: chat.busy ? "Redirect" : "Send"
+                                    hint: chat.busy ? "Redirect agent · Enter" : "Send · Enter"
                                     accent: true
-                                    implicitHeight: ui.controlHeight
-                                    implicitWidth: ui.controlHeight
-                                    enabled: !chat.terminalOpen && (chat.busy || (chat.connected && chat.draft.trim().length > 0))
-                                    onClicked: chat.busy && !(chat.peek.enabled && chat.draft.trim()) ? chat.request({
-                                        "action": "stop"
-                                    }) : chat.submit()
+                                    enabled: !chat.terminalOpen && chat.connected && !!chat.draft.trim()
+                                    onClicked: chat.submit()
                                 }
 
                             }
@@ -832,26 +965,11 @@ PanelWindow {
                         }
 
                         ActionButton {
-                            glyph: "orb"
-                            text: "Peek"
-                            hint: "Open the floating voice companion"
-                            subtle: true
-                            implicitHeight: window.px(22)
-                            enabled: !chat.terminalOpen
-                            onClicked: {
-                                if (chat.peek.enabled)
-                                    chat.close();
-                                else
-                                    chat.setPeek(true);
-                            }
-                        }
-
-                        ActionButton {
                             glyph: "terminal"
                             text: "Terminal"
                             hint: "Continue this exact session in terminal"
                             subtle: true
-                            implicitHeight: window.px(22)
+                            implicitHeight: ui.controlHeight
                             enabled: !chat.busy && !chat.terminalOpen && !!(chat.current && chat.current.native)
                             onClicked: chat.request({
                                 "action": "terminal"
@@ -863,12 +981,13 @@ PanelWindow {
                 }
 
                 ColumnLayout {
-                    visible: chat.page === "history"
+                    visible: chat.page === "history" && !window.overlayActive
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     spacing: window.px(8)
 
                     ChatField {
+                        id:historyField
                         Layout.fillWidth: true
                         glyph: "search"
                         placeholderText: "Search conversations…"
@@ -991,7 +1110,7 @@ PanelWindow {
                                 ActionButton {
                                     text: "Delete"
                                     danger: true
-                                    hint: "Deletes this conversation permanently"
+                                    hint: "Move to Recently deleted"
                                     onClicked: {
                                         chat.request({
                                             "action": "delete",
@@ -1013,7 +1132,7 @@ PanelWindow {
                     id: permissionsView
 
                     Layout.preferredHeight: Math.min(contentHeight, window.px(window.expanded ? 500 : 360))
-                    visible: chat.page === "permissions"
+                    visible: chat.page === "permissions" && !window.overlayActive
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     contentWidth: width
@@ -1041,7 +1160,7 @@ PanelWindow {
                 }
 
                 Loader {
-                    active: chat.page === "peek_settings"
+                    active: chat.page === "peek_settings" && !window.overlayActive
                     Layout.preferredHeight: Math.min(item ? item.implicitHeight : 0, window.px(window.expanded ? 500 : 360))
                     visible: active
                     Layout.fillWidth: true
@@ -1058,7 +1177,7 @@ PanelWindow {
                 }
 
                 Flickable {
-                    visible: chat.page === "settings"
+                    visible: chat.page === "settings" && !window.overlayActive
                     Layout.preferredHeight: Math.min(contentHeight, window.px(window.expanded ? 500 : 340))
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -1086,6 +1205,7 @@ PanelWindow {
                         SettingLabel { visible: chat.messages.length > 0; text: "Conversation name" }
                         ChatField {
                             visible: chat.messages.length > 0
+                            enabled: !chat.busy
                             Layout.fillWidth: true
                             text: chat.current ? chat.current.title : ""
                             placeholderText: "Conversation name"
@@ -1114,7 +1234,7 @@ PanelWindow {
                                 Layout.maximumWidth: window.px(200)
                                 hint: "Change this conversation’s permission mode"
                                 onClicked: {
-                                    chat.page = "permissions";
+                                    chat.visit("permissions");
                                     chat.pin();
                                 }
                             }
@@ -1130,7 +1250,7 @@ PanelWindow {
 
                         SettingLabel {
                             Layout.fillWidth: true
-                            text: window.nativeFolderLocked ? "Saved with the Save button. Saving restarts this native session before the next message." : "Saved with the Save button. Changing the folder resets this conversation’s permission choices."
+                            text: "Save applies these agent settings to this chat and new chats. " + (window.nativeFolderLocked ? "The native session reconnects before the next message." : "Changing the folder resets this chat’s permissions.")
                             font.weight: Font.Normal
                             wrapMode: Text.WordWrap
                         }
@@ -1238,6 +1358,22 @@ PanelWindow {
 
                         }
 
+                        ChatSection { text: "Data and recovery" }
+                        ActionButton {
+                            text:"Recently deleted";glyph:"history";subtle:true
+                            onClicked:chat.workspace.showTrash()
+                        }
+                        ActionButton {
+                            text:chat.workspace.exporting ? "Exporting…" : "Export workspace";glyph:"export";subtle:true
+                            enabled:chat.connected && !chat.workspace.exporting
+                            onClicked:backupDialog.open()
+                        }
+                        Text {
+                            visible:!!chat.workspace.exportNotice || !!chat.workspace.error
+                            Layout.fillWidth:true;text:chat.workspace.error || chat.workspace.exportNotice
+                            textFormat:Text.PlainText;color:chat.workspace.error ? ui.danger : ui.muted
+                            font.family:ui.family;font.pixelSize:ui.caption;wrapMode:Text.Wrap
+                        }
                         ChatSection { text: "Desktop" }
                         LookSettings {
                             Layout.fillWidth: true
@@ -1287,7 +1423,7 @@ PanelWindow {
                 }
 
                 RowLayout {
-                    visible: chat.page === "settings"
+                    visible: chat.page === "settings" && !window.overlayActive
                     Layout.fillWidth: true
                     Layout.topMargin: window.px(8)
                     spacing: window.px(4)
@@ -1365,6 +1501,7 @@ PanelWindow {
             }
 
             DropArea {
+                enabled: chat.page === "chat" && !window.overlayActive
                 anchors.fill: parent
                 onDropped: (drop) => {
                     if (drop.hasUrls)
@@ -1395,9 +1532,20 @@ PanelWindow {
 
     }
 
+    SequentialAnimation {
+        id: pageEntry
+        PropertyAction { target: window; property: "pageReveal"; value: window.reducedMotion ? 1 : 0 }
+        NumberAnimation { target: window; property: "pageReveal"; to: 1; duration: window.reducedMotion ? 0 : 180; easing.type: Easing.OutCubic }
+    }
+
+    Behavior on implicitHeight {
+        enabled: window.opened
+        NumberAnimation { duration: window.reducedMotion ? 0 : 200; easing.type: Easing.OutCubic }
+    }
+
     Behavior on reveal {
         NumberAnimation {
-            duration: window.opened ? 560 : 380
+            duration: window.reducedMotion ? 0 : window.opened ? 560 : 380
             easing.type: window.opened ? Easing.OutQuint : Easing.InOutCubic
         }
 

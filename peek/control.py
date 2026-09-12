@@ -64,6 +64,9 @@ class Control:
         self.frames={}
         self.device=None
         self.active=False
+        self.takeover_armed=False
+        self.input_devices=0
+        self.stop_shortcut=False
         self.scope='desktop'
         self.turn=''
         self.accent='#a0a0b8'
@@ -81,7 +84,7 @@ class Control:
 
     def stop(self,reason='Stopped'):
         with self.guard:
-            self.enabled=False;self.epoch+=1;self.frames.clear()
+            self.enabled=False;self.takeover_armed=False;self.epoch+=1;self.frames.clear()
             if self.process and self.process.poll() is None:self.process.terminate()
             if self.device:
                 import evdev
@@ -93,6 +96,15 @@ class Control:
 
     def check(self,epoch):
         if not self.enabled or self.epoch!=epoch:raise RuntimeError('Desktop control stopped. Wait for a new user request.')
+
+    def physical_input(self, moved=False):
+        if self.enabled and self.takeover_armed:
+            self.stop('You moved the mouse' if moved else 'You took control')
+
+    def capabilities(self):
+        return {'enabled':self.enabled,'scope':self.scope,'desktop':os.access('/dev/uinput',os.W_OK),
+                'browser':(self.data/'bin/agent-browser').is_file(),'takeover':self.input_devices>0,
+                'inputDevices':self.input_devices,'stopShortcut':'Ctrl+Alt+Esc' if self.stop_shortcut else ''}
 
     def watch_input(self):
         # Read key state only for takeover/Stop; never store or emit keystrokes.
@@ -112,6 +124,17 @@ class Control:
                             selector.register(device,selectors.EVENT_READ)
                         except OSError:pass
                     last_scan=time.monotonic()
+                    count=len(selector.get_map())
+                    shortcut=False
+                    for entry in selector.get_map().values():
+                        try:
+                            codes=set(entry.fileobj.capabilities().get(evdev.ecodes.EV_KEY,[]))
+                            shortcut=shortcut or (1 in codes and bool(codes & {29,97}) and bool(codes & {56,100}))
+                        except OSError:
+                            pass
+                    changed=count!=self.input_devices or shortcut!=self.stop_shortcut
+                    self.input_devices=count;self.stop_shortcut=shortcut
+                    if changed and self.enabled:self.event('control_capabilities',capabilities=self.capabilities())
                 for key,_ in selector.select(.05):
                     device=key.fileobj
                     try:
@@ -123,13 +146,18 @@ class Control:
                                 codes={code for _,code in pressed}
                                 if event.code==evdev.ecodes.KEY_ESC and event.value==1 and codes & {29,97} and codes & {56,100}:
                                     self.stop('Emergency stop · Ctrl+Alt+Esc');self.event('emergency_stop')
-                                elif self.active and event.value==1:
-                                    self.stop('You took control')
-                            elif self.active and event.type in (evdev.ecodes.EV_REL,evdev.ecodes.EV_ABS) and event.code in (0,1):
-                                self.stop('You moved the mouse')
+                                elif event.value==1:
+                                    self.physical_input()
+                            elif event.type in (evdev.ecodes.EV_REL,evdev.ecodes.EV_ABS) and event.code in (0,1):
+                                self.physical_input(moved=True)
                     except (OSError,BlockingIOError):
                         selector.unregister(device);device.close()
+                        self.input_devices=len(selector.get_map())
+                        self.stop_shortcut=False
+                        if self.enabled:self.event('control_capabilities',capabilities=self.capabilities())
         finally:
+            self.input_devices=0
+            self.stop_shortcut=False
             for key in list(selector.get_map().values()):key.fileobj.close()
             selector.close()
 
@@ -248,15 +276,17 @@ class Control:
             if new_scope not in ('desktop','browser'):raise ValueError('Unknown computer control mode.')
             if new_scope!=self.scope:self.close_browser()
             with self.guard:
+                if not c.get('enabled') or c.get('turn','')!=self.turn:
+                    self.takeover_armed=False
                 self.enabled=c.get('enabled') is True
                 self.scope=new_scope;self.turn=c.get('turn','')
                 self.cwd=str(c.get('cwd') or self.cwd)
                 if re.fullmatch(r'#[0-9a-fA-F]{6}',c.get('accent','')):self.accent=c['accent']
                 if not self.enabled:self.epoch+=1;self.frames.clear()
-            return {'enabled':self.enabled,'scope':self.scope}
+            return self.capabilities()
         if op=='_stop':self.stop();return {'stopped':True}
         if op=='_pause':self.stop('Listening for your correction');return {'paused':True}
-        if op=='capabilities':return {'enabled':self.enabled,'scope':self.scope,'desktop':os.access('/dev/uinput',os.W_OK),'browser':(self.data/'bin/agent-browser').is_file(),'takeover':True,'stopShortcut':'Ctrl+Alt+Esc'}
+        if op=='capabilities':return self.capabilities()
         with self.action_lock:
             epoch=self.epoch;self.check(epoch)
             if self.scope=='browser' and op not in ('browser','windows'):
@@ -269,6 +299,8 @@ class Control:
                                label=label,kind=kind,phase=phase,**values))
             progress('start')
             self.active=op in ('move','click','drag','scroll','type','key','accessible_action')
+            if self.active or op in ('screenshot','focus','inspect_app'):
+                self.takeover_armed=True
             try:
                 result=self.execute(c,epoch)
                 self.check(epoch)

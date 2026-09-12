@@ -28,6 +28,11 @@ FILES += ["ChatStyle.qml", "ChatField.qml", "ChatComboBox.qml"]
 FILES += ["CompanionCursor.qml", "CompanionGaze.js", "companion_cursor.py"]
 FILES += ["ChatSection.qml", "ChatSwitch.qml", "ChatSpinBox.qml", "ChatScrollBar.qml"]
 FILES += ["TaskDetails.qml", "CompanionTransition.qml"]
+FILES += ["workspace.py", "reminders.py", "reminder_notification.py", "WorkspaceModel.qml", "WorkspaceOverlay.qml"]
+FILES += ["Keypad.js", "deploy/side-chat-keypad.lua", "docs/keypad.md"]
+FILES += ["thoughts.py", "Thoughts.js", "ThoughtsModel.qml", "ThoughtsView.qml", "ThoughtRow.qml", "WorkspaceTabs.qml"]
+FILES += ["docs/thoughts-validation.md", "screenshots/workspace-reminder.png", "screenshots/workspace-search.png", "screenshots/workspace-capture.png"]
+FILES += ["screenshots/thoughts.png", "screenshots/workspace-chat.png", "screenshots/workspace-todos.png", "screenshots/workspace-peek.png"]
 FILES += ["preview.png", "screenshots/history.png", "screenshots/preferences.png",
           "screenshots/permissions.png", "screenshots/peek.png", "screenshots/peek-controls.png"]
 PLUGIN = "blr.side-chat"
@@ -93,7 +98,8 @@ def main():
         (staged/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
         for name in ('README.md','LICENSE','COPYING.PEEK','THIRD_PARTY.md','preview.png',
                      'screenshots/history.png','screenshots/preferences.png','screenshots/permissions.png',
-                     'screenshots/peek.png','screenshots/peek-controls.png','docs/speech-audit.md',
+                     'screenshots/peek.png','screenshots/peek-controls.png','screenshots/thoughts.png',
+                     'screenshots/workspace-chat.png','screenshots/workspace-todos.png','screenshots/workspace-peek.png','docs/speech-audit.md',
                      'docs/implementation.md','docs/publishing.md'):
             (staged/name).parent.mkdir(parents=True,exist_ok=True)
             shutil.copy2(source/name,staged/name)

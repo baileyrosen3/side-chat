@@ -1,0 +1,30 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::TaskSurface::initTestCase() entering
+PASS   : qmltestrunner::TaskSurface::initTestCase()
+INFO   : qmltestrunner::TaskSurface::test_companion_tabs_open_the_same_workspace_sections() entering
+PASS   : qmltestrunner::TaskSurface::test_companion_tabs_open_the_same_workspace_sections()
+INFO   : qmltestrunner::TaskSurface::test_controls_only_appear_on_hover_and_stay_usable() entering
+PASS   : qmltestrunner::TaskSurface::test_controls_only_appear_on_hover_and_stay_usable()
+INFO   : qmltestrunner::TaskSurface::test_exit_keeps_rendering_until_the_robot_is_offscreen() entering
+PASS   : qmltestrunner::TaskSurface::test_exit_keeps_rendering_until_the_robot_is_offscreen()
+INFO   : qmltestrunner::TaskSurface::test_expanded_layout_contains_controls_and_reduced_motion_is_still() entering
+PASS   : qmltestrunner::TaskSurface::test_expanded_layout_contains_controls_and_reduced_motion_is_still()
+INFO   : qmltestrunner::TaskSurface::test_hiding_peek_resets_controls_before_reopening() entering
+PASS   : qmltestrunner::TaskSurface::test_hiding_peek_resets_controls_before_reopening()
+INFO   : qmltestrunner::TaskSurface::test_keyboard_can_expand_details_and_escape_collapses_everything() entering
+PASS   : qmltestrunner::TaskSurface::test_keyboard_can_expand_details_and_escape_collapses_everything()
+INFO   : qmltestrunner::TaskSurface::test_note_capture_and_save_use_the_existing_companion_feedback() entering
+PASS   : qmltestrunner::TaskSurface::test_note_capture_and_save_use_the_existing_companion_feedback()
+INFO   : qmltestrunner::TaskSurface::test_speech_and_question_take_priority_over_task_caption() entering
+PASS   : qmltestrunner::TaskSurface::test_speech_and_question_take_priority_over_task_caption()
+INFO   : qmltestrunner::TaskSurface::test_stop_is_available_on_hover_without_expansion() entering
+PASS   : qmltestrunner::TaskSurface::test_stop_is_available_on_hover_without_expansion()
+INFO   : qmltestrunner::TaskSurface::test_task_target_takes_priority_and_interruption_returns_to_user() entering
+PASS   : qmltestrunner::TaskSurface::test_task_target_takes_priority_and_interruption_returns_to_user()
+INFO   : qmltestrunner::TaskSurface::test_voice_readiness_and_hearing_reach_the_face() entering
+PASS   : qmltestrunner::TaskSurface::test_voice_readiness_and_hearing_reach_the_face()
+INFO   : qmltestrunner::TaskSurface::cleanupTestCase() entering
+PASS   : qmltestrunner::TaskSurface::cleanupTestCase()
+Totals: 13 passed, 0 failed, 0 skipped, 0 blacklisted, 2505ms
+********* Finished testing of qmltestrunner *********

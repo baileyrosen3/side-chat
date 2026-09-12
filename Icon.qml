@@ -21,6 +21,12 @@ Canvas {
         function line(x1,y1,x2,y2) { c.moveTo(x1,y1); c.lineTo(x2,y2) }
         c.beginPath()
         switch (name) {
+        case "bell": c.moveTo(5,17);c.lineTo(7,14);c.lineTo(7,9);c.arc(12,9,5,Math.PI,Math.PI*2);c.lineTo(17,14);c.lineTo(19,17);c.closePath();c.moveTo(10,20);c.quadraticCurveTo(12,23,14,20);line(12,2,12,4);break
+        case "thought": c.moveTo(9,17);c.bezierCurveTo(9,14,5,13,5,9);c.bezierCurveTo(5,0,19,0,19,9);c.bezierCurveTo(19,13,15,14,15,17);c.closePath();line(9,20,15,20);line(11,23,13,23);line(12,17,12,10);line(9,8,12,11);line(15,8,12,11);break
+        case "pin": c.moveTo(8,3);c.lineTo(16,3);c.lineTo(15,10);c.lineTo(19,14);c.lineTo(5,14);c.lineTo(9,10);c.closePath();line(12,14,12,22);break
+        case "archive": c.rect(3,4,18,4);c.rect(5,8,14,12);line(10,12,14,12);break
+        case "tag": c.moveTo(3,3);c.lineTo(12,3);c.lineTo(21,12);c.lineTo(12,21);c.lineTo(3,12);c.closePath();c.moveTo(9,7);c.arc(8,7,1,0,Math.PI*2);break
+        case "read": c.moveTo(12,6);c.quadraticCurveTo(7,3,3,5);c.lineTo(3,19);c.quadraticCurveTo(7,17,12,20);c.quadraticCurveTo(17,17,21,19);c.lineTo(21,5);c.quadraticCurveTo(17,3,12,6);c.lineTo(12,20);break
         case "orb": c.roundedRect(5,6,14,12,4,4); line(9,10,9,13); line(15,10,15,13); line(17,6,18,3); line(2,10,2,14); line(22,10,22,14); break
         case "power": c.arc(12,13,8,-Math.PI*.3,Math.PI*1.3); line(12,2,12,12);break
         case "sleep": c.moveTo(17,3);c.bezierCurveTo(1,0,1,23,17,21);c.bezierCurveTo(8,17,8,7,17,3);break

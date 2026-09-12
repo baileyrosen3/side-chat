@@ -1,0 +1,14 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.2, Qt 6.11.2 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.3
+INFO   : qmltestrunner::AuditReproductions::initTestCase() entering
+PASS   : qmltestrunner::AuditReproductions::initTestCase()
+INFO   : qmltestrunner::AuditReproductions::test_erased_new_draft_remains_recoverable() entering
+PASS   : qmltestrunner::AuditReproductions::test_erased_new_draft_remains_recoverable()
+INFO   : qmltestrunner::AuditReproductions::test_noon_can_save_before_date_preview() entering
+PASS   : qmltestrunner::AuditReproductions::test_noon_can_save_before_date_preview()
+INFO   : qmltestrunner::AuditReproductions::test_stopped_tool_is_labeled_completed() entering
+PASS   : qmltestrunner::AuditReproductions::test_stopped_tool_is_labeled_completed()
+INFO   : qmltestrunner::AuditReproductions::cleanupTestCase() entering
+PASS   : qmltestrunner::AuditReproductions::cleanupTestCase()
+Totals: 5 passed, 0 failed, 0 skipped, 0 blacklisted, 2ms
+********* Finished testing of qmltestrunner *********
