@@ -2,14 +2,30 @@
   "schemaVersion": 1,
   "id": "blr.side-chat",
   "name": "Side Chat",
-  "version": "1.16.1",
+  "version": "1.17.1",
   "author": "blr",
   "license": "GPL-3.0-or-later AND MIT",
-  "description": "One Omarchy workspace for agent chat, quick notes, to-dos, and the local Peek voice companion.",
+  "description": "Chat, notes, to-dos, and Peek in a native Omarchy bar panel.",
   "kinds": [
+    "bar-widget",
     "service"
   ],
   "entryPoints": {
-    "service": "Main.qml"
+    "service": "Main.qml",
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Side Chat",
+    "description": "Agent conversations, notes, to-dos, and Peek.",
+    "category": "AI",
+    "aliases": [
+      "chat",
+      "peek",
+      "notes",
+      "todos",
+      "workspace"
+    ],
+    "allowMultiple": false,
+    "defaultSection": "left"
   }
 }

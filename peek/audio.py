@@ -2,6 +2,7 @@
 """PipeWire audio endpoints owned only for the lifetime of an armed voice worker."""
 import json
 import os
+import shlex
 import subprocess
 
 
@@ -14,6 +15,20 @@ def devices():
     return [{'id':p.get('node.name',''), 'name':p.get('node.description',p.get('node.name','')), 'kind':p['media.class']}
             for obj in nodes if (p:=obj.get('info',{}).get('props',{})).get('media.class') in ('Audio/Source','Audio/Sink')
             and not p.get('node.name','').startswith('side_chat_peek_')]
+
+
+def release_worker_audio(pid):
+    """Clean up an echo module if its voice worker needed forced termination."""
+    try:
+        modules=json.loads(run('pactl','--format=json','list','modules'))
+        for module in modules:
+            if module.get('name')!='module-echo-cancel':continue
+            args=shlex.split(module.get('argument',''))
+            if (f'source_name=side_chat_peek_mic_{pid}' in args
+                    and f'sink_name=side_chat_peek_speaker_{pid}' in args):
+                run('pactl','unload-module',str(module['index']))
+    except (OSError,ValueError,subprocess.SubprocessError):
+        pass  # A stopped audio server has already released its modules.
 
 
 class EchoAudio:

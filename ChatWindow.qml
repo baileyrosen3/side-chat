@@ -3,31 +3,27 @@ import QtQuick.Controls
 import QtQuick.Dialogs
 import QtQuick.Layouts
 import Quickshell
-import Quickshell.Hyprland
-import Quickshell.Wayland
 import "Theme.js" as Theme
 import qs.Commons
 
-PanelWindow {
+FocusScope {
     id: window
 
     required property var chat
-    readonly property bool opened: chat.openScreen === screen.name
+    property bool opened: false
+    readonly property var contentItem: window
+    readonly property bool dialogOpen: attachmentDialog.visible || exportDialog.visible || backupDialog.visible || folderDialog.visible
     readonly property bool overlayActive: !!chat.workspace.mode
     readonly property bool notesPage: chat.page === "notes" || chat.page === "todos"
     readonly property bool reducedMotion: !!chat.peek.reducedMotion
     readonly property bool showGlobalStop: chat.busy && (chat.page !== "chat" || overlayActive)
     property real pageReveal: 1
-    readonly property bool pointerInside: edgeMouse.containsMouse || drawerHover.hovered
     readonly property color surface: ui.surface
     readonly property color fg: ui.foreground
     readonly property color dim: ui.muted
     readonly property color line: ui.line
     readonly property string family: Style.font.family
     readonly property int textSize: Style.font.body
-    readonly property real drawerCorner: px(16)
-    readonly property real contentInset: px(14)
-    property real reveal: opened ? 1 : 0
     readonly property bool expanded: !!(chat.meta.appearance && chat.meta.appearance.expanded)
     property bool settingsPending: false
     readonly property bool nativeFolderLocked: !!(chat.current && chat.current.native)
@@ -50,7 +46,7 @@ PanelWindow {
         copiedReset.restart();
     }
 
-    function bottom() {
+    function scrollToBottom() {
         if (followBottom)
             Qt.callLater(() => {
             thread.positionViewAtEnd();
@@ -113,51 +109,27 @@ PanelWindow {
         return Qt.formatDateTime(date, date.getFullYear() === now.getFullYear() ? "MMM d" : "MMM d, yyyy");
     }
 
-    onPointerInsideChanged: chat.hover(screen.name, pointerInside)
-    color: "transparent"
-    margins.bottom: 0
-    implicitWidth: Math.min(px(expanded ? 620 : 368), screen.width - px(12))
-    implicitHeight: Math.min(screen.height - px(24), panelLayout.implicitHeight + 2 * (drawerCorner + contentInset) + px(8))
-    onWidthChanged: {
-        if (opened)
-            chat.panelWidth = width;
-
-    }
-    exclusionMode: ExclusionMode.Ignore
-    WlrLayershell.namespace: "omarchy-side-chat"
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.keyboardFocus: opened && chat.pinned && !chat.peek.preview ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+    implicitWidth: px(expanded ? 620 : 460)
+    implicitHeight: panelLayout.implicitHeight
+    clip: true
+    onWidthChanged: if (opened) chat.panelWidth = width
     onOpenedChanged: {
         if (opened) {
-            focusRetry.restart();
-            chat.panelWidth = width;
-            chat.settleNotice();
-            if (chat.pinned)
-                Qt.callLater(chat.focusWorkspace);
-            Qt.callLater(window.locateMessage);
-
+            focusRetry.restart()
+            chat.panelWidth = width
+            chat.settleNotice()
+            Qt.callLater(chat.focusWorkspace)
+            Qt.callLater(window.locateMessage)
         }
     }
 
-    ChatStyle {
-        id: ui
-    }
-
-    WindowBorder {
-        id: windowBorder
-
-        active: window.opened
-    }
-
-    anchors {
-        left: true
-        bottom: true
-    }
+    // The host also uses this target when embedding the content in Island.
+    onActiveFocusChanged: if (activeFocus && opened) Qt.callLater(chat.focusWorkspace)
+    ChatStyle { id: ui }
 
     Connections {
         function onMessageTargetChanged() {window.locateMessage()}
         function onPreferencesRequested() {if(window.opened) window.showSettings()}
-        function onPinnedChanged() {if(window.opened && chat.pinned) focusRetry.restart()}
         function onPageChanged() {
             if (window.opened) {
                 pageEntry.restart();
@@ -190,11 +162,11 @@ PanelWindow {
         }
 
         function onStreamingTextChanged() {
-            window.bottom();
+            window.scrollToBottom();
         }
 
         function onMessagesChanged() {
-            window.bottom();
+            window.scrollToBottom();
         }
 
         function onCurrentChanged() {
@@ -203,14 +175,14 @@ PanelWindow {
                 window.followBottom = true;
                 window.displayedChatId = id;
             }
-            if (!window.locateMessage()) window.bottom();
+            if (!window.locateMessage()) window.scrollToBottom();
         }
 
         target: chat
     }
 
     // The compositor grants keyboard focus after the layer surface commits.
-    Timer {id:focusRetry;interval:80;onTriggered:if(window.opened && chat.pinned) chat.focusWorkspace()}
+    Timer {id:focusRetry;interval:80;onTriggered:if(window.opened) chat.focusWorkspace()}
 
     Timer {
         id: copiedReset
@@ -265,89 +237,17 @@ PanelWindow {
         onAccepted: cwdField.text = decodeURIComponent(String(selectedFolder).replace("file://", ""))
     }
 
-    HyprlandFocusGrab {
-        active: window.opened && chat.pinned && !chat.peek.preview && !chat.peek.enabled && !attachmentDialog.visible && !exportDialog.visible && !backupDialog.visible && !folderDialog.visible
-        windows: [window]
-        onCleared: {
-            if (!chat.peek.enabled)
-                chat.close();
-
-        }
-    }
-    // The only input region left when closed; it paints absolutely nothing.
-
     Item {
-        id: edgeHotspot
-
-        z: 10
-        anchors.left: parent.left
-        anchors.bottom: parent.bottom
-        width: window.px(4)
-        height: Math.min(window.px(160), window.height)
-
-        MouseArea {
-            id: edgeMouse
-
-            anchors.fill: parent
-            hoverEnabled: true
-            onClicked: chat.show(window.screen.name, true)
-        }
-
-    }
-
-    Item {
-        id: revealClip
-
-        objectName: "chat-drawer"
-        width: Math.round(window.width * window.reveal)
-        height: parent.height
-        clip: true
-
-        HoverHandler {
-            id: drawerHover
-        }
-        // Keep the desktop's screen-connected outline around the angular controls.
-
-        DrawerSurface {
-            x: window.px(3)
-            y: window.px(4)
-            width: Math.max(0, revealClip.width - window.px(4))
-            height: parent.height - window.px(8)
-            corner: window.drawerCorner
-            fill: Theme.mix(ui.surface, ui.accent, 0.22)
-            borderColors: [Theme.mix(ui.surface, ui.accent, 0.65)]
-            borderWidth: window.px(0.8)
-        }
-
-        DrawerSurface {
-            id: bodySurface
-
-            fill: window.surface
-            corner: window.drawerCorner
-            outlineEnabled: !chat.meta.appearance || chat.meta.appearance.outline !== false
-            keyboardFocus: window.opened && chat.pinned
-            borderColors: windowBorder.colors
-            borderAngle: windowBorder.angle
-            borderWidth: windowBorder.borderWidth
-            width: Math.max(0, revealClip.width - window.px(4))
-            height: parent.height - window.px(8)
-        }
+        id: workspaceContent
+        objectName: "chat-workspace"
+        anchors.fill: parent
 
         Item {
             id: card
-
-            width: window.width - window.px(4)
-            height: parent.height - window.px(8)
-            x: -Math.round((1 - window.reveal) * window.px(12))
-            opacity: Math.max(0, Math.min(1, (window.reveal - 0.16) / 0.84))
+            anchors.fill: parent
             Keys.onEscapePressed: (event) => {
                 window.pressEscape();
                 event.accepted = true;
-            }
-
-            TapHandler {
-                onTapped: chat.pin()
-                gesturePolicy: TapHandler.WithinBounds
             }
 
             Shortcut {sequence:"Ctrl+K";enabled:window.opened;onActivated:chat.workspace.toggleSearch()}
@@ -388,12 +288,10 @@ PanelWindow {
             ColumnLayout {
                 id: panelLayout
 
-                anchors.fill: parent
-                anchors.leftMargin: window.contentInset
-                anchors.rightMargin: window.contentInset
-                // The painted top/bottom edges sit one corner radius inward.
-                anchors.topMargin: window.drawerCorner + window.contentInset
-                anchors.bottomMargin: window.drawerCorner + window.contentInset
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                height: Math.min(parent.height, implicitHeight)
                 spacing: 0
 
                 RowLayout {
@@ -524,7 +422,7 @@ PanelWindow {
                     objectName:"workspace-overlay"
                     Layout.fillWidth:true;Layout.fillHeight:true
                     Layout.preferredHeight:window.px(window.expanded ? 500 : 420)
-                    active:window.overlayActive && (window.opened || window.reveal>0)
+                    active:window.overlayActive && window.opened
                     visible:window.overlayActive
                     sourceComponent:WorkspaceOverlay {
                         model:window.chat.workspace;active:window.opened && window.overlayActive
@@ -538,7 +436,7 @@ PanelWindow {
                     Layout.fillWidth: true; Layout.fillHeight: true
                     Layout.preferredHeight: item ? Math.min(item.implicitHeight, window.px(window.expanded ? 560 : 480)) : window.px(280)
                     visible: window.notesPage && !window.overlayActive
-                    active: window.notesPage && (window.opened || window.reveal > 0)
+                    active: window.notesPage && window.opened
                     opacity: window.pageReveal
                     transform: Translate { y: window.px(6) * (1 - window.pageReveal) }
                     onLoaded: Qt.callLater(chat.thoughts.focusEditor)
@@ -623,7 +521,7 @@ PanelWindow {
                         property string sourceChat: ""
                         function refresh() {
                             var identity=chat.current ? chat.current.id : ""
-                            var next=window.opened || window.reveal>0 ? chat.messages : []
+                            var next=window.opened ? chat.messages : []
                             if (sourceChat!==identity) {messageRows.clear();sourceChat=identity}
                             for (var i=0;i<next.length;i++) {
                                 var key=next[i].id || "message-"+i
@@ -643,7 +541,6 @@ PanelWindow {
                         Connections {
                             target:window
                             function onOpenedChanged() {thread.refresh()}
-                            function onRevealChanged() {if(!window.opened && window.reveal<=0) thread.refresh()}
                         }
 
                         Layout.preferredHeight: Math.min(contentHeight, window.px(window.expanded ? 460 : 300))
@@ -654,8 +551,8 @@ PanelWindow {
                         model: messageRows
                         spacing: window.px(8)
                         cacheBuffer: window.px(160)
-                        onContentHeightChanged: window.bottom()
-                        onHeightChanged: window.bottom()
+                        onContentHeightChanged: window.scrollToBottom()
+                        onHeightChanged: window.scrollToBottom()
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
                         onMovementStarted: window.followBottom = false
@@ -692,7 +589,7 @@ PanelWindow {
                             hint: "Jump to the latest reply"
                             onClicked: {
                                 window.followBottom = true;
-                                window.bottom();
+                                window.scrollToBottom();
                             }
                         }
 
@@ -1375,9 +1272,10 @@ PanelWindow {
                             font.family:ui.family;font.pixelSize:ui.caption;wrapMode:Text.Wrap
                         }
                         ChatSection { text: "Desktop" }
-                        LookSettings {
+                        SettingLabel {
                             Layout.fillWidth: true
-                            chat: window.chat
+                            text: "Panel appearance follows your Omarchy theme and bar settings."
+                            wrapMode: Text.WordWrap
                         }
 
                         ActionButton {
@@ -1408,7 +1306,7 @@ PanelWindow {
 
                         SettingLabel {
                             Layout.fillWidth: true
-                            text: "Enter: send · Shift+Enter: new line\nCtrl+N: new · Ctrl+H: history · Esc: back or close\nWhile Peek is on, open chat from Peek or your keybinding; edge hover is off."
+                            text: "Enter: send · Shift+Enter: new line\nCtrl+N: new · Ctrl+H: history · Esc: back or close\nOpen from the bar, Peek, or your keybinding. Click outside to close."
                             wrapMode: Text.WordWrap
                         }
 
@@ -1521,17 +1419,6 @@ PanelWindow {
         font.weight: Font.DemiBold
     }
 
-    mask: Region {
-        Region {
-            item: edgeHotspot
-        }
-
-        Region {
-            item: revealClip
-        }
-
-    }
-
     SequentialAnimation {
         id: pageEntry
         PropertyAction { target: window; property: "pageReveal"; value: window.reducedMotion ? 1 : 0 }
@@ -1541,14 +1428,6 @@ PanelWindow {
     Behavior on implicitHeight {
         enabled: window.opened
         NumberAnimation { duration: window.reducedMotion ? 0 : 200; easing.type: Easing.OutCubic }
-    }
-
-    Behavior on reveal {
-        NumberAnimation {
-            duration: window.reducedMotion ? 0 : window.opened ? 560 : 380
-            easing.type: window.opened ? Easing.OutQuint : Easing.InOutCubic
-        }
-
     }
 
 }

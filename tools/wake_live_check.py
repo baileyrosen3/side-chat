@@ -15,7 +15,7 @@ def wait(test,seconds=12):
  raise AssertionError('Timed out: '+json.dumps(b.peek.state if b else {}))
 before={k:run('pactl','get-default-'+k) for k in ('source','sink')}
 try:
-phrases={'wake':'Hey Jarvis.','ignore':'Remember that this should be ignored.','request':'Remember that the fixture color is blue.','followup':'Remember that the fixture size is small.'}
+ phrases={'wake':'Hey Jarvis.','ignore':'Remember that this should be ignored.','request':'Remember that the fixture color is blue.','followup':'Remember that the fixture size is small.'}
  prepare="""from peek.engines import pocket
 import json,numpy as np,soundfile as sf,sys
 from pathlib import Path

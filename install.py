@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+from panel_setup import enable_panel
 
 FILES = ["manifest.json", "Main.qml", "ChatWindow.qml", "MessageCard.qml", "ActionButton.qml",
          "Icon.qml", "Theme.js", "Markdown.js", "backend.py", "agent_session.py", "native_bridge.py",
@@ -28,6 +29,7 @@ FILES += ["ChatStyle.qml", "ChatField.qml", "ChatComboBox.qml"]
 FILES += ["CompanionCursor.qml", "CompanionGaze.js", "companion_cursor.py"]
 FILES += ["ChatSection.qml", "ChatSwitch.qml", "ChatSpinBox.qml", "ChatScrollBar.qml"]
 FILES += ["TaskDetails.qml", "CompanionTransition.qml"]
+FILES += ["Panel.qml", "ChatBridge.js", "panel_setup.py", "screenshots/native-panel.png"]
 FILES += ["workspace.py", "reminders.py", "reminder_notification.py", "WorkspaceModel.qml", "WorkspaceOverlay.qml"]
 FILES += ["Keypad.js", "deploy/side-chat-keypad.lua", "docs/keypad.md"]
 FILES += ["thoughts.py", "Thoughts.js", "ThoughtsModel.qml", "ThoughtsView.qml", "ThoughtRow.qml", "WorkspaceTabs.qml"]
@@ -94,9 +96,10 @@ def main():
             (release / name).parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(source / name, release / name)
         manifest=json.loads((source/'manifest.json').read_text())
-        manifest['entryPoints']['service']=release_name+'/Main.qml'
+        manifest['entryPoints'] = {kind: release_name + '/' + path
+                                   for kind, path in manifest['entryPoints'].items()}
         (staged/'manifest.json').write_text(json.dumps(manifest,indent=2)+'\n')
-        for name in ('README.md','LICENSE','COPYING.PEEK','THIRD_PARTY.md','preview.png',
+        for name in ('README.md','LICENSE','COPYING.PEEK','THIRD_PARTY.md','preview.png','screenshots/native-panel.png',
                      'screenshots/history.png','screenshots/preferences.png','screenshots/permissions.png',
                      'screenshots/peek.png','screenshots/peek-controls.png','screenshots/thoughts.png',
                      'screenshots/workspace-chat.png','screenshots/workspace-todos.png','screenshots/workspace-peek.png','docs/speech-audit.md',
@@ -118,6 +121,9 @@ def main():
         time.sleep(0.2)
     else:
         raise SystemExit(result.stderr or result.stdout or "Could not enable the plugin.")
+    # `bar put` does not move an existing service-only entry on older shells.
+    enable_panel(config / "shell.json")
+    subprocess.run(["omarchy", "bar", "put", PLUGIN], check=True)
     for _ in range(30):
         result = subprocess.run(["omarchy-shell", PLUGIN, "status"], capture_output=True, text=True)
         try:

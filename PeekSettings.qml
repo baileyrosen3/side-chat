@@ -15,6 +15,10 @@ ColumnLayout {
     property var draft: ({})
     property var saved: ({})
     property bool pending: false
+    property bool runtimePending: false
+    property bool runtimeTarget: true
+    readonly property bool runtimeEnabled: chat.peek.runtimeEnabled !== false
+    readonly property bool runtimeStopping: !!chat.peek.runtimeStopping
     readonly property bool dirty: JSON.stringify(draft) !== JSON.stringify(saved)
     // Memory, routines, watches and undo save on their own; the Apply footer only governs preferences.
     readonly property bool dataTab: section === "Companion" && !!companion.item && companion.item.section !== "Appearance"
@@ -44,10 +48,11 @@ ColumnLayout {
     Connections {
         target: root.chat
         function onPeekChanged() {
+            if (root.runtimePending && root.runtimeEnabled === root.runtimeTarget && !root.runtimeStopping) root.runtimePending=false
             if (root.pending && root.keys.every(key => root.draft[key] === root.chat.peek[key])) { root.pending=false; root.reset() }
             else if (!root.dirty) root.reset()
         }
-        function onErrorChanged() { if (root.chat.error) root.pending=false }
+        function onErrorChanged() { if (root.chat.error) { root.pending=false; root.runtimePending=false } }
     }
 
     component Note: Text {
@@ -113,7 +118,30 @@ ColumnLayout {
         }
     }
 
+    RowLayout {
+        Layout.fillWidth: true
+        Note { text: "Enable Peek"; color: ui.foreground; font.weight: Font.Medium }
+        ChatSwitch {
+            objectName: "peek-runtime"
+            checked: root.runtimeEnabled
+            enabled: !root.runtimePending && !root.runtimeStopping
+            Accessible.name: "Enable Peek"
+            onClicked: {
+                root.runtimeTarget=!root.runtimeEnabled
+                root.runtimePending=true
+                root.chat.request({action:"peek_runtime",enabled:root.runtimeTarget})
+            }
+        }
+    }
+    Note {
+        objectName: "peek-runtime-description"
+        text: root.runtimeStopping ? "Stopping Peek and its background services…"
+            : root.runtimeEnabled ? "Turn off to stop Peek’s speech, control server, watches, and database activity. Saves immediately, including during a Peek task."
+            : "Peek is disabled and stays off after restart. Saved data is kept. Chat, notes, and to-dos still work."
+    }
+    Note { visible: !!root.chat.peek.error; text: root.chat.peek.error || "" }
     Flow {
+        enabled: root.runtimeEnabled && !root.runtimePending
         Layout.fillWidth: true; spacing: Style.space(3)
         Repeater {
             model: ["Speech","Listening","Control","Companion"]
@@ -122,6 +150,7 @@ ColumnLayout {
     }
     Flickable {
         id: scroll
+        enabled: root.runtimeEnabled && !root.runtimePending
         Layout.preferredHeight: Math.min(fields.implicitHeight, Style.space(420))
         visible: root.section !== "Companion"
         Layout.fillWidth: true; Layout.fillHeight: true
@@ -210,7 +239,7 @@ ColumnLayout {
     }
     Loader {
         id: companion
-        visible: root.section === "Companion"; active: visible
+        visible: root.section === "Companion"; active: visible && root.runtimeEnabled && !root.runtimePending
         Layout.preferredHeight: Math.min(item ? item.contentHeight : 0, Style.space(420))
         Layout.fillWidth: true; Layout.fillHeight: true
         sourceComponent: Component { CompanionSettings { chat: root.chat; draft: root.draft; onSettingChanged: (key,value) => root.set(key,value) } }
@@ -221,14 +250,14 @@ ColumnLayout {
         ActionButton {
             objectName: "peek-apply"
             visible: !root.dataTab || root.dirty
-            text: root.pending ? "Applying…" : "Apply"; accent: true; enabled: root.dirty && !chat.busy && !root.pending
+            text: root.pending ? "Applying…" : "Apply"; accent: true; enabled: root.runtimeEnabled && !root.runtimePending && root.dirty && !chat.busy && !root.pending
             onClicked: { var changed={}; for (var key of root.keys) if (root.draft[key] !== root.saved[key]) changed[key]=root.draft[key]; root.pending=true; chat.request({action:"peek_settings",settings:changed}) }
         }
         ActionButton { text: root.dirty ? "Discard" : "Back"; subtle: true; onClicked: { if (root.dirty) root.reset(); else root.done() } }
         ActionButton {
             objectName: "peek-defaults"
             visible: !root.dataTab && Object.keys(root.defaults).length > 0
-            text: "Defaults"; subtle: true; enabled: !root.atDefaults && !chat.busy
+            text: "Defaults"; subtle: true; enabled: root.runtimeEnabled && !root.runtimePending && !root.atDefaults && !chat.busy
             hint: "Restore the built-in Peek preferences, then Apply"
             onClicked: root.restoreDefaults()
         }

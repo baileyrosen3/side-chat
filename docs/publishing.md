@@ -2,7 +2,7 @@
 
 Side Chat follows the Git install/update pattern in the local
 `omarchy-agents` repository. Its plugin ID is `blr.side-chat`; it is a
-service and does not replace Omarchy's Agents bar widget.
+bar widget with a shared background service. It uses Omarchy’s native popup and can be embedded by Island. It does not replace Omarchy’s Agents widget.
 
 ## Before publishing
 

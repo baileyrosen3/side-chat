@@ -6,12 +6,12 @@
 </div>
 
 <p align="center">
-  <img src="screenshots/workspace-chat.png" alt="Side Chat with shared Chat, Notes, and To-dos tabs and Peek in the app header" width="400">
+  <img src="screenshots/native-panel.png" alt="Side Chat in the native Omarchy popup, with Chat, Notes, To-dos, and Peek" width="460">
 </p>
 
-**Chat** turns the agent you already use—OMP, Pi, Codex, or Claude—into a compact edge drawer with persistent sessions, native tools, approvals, and terminal handoff. **Peek** adds hands-free local voice, durable memory, fast desktop commands, and visible computer control. **Notes and To-dos** share the same drawer, header, navigation, and Peek controls. The numpad groups web apps, workspace tabs, and tap-to-toggle listening into three rows. The workspace includes task reminders, selected-text capture, shared search, source links, and recovery while keeping the same three tabs.
+**Chat** turns the agent you already use—OMP, Pi, Codex, or Claude—into a native bar panel with persistent sessions, native tools, approvals, and terminal handoff. **Peek** adds hands-free local voice, durable memory, fast desktop commands, and visible computer control. **Notes and To-dos** share the same panel, header, navigation, and Peek controls. The numpad groups web apps, workspace tabs, and tap-to-toggle listening into three rows. The workspace includes task reminders, selected-text capture, shared search, source links, and recovery while keeping the same three tabs.
 
-Version **1.16.1** adds clearer controls, adaptive Notes, separate Stop and Redirect actions, safer draft recovery, and faster conversation rendering and search. It also fixes a startup lock conflict between reminder checks and saved drafts. See the [UI and interaction audit](docs/audit-fixes-2026-09-12.md) for the changes and validation.
+Version **1.17.0** moves the workspace into a regular Omarchy bar plugin. Click its chat icon to open the native popup, or use your existing shortcuts. The panel follows your bar placement, theme, and Island embedding. Replies, reminders, drafts, and Peek continue through one shared background service.
 
 ## Meet Peek
 
@@ -51,24 +51,24 @@ Speech recognition and synthesis run locally after setup. Voxtype is the default
   <img src="screenshots/permissions.png" alt="Per-conversation Codex permission modes" width="48%">
 </p>
 
-All screenshots use fixture content. No microphone, provider session, or private desktop content was captured.
+The main screenshot shows the native 1.17 panel; older feature screenshots show the previous frame. All screenshots use fixture content. No microphone, provider session, or private desktop content was captured.
 
 </details>
 
 ## Thoughts: quick notes and to-dos
 
 <p align="center">
-  <img src="screenshots/thoughts.png" alt="Notes inside the Side Chat drawer with the shared navigation and Peek controls; fixture content" width="32%">
-  <img src="screenshots/workspace-todos.png" alt="To-dos in the same Side Chat drawer; fixture content" width="32%">
+  <img src="screenshots/thoughts.png" alt="Notes inside the Side Chat panel with the shared navigation and Peek controls; fixture content" width="32%">
+  <img src="screenshots/workspace-todos.png" alt="To-dos in the same Side Chat panel; fixture content" width="32%">
   <img src="screenshots/workspace-peek.png" alt="Peek controls with the same Chat, Notes, and To-dos navigation; fixture content" width="32%">
 </p>
 
-Choose **Notes** or **To-dos** beside **Chat** in the drawer's navigation.
-Peek's controls use the same tabs. Everything opens in the same edge drawer,
-with a shared app header, theme, window controls, and sliding tab highlight.
+Choose **Notes** or **To-dos** beside **Chat** in the panel's navigation.
+Peek's controls use the same tabs. Everything opens in the same native bar panel,
+with a shared app header, theme, controls, and sliding tab highlight.
 Switching sections preserves both your chat draft and unfinished notes.
 
-The **Peek** button in the app header brings the companion alongside the drawer.
+The **Peek** button in the app header brings the companion alongside the panel.
 While enabled, Peek reacts to note capture and saving. Notes and to-dos also work
 with Peek powered off and while a chat reply is running.
 
@@ -83,7 +83,7 @@ with Peek powered off and while a chat reply is running.
   returns to Chat with its text in the composer for you to review and send. Saved items and messages keep a clickable link to their source note or conversation.
 - **Convert:** hover an item and choose the checkmark to turn a note into a task, or the pencil to turn a task into a note. Converting to a note clears completion and its reminder.
 
-The drawer eases between content sizes, pages fade into place, and checked
+The native popup follows content sizes, pages fade into place, and checked
 to-dos fold out of the list. Peek's **Reduce motion** preference applies throughout.
 
 Drafts recover across closing, changing tabs, and restarting. Notes remain plain
@@ -147,7 +147,7 @@ Ask Peek uses the shared chat and never sends automatically. The source app is
 shown when available. Your existing note and chat drafts are preserved.
 
 Selection is read through accessibility or Wayland's primary selection before
-opening the drawer. If an application does not expose its selection, copy the
+opening the panel. If an application does not expose its selection, copy the
 text and choose **Use clipboard**. Capture does not synthesize Copy or overwrite
 your clipboard. The Clipboard button in search explicitly reads copied text.
 
@@ -172,9 +172,9 @@ workspace rather than a complete copy of your CLI agents.
 
 ## Your agent, without another terminal in the way
 
-Move to the lower-left edge of either display and Side Chat peels into view. Leave it and the preview disappears; click it and it stays open. Replies keep running when the panel closes and a desktop notification tells you when one is ready. Short conversations stay compact, and long ones scroll naturally.
+Click the Side Chat icon in your bar, or use your existing keybinding. The native popup opens by that bar icon and closes with Escape, Close, or a click outside. Replies keep running when the panel closes and a desktop notification tells you when one is ready. Short conversations stay compact, and long ones scroll naturally.
 
-This is not a second AI account or a web wrapper. Side Chat uses your installed CLI, its authentication, its provider, and its native conversation format. Start in the drawer, continue the same session in a full terminal, then return without losing the thread.
+This is not a second AI account or a web wrapper. Side Chat uses your installed CLI, its authentication, its provider, and its native conversation format. Start in the panel, continue the same session in a full terminal, then return without losing the thread.
 
 ## What it does
 
@@ -191,7 +191,7 @@ This is not a second AI account or a web wrapper. Side Chat uses your installed 
 - Follows the live Omarchy theme, active-window border, scale, and multi-monitor layout.
 - Includes searchable history, drafts, rename, delete, Markdown export, file drop, and clipboard image paste.
 - Renders selectable Markdown and fenced code with dedicated copy actions.
-- Opens from the screen edge or IPC, with no replacement bar widget and no overwritten keybindings.
+- Opens from its bar icon or existing IPC/keybindings, using Omarchy’s native popup and Island integration.
 
 ### Voice and computer control
 
@@ -239,7 +239,7 @@ If Omarchy asks whether to enable the plugin immediately, choose **No** until se
 ```bash
 cd ~/.config/omarchy/plugins/blr.side-chat
 python3 setup.py
-omarchy plugin enable blr.side-chat
+omarchy bar put blr.side-chat
 omarchy-shell blr.side-chat open
 ```
 
@@ -325,7 +325,7 @@ o.bind("code:91", "Toggle Peek microphone", "omarchy-shell blr.side-chat peekTog
 ```
 
 These physical keycodes match this desktop's Magic Keyboard. The full mapping
-also clears previous bindings before assigning each key. To bind the chat drawer
+also clears previous bindings before assigning each key. To bind the chat panel
 to another unused key, use `omarchy-shell blr.side-chat toggle`.
 
 The preferred desktop controls now live on the numpad:
@@ -339,10 +339,10 @@ The preferred desktop controls now live on the numpad:
 Tap **1 / 2 / 3** once to open that section and start listening, then again to
 stop. In Chat, Peek transcribes and handles the voice request as usual; Notes
 and To-dos prepare drafts to review and save. The **.** key uses the same Peek
-microphone as **1**, without opening the Chat drawer. Finish a recording before
+microphone as **1**, without opening the Chat panel. Finish a recording before
 switching voice destinations.
 
-**Clear** hides the drawer; **/** stops work; **=** opens Peek controls.
+**Clear** hides the panel; **/** stops work; **=** opens Peek controls.
 **+ / − / \*** retain volume and play/pause. Old numpad launchers temporarily
 use **Super + the same numpad key**. See [the complete map](docs/keypad.md).
 **Ctrl+K** searches inside the app. History and Preferences remain accessible
@@ -365,7 +365,7 @@ The second command should report no errors.
 
 ## Use
 
-Move the pointer into the bottom 160 scaled pixels of the left screen edge. Click to pin the panel open; use Escape, Close, or click outside to dismiss it. While Peek is on, edge hover is off so it cannot fight with dragging him; open chat from Peek's controls or your keybinding instead.
+Click the Side Chat bar icon, use your keybinding, or open Chat from Peek. Use Escape, Close, or click outside to dismiss the native popup. On a monitor with no bar, shortcuts open it on an available bar. There is no edge-hover trigger.
 
 | Shortcut | Action |
 | --- | --- |
@@ -387,18 +387,36 @@ Useful IPC commands:
 | `omarchy-shell blr.side-chat peek` | Open or close Peek |
 | `omarchy-shell blr.side-chat peekToggleMicrophone` | Toggle Peek's microphone |
 | `omarchy-shell blr.side-chat companionControls` | Open Peek controls |
-| `omarchy-shell blr.side-chat thoughts` | Open or close Notes / To-dos in the shared drawer |
+| `omarchy-shell blr.side-chat thoughts` | Open or close Notes / To-dos in the shared panel |
 | `omarchy-shell blr.side-chat thoughtsNew` | Open a new note draft |
 | `omarchy-shell blr.side-chat thoughtsTodos` | Open To-dos |
 | `omarchy-shell blr.side-chat thoughtsCaptureStart` | Start recording a note |
 | `omarchy-shell blr.side-chat thoughtsCaptureStop` | Stop recording and transcribe into a draft |
 | `omarchy-shell blr.side-chat thoughtsCaptureCancel` | Cancel note recording |
-| `omarchy-shell blr.side-chat captureSelection` | Capture selected text before opening the drawer |
+| `omarchy-shell blr.side-chat captureSelection` | Capture selected text before opening the panel |
 | `omarchy-shell blr.side-chat workspaceSearch` | Open or close shared search |
 | `omarchy-shell blr.side-chat keypad ACTION` | Run a keypad action: `chat`, `notes`, `todos`, `listen-chat`, `listen-notes`, `listen-todos`, `note`, `selection`, `search`, `workspace`, `history`, `settings`, `peek`, `microphone`, `record`, `record-stop`, `stop`, `hide`, `controls` |
 | `omarchy-shell blr.side-chat status \| jq` | Show live plugin status |
 
 `openOnScreen DP-1` and `peekOnScreen DP-3` target a specific monitor. `peekSettings` opens advanced voice and control settings. Selecting a microphone does not enable listening.
+
+To disable Peek completely, open **Peek settings** and turn **Enable Peek** off.
+This saves immediately and stops its active task, speech/recognition workers,
+computer-control server, isolated browser, background watches, and companion
+database activity. It stays disabled across shell restarts and plugin updates;
+Peek and microphone shortcuts open its settings until you enable it again.
+The saved SQLite database, memories, routines, and downloaded models are kept.
+Chat, notes, to-dos, and their shared backend continue running. The shared
+Voxtype daemon remains available for regular dictation; Peek releases its recording.
+Re-enabling Peek restores its background watches (overdue watches may notify),
+but does not open its microphone or start speech until you open Peek.
+
+The same setting is available through IPC:
+
+```bash
+omarchy-shell blr.side-chat peekDisable
+omarchy-shell blr.side-chat peekEnable
+```
 
 ## Permissions and terminal handoff
 
@@ -409,6 +427,8 @@ For Claude and Codex, **Always allow Bash** approves future Bash requests only i
 Click **Terminal** after the first prompt to continue that exact native session in Omarchy's terminal. An exclusive lock prevents the panel and terminal from writing simultaneously. Exit the agent in the terminal to return ownership to Side Chat.
 
 ## Update
+
+When upgrading from the edge panel, run `python3 panel_setup.py` inside the updated checkout once to move its service-only entry onto the bar (use `--check` to preview). Existing chats, notes, preferences, and shortcuts keep the same plugin ID.
 
 Finish the active reply and power Peek off, then run:
 
@@ -512,7 +532,7 @@ Rerun setup with the same flags. Completed, verified downloads and existing comp
 
 ```bash
 omarchy plugin disable blr.side-chat
-omarchy plugin enable blr.side-chat
+omarchy bar put blr.side-chat
 omarchy plugin remove blr.side-chat
 ```
 

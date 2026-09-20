@@ -823,6 +823,8 @@ class Bridge(NativeBridge):
                 path.write_bytes(result.stdout)
                 self.emit(type="attachment", path=str(path))
             elif action == "ping":
+                try:self.thoughts.check_reminders()
+                except Exception:pass  # Retry on the next heartbeat, independently of Peek.
                 self.check_terminal()
                 if self.sync_default_agent():self.snapshot()
                 else:self.emit(type="meta", meta=self.metadata())

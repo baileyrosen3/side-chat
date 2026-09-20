@@ -21,7 +21,25 @@ Rectangle {
     TestCase {
         name: "SpeechSettings"
         when: windowShown
-        function init() { failOnWarning(/.?/); chat.busy=false; settings.section="Speech"; settings.reset(); chat.commands=[] }
+        function init() { failOnWarning(/.?/); chat.busy=false; chat.error=""; chat.peek=Object.assign({},chat.peek,{runtimeEnabled:true,runtimeStopping:false}); settings.runtimePending=false; settings.section="Speech"; settings.reset(); chat.commands=[] }
+        function test_disable_is_immediate_during_task_and_preserves_drafts() {
+            settings.set("voice","fantine"); chat.busy=true;
+            var toggle=findChild(settings,"peek-runtime"); verify(toggle.enabled);
+            toggle.clicked();
+            compare(chat.commands.length,1); compare(chat.commands[0].action,"peek_runtime");
+            compare(chat.commands[0].enabled,false); verify(settings.runtimePending);
+            chat.peek=Object.assign({},chat.peek,{runtimeEnabled:false,runtimeStopping:true});
+            verify(!toggle.enabled); verify(!findChild(settings,"peek-apply").enabled);
+            chat.peek=Object.assign({},chat.peek,{runtimeStopping:false});
+            verify(toggle.enabled); verify(!settings.runtimePending); verify(settings.dirty);
+            compare(settings.draft.voice,"fantine");
+            verify(findChild(settings,"peek-runtime-description").text.indexOf("disabled") >= 0);
+            toggle.clicked(); compare(chat.commands[1].enabled,true);
+        }
+        function test_runtime_error_allows_retry() {
+            var toggle=findChild(settings,"peek-runtime"); toggle.clicked();
+            chat.error="Could not save"; verify(!settings.runtimePending); verify(toggle.enabled);
+        }
         function test_preview_uses_draft_without_apply() {
             settings.set("voice","fantine");
             var button=findChild(settings,"voicePreview"); verify(button); verify(button.enabled);

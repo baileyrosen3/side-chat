@@ -1,5 +1,16 @@
 # Manual test handoff — Side Chat
 
+Peek shutdown, 1.17.1: open Peek settings and turn **Enable Peek** off, including
+during a task. Wait for the stopping message to clear. Its voice and control
+workers, cursor tracker, child processes, echo modules, watch loop, and companion
+database activity should stop. Close and reopen the shell; Peek remains disabled,
+and its shortcuts open settings. Chat, notes, and to-do reminders still work.
+Re-enable Peek to recover saved memories/routines without automatically starting
+the microphone. `tests/test_peek_runtime.py` covers persistence, database access,
+thread and process cleanup, active/hidden task cancellation, unrelated chat
+sessions, failed saves, and rapid re-enabling. The speech settings and panel routing
+tests cover the immediate switch, retained drafts, and shortcut guards.
+
 Permission modes: open the selector above the composer or type `/permissions`; switch modes while idle, reopen the conversation, and hand a native session to the terminal. The choice should persist, new conversations should use their defaults, and selecting a mode should clear an existing Always allow Bash override. Busy, disconnected, pending-approval, and terminal-owned sessions must not change modes. OpenCode has Chat only and Auto approve, with completed tool activity but no inline questions. Claude Auto availability and organization-enforced restrictions still need testing with the relevant accounts.
 
 Automated permission checks: `python3 -m unittest discover -s tests -p 'test_permission_modes.py'`, `bun tests/test_pi_permissions.ts`, and `QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME=generic QT_QUICK_CONTROLS_STYLE=Basic QT_QUICK_BACKEND=software /usr/lib/qt6/bin/qmltestrunner -input tests/qml/tst_permissions.qml -import tests/qml/imports -v1`. Codex/Claude startup modes, Pi extension loading, all three OMP approval flags, and Codex restoration of CLI defaults were also checked with isolated local CLI sessions without sending model turns. The OMP startup check used a placeholder credential only to enable its bundled model catalog. The full Python suite finished with 129 passed and 4 optional checks skipped; the permission UI finished with 7 checks passed.

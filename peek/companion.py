@@ -25,7 +25,7 @@ class Companion:
         self.owner=controller;self.store=Store(controller.bridge.state)
         self.undo=UndoJournal(controller.bridge.state)
         self.quit=threading.Event();self.generation=0
-        self.thread=threading.Thread(target=self.watch_loop,daemon=True);self.thread.start()
+        self.thread=threading.Thread(target=self.watch_loop,name='peek-watches',daemon=True);self.thread.start()
 
     def publish(self):
         self.owner.publish(memories=self.store.items('memory'),routines=self.store.items('routine'),
@@ -52,13 +52,8 @@ class Companion:
         return self.store.put('watch',dict(data,message=message,state='waiting'))
 
     def check_watches(self):
-        thoughts = getattr(self.owner.bridge, 'thoughts', None)
-        if thoughts:
-            try:
-                thoughts.check_reminders()
-            except Exception:
-                pass  # A reminder can retry without delaying existing timer watches.
         for r in self.store.items('watch'):
+            if self.quit.is_set():break
             if r['state']!='waiting':continue
             if r['kind']=='timer':done=time.time()>=r['due']
             else:
@@ -200,4 +195,4 @@ class Companion:
         if c.get('requestId'):self.owner.publish(companionSavedRequest=c['requestId'])
         return True
 
-    def close(self):self.generation+=1;self.quit.set();self.thread.join(timeout=3)
+    def close(self):self.generation+=1;self.quit.set();self.thread.join()

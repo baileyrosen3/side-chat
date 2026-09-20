@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Hyprland
 import qs.Commons
 import "Keypad.js" as Keypad
+import "ChatBridge.js" as Bridge
 
 Scope {
     id: root
@@ -22,7 +23,7 @@ Scope {
     property string openScreen: ""
     property string companionScreen: ""
     property real panelWidth: 360
-    property string hoveredScreen: ""
+    property var panels: []
     property bool pinned: false
     property bool restoring: false
     property var attachments: []
@@ -59,6 +60,9 @@ Scope {
     signal settingsSaved()
     signal preferencesRequested()
 
+    Component.onCompleted: Bridge.setService(root)
+    Component.onDestruction: Bridge.clearService(root)
+
     function agentLabel(id) {
         return ({omp: "Oh My Pi", pi: "Pi", claude: "Claude", codex: "Codex", opencode: "OpenCode", gemini: "Gemini", copilot: "Copilot", crush: "Crush", grok: "Grok"})[id] || id
     }
@@ -68,18 +72,35 @@ Scope {
         return true
     }
     function show(screenName, persistent) {
-        dismiss.stop()
-        openScreen = screenName
-        if (persistent) { pinned = true; Qt.callLater(root.focusWorkspace) }
+        var available = panels.filter(panel => panel.available)
+        var panel = available.find(panel => panel.screenName === screenName) || available[0]
+        if (!panel) {
+            error = "Add Side Chat to your Omarchy bar to open the workspace."
+            return false
+        }
+        panel.open()
+        Qt.callLater(root.focusWorkspace)
+        return true
+    }
+    function panelOpened(panel) {
+        openScreen = panel.screenName
+        pinned = true
+        panels.forEach(other => { if (other !== panel && other.opened) other.close() })
         request({action: "ping"})
+        Qt.callLater(root.focusWorkspace)
+    }
+    function panelClosed(panel) {
+        if (openScreen !== panel.screenName) return
+        saveDraft()
+        openScreen = ""; pinned = false; workspaceModel.mode = ""
     }
     function open() {
-        var focused = Hyprland.focusedMonitor
-        show(focused ? focused.name : Quickshell.screens[0].name, true)
+        show(thoughtsScreen(), true)
     }
     function close() {
         saveDraft()
         openScreen = ""; pinned = false; workspaceModel.mode=""
+        panels.forEach(panel => { if (panel.opened) panel.close() })
     }
     function showCompanion() {
         var focused=Hyprland.focusedMonitor
@@ -87,6 +108,7 @@ Scope {
         close(); page="chat"
     }
     function setPeek(enabled, reopen) {
+        if (enabled && !requirePeek()) return
         if (enabled) showCompanion()
         else if (reopen !== false) openConversation()
         request({action:"peek",enabled:enabled,accent:String(Color.accent)})
@@ -116,18 +138,26 @@ Scope {
         else openConversation()
     }
     function openWorkspacePeek() {
+        if (!requirePeek()) return
         companionScreen=openScreen || thoughtsScreen()
         if (!peek.enabled) request({action:"peek",enabled:true,accent:String(Color.accent)})
         else companionControlsRequested()
     }
     function openPeekSettings(from) { workspaceModel.mode="";visit("peek_settings");show(openScreen || companionScreen || thoughtsScreen(),true) }
+    function requirePeek() {
+        if (peek.runtimeEnabled !== false && !peek.runtimeStopping) return true
+        openPeekSettings()
+        return false
+    }
     function openHistory() {workspaceModel.mode="";visit("history");open()}
     function openPreferences() {workspaceModel.mode="";open();preferencesRequested()}
     function toggleMicrophone() {
+        if (!requirePeek()) return
         if(!peek.enabled) showCompanion()
         request({action:"peek_toggle_listen",accent:String(Color.accent)})
     }
     function toggleChatListening() {
+        if (!requirePeek()) return
         if(thoughtsModel.recording) {
             thoughtsModel.stopCapture()
             thoughtsModel.error="Finishing this capture. Press Numpad 1 again to listen in Chat."
@@ -154,7 +184,7 @@ Scope {
         workspaceModel.mode="";pageHistory=[];page=thoughtsModel.kind === "todo" ? "todos" : "notes"
         show(openScreen || (peek.enabled ? companionScreen : "") || thoughtsScreen(),true)
     }
-    function thoughtsScreen() { return Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : Quickshell.screens[0].name }
+    function thoughtsScreen() { return Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : Quickshell.screens.length ? Quickshell.screens[0].name : "" }
     function saveThought(text) {
         if(thoughtsModel.recording || thoughtsModel.saving) {thoughtsModel.error="Finish this capture first.";thoughtsModel.show();return}
         thoughtsModel.switchKind("note");thoughtsModel.show();thoughtsModel.newThought(text,{kind:"chat",id:current ? current.id : "",label:current ? current.title : "Conversation"})
@@ -163,17 +193,7 @@ Scope {
         if(!source || !source.id) return
         workspaceModel.activate({kind:source.kind === "chat" ? "chat" : "note",id:source.id})
     }
-    function hover(screenName, inside) {
-        if (peek.enabled && !openScreen) return
-        if (inside) {
-            hoveredScreen = screenName
-            show(screenName, false)
-        } else if (hoveredScreen === screenName) {
-            hoveredScreen = ""
-            if (!pinned) dismiss.restart()
-        }
-    }
-    function pin() { pinned = true; dismiss.stop() }
+    function pin() { pinned = true }
     function saveDraft() {
         draftSave.stop()
         if (!connected) return false
@@ -262,7 +282,7 @@ Scope {
         } else if (event.type === "peek_wake") {
             if (!companionScreen) companionScreen=Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : Quickshell.screens[0].name
         } else if (event.type === "peek_hide") {
-            root.openScreen=""; root.pinned=false
+            root.close()
         } else if (event.type === "peek") {
             peek = Object.assign({},peek,event.state)
         } else if (event.type === "peek_pointer") {
@@ -327,7 +347,6 @@ Scope {
     onAttachmentsChanged: if (!restoring) draftSave.restart()
     onEditIndexChanged: if (!restoring) draftSave.restart()
     Timer { id: draftSave; interval: 500; onTriggered: root.saveDraft() }
-    Timer { id: dismiss; interval: 420; onTriggered: if (!root.pinned && !root.hoveredScreen) root.close() }
     Timer { id: noticeClear; interval: 3000; onTriggered: root.notice = "" }
     Timer { id: pointerClear; interval: 1800; onTriggered: root.aiPointer = ({visible:false}) }
     Timer { interval: 3000; repeat: true; running: root.connected; onTriggered: root.request({action: "ping"}) }
@@ -387,16 +406,14 @@ Scope {
             catch (e) { root.error="Invalid Peek preferences: " + e }
         }
         function peekSettings(): void { root.openPeekSettings() }
+        function peekDisable(): void { root.request({action:"peek_runtime",enabled:false}) }
+        function peekEnable(): void { root.request({action:"peek_runtime",enabled:true}) }
         function companionControls(): void { if(root.peek.enabled) root.companionControlsRequested() }
         function stop(): void { root.request({action:"peek_stop"}) }
-        function status(): string { return JSON.stringify({uiVersion:root.uiVersion,uiSource:String(Qt.resolvedUrl("Main.qml")),connected: root.connected, busy: root.busy, agent: root.meta.agent, conversationAgent:root.current ? root.current.agent : "", agentLabel:root.agentName, open: root.openScreen, page:root.page,companionScreen:root.companionScreen, appearance:root.meta.appearance || {outline:true}, bashApproval:root.current ? (root.current.bashApproval || "ask") : "ask", peek:root.peek, thoughts:{open:thoughtsModel.openScreen,phase:thoughtsModel.voicePhase,counts:thoughtsModel.counts}}) }
+        function status(): string { return JSON.stringify({uiVersion:root.uiVersion,uiKind:"bar-panel",panels:root.panels.map(p=>({screen:p.screenName,available:p.available,open:p.opened})),uiSource:String(Qt.resolvedUrl("Main.qml")),connected: root.connected, busy: root.busy, agent: root.meta.agent, conversationAgent:root.current ? root.current.agent : "", agentLabel:root.agentName, open: root.openScreen, page:root.page,companionScreen:root.companionScreen, appearance:root.meta.appearance || {outline:true}, bashApproval:root.current ? (root.current.bashApproval || "ask") : "ask", peek:root.peek, thoughts:{open:thoughtsModel.openScreen,phase:thoughtsModel.voicePhase,counts:thoughtsModel.counts}}) }
     }
     ThoughtsModel { id:thoughtsModel;chat:root }
     WorkspaceModel {id:workspaceModel;chat:root}
-    Variants {
-        model: Quickshell.screens
-        ChatWindow { required property var modelData; screen: modelData; chat: root }
-    }
     Variants {
         model: Quickshell.screens
         AgentPointer { required property var modelData; screen: modelData; chat: root }
@@ -410,8 +427,8 @@ Scope {
         function onScreensChanged() {
             if (!Quickshell.screens.some(s=>s.name === root.companionScreen) && Quickshell.screens.length)
                 root.companionScreen=Quickshell.screens[0].name
-            if (root.openScreen && !Quickshell.screens.some(s=>s.name === root.openScreen) && Quickshell.screens.length)
-                root.openScreen=Quickshell.screens[0].name
+            if (root.openScreen && !Quickshell.screens.some(s=>s.name === root.openScreen))
+                root.close()
         }
     }
 }

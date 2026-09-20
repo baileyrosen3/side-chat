@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Ui as Ui
 ShellRoot {
  id: fixture
  ThoughtsModel {id:previewThoughts;chat:chat}
@@ -100,8 +101,23 @@ ShellRoot {
    catch(e) { chat.uiVersion="development" }
   }
  }
- ChatWindow { id: panel; screen: Quickshell.screens[Quickshell.screens.length-1]; chat: chat }
- CompanionWindow { id: buddy; screen: panel.screen; chat: chat }
+ PreviewBar {
+  id: previewBar
+  screen: Quickshell.screens[Quickshell.screens.length-1]
+  Ui.BarIconButton { id: previewButton; bar: previewBar.api; text: "󰭹"; onPressed: chat.openScreen ? chat.close() : chat.openConversation() }
+ }
+ Ui.KeyboardPanel {
+  id: previewPopup
+  anchorItem: previewButton
+  bar: previewBar.api
+  owner: chat
+  open: !!chat.openScreen
+  focusTarget: panel
+  contentWidth: fittedContentWidth(panel.implicitWidth)
+  contentHeight: fittedContentHeight(panel.implicitHeight)
+  ChatWindow { id: panel; anchors.fill: parent; opened: !!chat.openScreen; chat: chat }
+ }
+ CompanionWindow { id: buddy; screen: previewBar.screen; chat: chat }
  IpcHandler {
   target: "side-chat-design"
   function mode(stage: string): void { chat.peek=Object.assign({},chat.peek,{stage:stage,standby:stage === "standby",speaking:stage === "speaking",caption:stage === "speaking" ? "Ready when you are." : ""});chat.busy=stage === "thinking" || stage === "acting" }
@@ -110,7 +126,7 @@ ShellRoot {
   function show(): void { chat.peek=Object.assign({},chat.peek,{enabled:true});chat.openConversation() }
   function hide(): void { chat.close() }
   function empty(): void { chat.startNew() }
-  function status(): string { return JSON.stringify({request:chat.lastRequest,voice:chat.peek,open:chat.openScreen,page:chat.page,buddy:{left:buddy.margins.left,bottom:buddy.margins.bottom,width:buddy.width,height:buddy.height},panel:{width:panel.width,height:panel.height}}) }
+  function status(): string { return JSON.stringify({request:chat.lastRequest,voice:chat.peek,open:chat.openScreen,page:chat.page,buddy:{left:buddy.margins.left,bottom:buddy.margins.bottom,width:buddy.width,height:buddy.height},panel:{width:panel.width,height:panel.height,visible:previewPopup.visible,origin:previewPopup.cardOrigin,cardWidth:previewPopup.contentWidth,cardHeight:previewPopup.contentHeight,focus:panel.activeFocus}}) }
   function section(name: string): void {
    var settings=chat.findItem(panel.contentItem,"peek-settings")
    if(settings) settings.section=name
@@ -159,7 +175,7 @@ ShellRoot {
   }
   function snapshot(name: string): void {
    if(!/^[a-z-]+$/.test(name)) return
-   panel.contentItem.children.find(c=>c.objectName === "chat-drawer").grabToImage(r=>r.saveToFile("/tmp/side-chat-"+name+".png"))
+   panel.parent.parent.grabToImage(r=>r.saveToFile("/tmp/side-chat-"+name+".png"))
   }
   function reviewGeometry(): string {
    var thread=chat.findItem(panel.contentItem,"message-thread"), rows=[]
@@ -197,7 +213,7 @@ ShellRoot {
    if(dock) dock.grabToImage(r=>r.saveToFile("/tmp/side-chat-"+name+".png"))
   }
   function capture(): void {
-   panel.contentItem.children.find(c=>c.objectName === "chat-drawer").grabToImage(r=>r.saveToFile("/tmp/side-chat-design-panel.png"))
+   panel.parent.parent.grabToImage(r=>r.saveToFile("/tmp/side-chat-design-panel.png"))
    buddy.contentItem.children.find(c=>c.objectName === "peek-surface").grabToImage(r=>r.saveToFile("/tmp/side-chat-design-buddy.png"))
   }
  }

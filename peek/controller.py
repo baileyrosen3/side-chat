@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 import re
 import queue
+import signal
 import subprocess
 import threading
 import time
@@ -87,6 +88,8 @@ class PeekController:
         self.guard=threading.RLock()
         self.write_lock=threading.Lock()
         self.voice=None;self.control=None
+        self.reader_threads=[]
+        self.local_worker=None
         self.closed=False;self.was_busy=False
         self.speech=SpeechSegments();self.turn='';self.pending=''
         self.want_listen=False;self.spoken=False
@@ -115,11 +118,101 @@ class PeekController:
         self.task=TaskProgress()
         self.task_chat=''
         self.feedback_stop=threading.Event()
+        self.companion=None
+        self.feedback_thread=None;self.input_thread=None;self.shutdown_thread=None
+        if self.prefs['runtimeEnabled']:self.start_background()
+
+    def start_background(self):
+        self.feedback_stop.clear()
         self.companion=Companion(self)
-        self.feedback_thread=threading.Thread(target=self.feedback_loop,daemon=True)
+        self.feedback_thread=threading.Thread(target=self.feedback_loop,name='peek-feedback',daemon=True)
         self.feedback_thread.start()
-        self.input_thread=threading.Thread(target=self.input_loop,daemon=True)
+        self.input_thread=threading.Thread(target=self.input_loop,name='peek-input',daemon=True)
         self.input_thread.start()
+
+    def stop_background(self):
+        self.feedback_stop.set()
+        if self.companion:self.companion.close()
+        for thread in (self.feedback_thread,self.input_thread):
+            if thread and thread is not threading.current_thread():thread.join()
+        self.companion=None
+        self.feedback_thread=None;self.input_thread=None
+        while True:
+            try:self.input_queue.get_nowait();self.input_queue.task_done()
+            except queue.Empty:break
+
+    def set_runtime(self, enabled):
+        if not isinstance(enabled,bool):raise ValueError('Enable Peek must be on or off.')
+        if self.shutdown_thread and self.shutdown_thread.is_alive():
+            raise ValueError('Peek is still shutting down. Please wait.')
+        if enabled == self.prefs['runtimeEnabled'] and not self.state.get('error'):
+            self.publish();return
+        prefs=dict(self.prefs,runtimeEnabled=enabled)
+        self.bridge.db.execute("INSERT OR REPLACE INTO settings VALUES ('peek',?)",(json.dumps(prefs),))
+        self.bridge.db.commit();self.prefs=prefs
+        if enabled:
+            if not self.companion:self.start_background()
+            self.publish(runtimeEnabled=True,runtimeStopping=False,error='',caption='')
+            self.companion.publish()
+            return
+        # Save first, block all new entry points, then reap outside bridge.lock:
+        # input/agent threads need that lock to finish their cancelled work.
+        was_enabled=self.enabled
+        self.state['enabled']=False
+        self.invalidate_input();self.feedback_stop.set()
+        if self.companion:self.companion.quit.set();self.companion.generation+=1
+        self.pending=''
+        rpc=self.bridge.rpc if getattr(self.bridge.rpc,'peek_enabled',False) else None
+        worker=self.bridge.worker if (was_enabled or rpc) and self.bridge.busy else None
+        if self.local_worker and self.local_worker.is_alive():worker=self.local_worker
+        if was_enabled or rpc or worker:self.bridge.cancelled.set()
+        if rpc:
+            self.bridge.rpc=None;self.bridge.rpc_chat='';self.bridge.ui_requests=[]
+            self.bridge.emit(type='agent_ui',requests=[])
+        self.publish(runtimeEnabled=False,runtimeStopping=True,enabled=False,ready=False,
+                     listening=False,speaking=False,stage='off',error='',caption='Stopping Peek…')
+        self.bridge.emit(type='peek_pointer',pointer={'visible':False})
+        def shutdown():
+            try:
+                self.enable(False)
+                if rpc:
+                    proc=getattr(rpc,'proc',None)
+                    try:rpc.close()
+                    finally:self.reap_worker(proc)
+                if worker and worker is not threading.current_thread():worker.join()
+                self.stop_background()
+                self.publish(runtimeStopping=False,stage='off',error='',caption='',memories=[],routines=[],watches=[],
+                             activity=[],restorePoints=[],devices=[],controlCapabilities={})
+            except Exception as exc:
+                self.publish(runtimeStopping=False,error='Could not finish stopping Peek: '+str(exc))
+        self.shutdown_thread=threading.Thread(target=shutdown,name='peek-shutdown',daemon=True)
+        self.shutdown_thread.start()
+
+    @staticmethod
+    def reap_worker(proc, grace=0):
+        """Reap a worker and descendants in the private session we created."""
+        if not proc:return
+        try:
+            if proc.stdin:proc.stdin.close()
+        except OSError:pass
+        try:
+            if grace:proc.wait(timeout=grace)
+            elif proc.poll() is None:proc.terminate();proc.wait(timeout=7)
+        except subprocess.TimeoutExpired:
+            try:os.killpg(proc.pid,signal.SIGTERM)
+            except ProcessLookupError:pass
+            try:proc.wait(timeout=3)
+            except subprocess.TimeoutExpired:pass
+        finally:
+            # A child can outlive a successfully exited parent. All workers
+            # start a new session, so this never targets the shared shell.
+            try:os.killpg(proc.pid,signal.SIGKILL)
+            except ProcessLookupError:pass
+            proc.wait(timeout=3)
+
+    def require_runtime(self):
+        if not self.prefs['runtimeEnabled'] or self.closed or self.state.get('runtimeStopping'):
+            raise ValueError('Peek is disabled. Turn on Enable Peek in Peek settings first.')
 
     def invalidate_input(self):
         with self.guard:
@@ -180,6 +273,7 @@ class PeekController:
                 self.publish(ready=False,listening=False,speaking=False,stage='error',error=label.capitalize()+' worker stopped. Turn Peek off and on again to reconnect.')
 
     def ensure_control(self):
+        self.require_runtime()
         if self.control and self.control.poll() is None:return
         if not self.python.is_file():raise ValueError('Run python3 peek/setup.py to install local speech and input support.')
         self.folder.mkdir(parents=True,exist_ok=True,mode=0o700)
@@ -187,7 +281,8 @@ class PeekController:
         log=open(self.bridge.state/'peek-control.log','a')
         self.control=subprocess.Popen([str(self.python),'-B',str(Path(__file__).with_name('control.py')),'--serve',str(self.socket)],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=log,text=True,start_new_session=True,env=dict(os.environ,SIDE_CHAT_CONTROL_LIFELINE='1',SIDE_CHAT_COMPANION_STATE=str(self.bridge.state),PYTHONDONTWRITEBYTECODE='1'))
         log.close()
-        threading.Thread(target=self.read_process,args=(self.control,self.control_event,'control'),daemon=True).start()
+        reader=threading.Thread(target=self.read_process,args=(self.control,self.control_event,'control'),name='peek-control-reader',daemon=True)
+        self.reader_threads.append(reader);reader.start()
         deadline=time.monotonic()+4
         while not self.socket.exists():
             if self.control.poll() is not None or time.monotonic()>deadline:raise ValueError('Desktop control could not start. Check peek-control.log.')
@@ -205,6 +300,7 @@ class PeekController:
                 '_peek_socket':str(self.socket),'_peek_client':str(Path(__file__).with_name('control.py'))}
 
     def enable(self,enabled):
+        if enabled:self.require_runtime()
         if enabled and self.enabled and self.voice and self.voice.poll() is None:
             self.publish();return
         if enabled:
@@ -219,30 +315,44 @@ class PeekController:
                 log=open(self.bridge.state/'peek-voice.log','a')
                 self.voice=subprocess.Popen([str(self.python),'-B',str(Path(__file__).with_name('voice_worker.py'))],stdin=subprocess.PIPE,stdout=subprocess.PIPE,stderr=log,text=True,start_new_session=True,env=dict(os.environ,HF_HUB_OFFLINE='1',PYTHONDONTWRITEBYTECODE='1',SIDE_CHAT_VOICE_SETTINGS=json.dumps(self.prefs),SIDE_CHAT_VOXTYPE_DIR=str(self.folder/'voxtype')))
                 log.close()
-                threading.Thread(target=self.read_process,args=(self.voice,self.voice_event,'voice'),daemon=True).start()
+                reader=threading.Thread(target=self.read_process,args=(self.voice,self.voice_event,'voice'),name='peek-voice-reader',daemon=True)
+                self.reader_threads.append(reader);reader.start()
             self.configure_control(False)
         else:
+            self.state['enabled']=False
             self.invalidate_input()
             with self.guard:self.feedback.finish()
             self.want_listen=False;self.pending=''
             self.send_worker({'action':'listen','enabled':False});self.send_worker({'action':'cancel'})
-            self.configure_control(False)
+            # Server termination runs its cleanup, including input release and
+            # browser close, without waiting for a stalled control request.
             self.bridge.emit(type='peek_pointer',pointer={'visible':False})
             proc,self.voice=self.voice,None
+            control,self.control=self.control,None
+            try:self.reap_worker(control)
+            finally:self.reap_worker(proc,grace=12)
+            for reader in self.reader_threads:
+                if reader is not threading.current_thread():reader.join()
+            self.reader_threads=[]
+            for worker in (control,proc):
+                if worker and worker.stdout:worker.stdout.close()
             if proc:
-                try:proc.stdin.close()
-                except OSError:pass
-                def reap():
-                    try:proc.wait(timeout=12)
-                    except subprocess.TimeoutExpired:
-                        proc.terminate()
-                        try:proc.wait(timeout=3)
-                        except subprocess.TimeoutExpired:proc.kill()
-                threading.Thread(target=reap,daemon=True).start()
+                from peek.audio import release_worker_audio
+                release_worker_audio(proc.pid)
+            self.socket.unlink(missing_ok=True)
             self.publish(enabled=False,ready=False,listening=False,speaking=False,stage='off',inputLevel=0,outputLevel=0,partial='')
 
     def dispatch(self,c):
         action=c.get('action')
+        if action=='peek_runtime':self.set_runtime(c.get('enabled'));return
+        if action=='peek_settings' and isinstance(c.get('settings'),dict) and 'runtimeEnabled' in c['settings']:
+            if len(c['settings'])!=1:raise ValueError('Change Enable Peek separately from other preferences.')
+            self.set_runtime(c['settings']['runtimeEnabled']);return
+        if not self.prefs['runtimeEnabled'] or self.state.get('runtimeStopping'):
+            if action in ('peek_status','peek_companion_status','peek_devices'):
+                self.publish();return
+            if action=='peek_stop' or (action in ('peek','peek_listen') and c.get('enabled') is False):return
+            self.require_runtime()
         thoughts = getattr(self.bridge, 'thoughts', None)
         if (thoughts and thoughts.capturing and
                 action in ('peek', 'peek_listen', 'peek_toggle_listen', 'peek_standby', 'peek_wake')):
@@ -251,7 +361,7 @@ class PeekController:
         if (thoughts and thoughts.capturing and action == 'peek_settings'
                 and set(c.get('settings', {})) & (RELOAD | {'handsFree', 'wakeEnabled'})):
             raise ValueError('Finish the thought recording before changing microphone settings.')
-        if self.companion.dispatch(c):return
+        if self.companion and self.companion.dispatch(c):return
         if action=='peek':
             self.state['accent']=str(c.get('accent',''))
             self.enable(c.get('enabled') is True)
@@ -382,7 +492,8 @@ class PeekController:
     def stop(self):
         self.invalidate_input()
         with self.guard:self.feedback.finish()
-        self.companion.generation+=1;self.correction_paused=False
+        if self.companion:self.companion.generation+=1
+        self.correction_paused=False
         if self.prefs['asrModel']=='voxtype':self.want_listen=False
         self.pending='';self.bridge.cancelled.set();self.send_worker({'action':'cancel','input':True})
         self.send_worker({'action':'engaged','enabled':False})
@@ -549,7 +660,8 @@ class PeekController:
                     try:self.configure_control(False)
                     except (OSError,RuntimeError):pass
                     chat['updated']=time.time();self.bridge.busy=False;self.bridge.save(chat);self.bridge.snapshot()
-        self.bridge.worker=threading.Thread(target=execute,daemon=True);self.bridge.worker.start()
+        self.bridge.worker=threading.Thread(target=execute,daemon=True)
+        self.local_worker=self.bridge.worker;self.bridge.worker.start()
         return True
 
     def voice_event(self,e):
@@ -653,13 +765,9 @@ class PeekController:
             if self.enabled:self.publish(caption=e.get('reason','Stopped'),actionTarget=None)
 
     def close(self):
-        self.feedback_stop.set();self.feedback_thread.join(timeout=1)
-        self.invalidate_input();self.input_thread.join(timeout=6)
-        self.companion.close()
-        self.closed=True;self.enable(False)
-        proc,self.control=self.control,None
-        if proc:
-            proc.terminate()
-            try:proc.wait(timeout=2)
-            except subprocess.TimeoutExpired:proc.kill();proc.wait(timeout=1)
-        self.socket.unlink(missing_ok=True)
+        self.closed=True
+        if self.shutdown_thread:self.shutdown_thread.join()
+        self.state['enabled']=False
+        self.feedback_stop.set();self.invalidate_input()
+        self.enable(False)
+        self.stop_background()

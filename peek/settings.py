@@ -7,7 +7,7 @@ import shutil
 
 DATA_HOME = Path(os.environ.get('XDG_DATA_HOME', Path.home()/'.local/share'))
 DATA = Path(os.environ.get('SIDE_CHAT_DATA', DATA_HOME/'side-chat'))
-DEFAULTS = dict(scope='desktop', source='', sink='', voice='alba', handsFree=False,
+DEFAULTS = dict(runtimeEnabled=True, scope='desktop', source='', sink='', voice='alba', handsFree=False,
                 muted=False, reducedMotion=False, bargeIn=True, echoCancellation=True, spokenProgress=True,
                 adaptivePause=True, noiseRejection='balanced',
                 asrModel='voxtype', modelPath='', asrThreads=4,

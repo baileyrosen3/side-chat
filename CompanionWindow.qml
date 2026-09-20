@@ -25,7 +25,7 @@ PanelWindow {
     }
     implicitWidth: surface.implicitWidth
     implicitHeight: surface.implicitHeight
-    margins.left: chat.openScreen === screen.name ? Math.min(chat.panelWidth, screen.width - width) : 0
+    margins.left: 0
     margins.bottom: Math.max(Style.space(8), Math.min(screen.height - height - Style.space(28), restingBottom + dragOffset))
     color: "transparent"
     // Keep the native window alive. Qt Quick 3D crashes when a retained View3D
